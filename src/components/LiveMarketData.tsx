@@ -1,0 +1,264 @@
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, RefreshCw, DollarSign, BarChart3, Globe, Activity } from 'lucide-react';
+import { MarketDataService, MarketData, EconomicIndicator, CurrencyRate } from '../services/marketDataService';
+
+const LiveMarketData: React.FC = () => {
+  const [marketData, setMarketData] = useState<MarketData[]>([]);
+  const [economicData, setEconomicData] = useState<EconomicIndicator[]>([]);
+  const [currencyData, setCurrencyData] = useState<CurrencyRate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isLive, setIsLive] = useState(true);
+
+  const marketService = MarketDataService.getInstance();
+
+  useEffect(() => {
+    fetchMarketData();
+    
+    // Set up live updates every 5 seconds
+    const interval = setInterval(() => {
+      if (isLive) {
+        fetchMarketData();
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [isLive]);
+
+  const fetchMarketData = async () => {
+    try {
+      const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
+      const stocks = await marketService.getStockData(symbols);
+      const economic = marketService.getEconomicIndicators();
+      const currency = await marketService.getCurrencyRates();
+      
+      setMarketData(stocks);
+      setEconomicData(economic);
+      setCurrencyData(currency);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('Error fetching market data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatNumber = (num: number, decimals: number = 2) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    }).format(num);
+  };
+
+  const formatCurrency = (num: number) => {
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
+    if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
+    return `$${num.toFixed(2)}`;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-900/20 rounded-lg text-blue-400">
+                <BarChart3 className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">Live Market Data</h1>
+                <p className="text-sm text-slate-400">Southeast Asian Financial Markets</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+                <span className="text-sm text-slate-400">{isLive ? 'LIVE' : 'PAUSED'}</span>
+              </div>
+              <button
+                onClick={() => setIsLive(!isLive)}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                  isLive ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-green-600 hover:bg-green-500 text-white'
+                }`}
+              >
+                {isLive ? 'Pause' : 'Resume'}
+              </button>
+              <div className="text-right">
+                <div className="text-sm text-slate-400">Last Updated</div>
+                <div className="text-sm text-white">{lastUpdated.toLocaleTimeString()}</div>
+              </div>
+              <button
+                onClick={fetchMarketData}
+                disabled={loading}
+                className="p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white rounded-lg transition-colors"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Market Performance Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <TrendingUp className="h-4 w-4 text-emerald-400" />
+              <span className="text-sm font-medium text-emerald-400">Markets Up</span>
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {marketData.filter(stock => stock.change > 0).length}
+            </div>
+            <div className="text-xs text-slate-400">out of {marketData.length} indices</div>
+          </div>
+          
+          <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <TrendingDown className="h-4 w-4 text-red-400" />
+              <span className="text-sm font-medium text-red-400">Markets Down</span>
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {marketData.filter(stock => stock.change < 0).length}
+            </div>
+            <div className="text-xs text-slate-400">out of {marketData.length} indices</div>
+          </div>
+          
+          <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <BarChart3 className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-medium text-blue-400">Avg Change</span>
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {marketData.length > 0 ? formatNumber(marketData.reduce((acc, stock) => acc + stock.changePercent, 0) / marketData.length, 2) : '0.00'}%
+            </div>
+            <div className="text-xs text-slate-400">across all markets</div>
+          </div>
+
+          <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <Activity className="h-4 w-4 text-purple-400" />
+              <span className="text-sm font-medium text-purple-400">Total Volume</span>
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {formatCurrency(marketData.reduce((acc, stock) => acc + stock.volume, 0))}
+            </div>
+            <div className="text-xs text-slate-400">combined trading volume</div>
+          </div>
+        </div>
+
+        {/* Stock Market Indices */}
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center space-x-2 mb-6">
+            <TrendingUp className="h-5 w-5 text-emerald-400" />
+            <h2 className="text-lg font-semibold text-white">Stock Market Indices</h2>
+            <div className="ml-auto flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-xs text-slate-400">Live Updates</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {marketData.map((stock, index) => (
+              <div key={index} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600/50 hover:border-slate-500/50 transition-all duration-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="font-medium text-white text-sm">{stock.symbol}</div>
+                    <div className="text-xs text-slate-400 truncate">{stock.name}</div>
+                  </div>
+                  <div className={`flex items-center space-x-1 ${
+                    stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {stock.change >= 0 ? 
+                      <TrendingUp className="h-3 w-3" /> : 
+                      <TrendingDown className="h-3 w-3" />
+                    }
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="text-lg font-bold text-white">
+                    {formatNumber(stock.price)}
+                  </div>
+                  <div className={`text-sm font-medium ${
+                    stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {stock.change >= 0 ? '+' : ''}{formatNumber(stock.change)} 
+                    ({stock.change >= 0 ? '+' : ''}{formatNumber(stock.changePercent)}%)
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    Vol: {formatNumber(stock.volume, 0)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Currency Exchange Rates */}
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center space-x-2 mb-6">
+            <DollarSign className="h-5 w-5 text-orange-400" />
+            <h2 className="text-lg font-semibold text-white">Currency Exchange Rates</h2>
+            <div className="ml-auto flex items-center space-x-2">
+              <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+              <span className="text-xs text-slate-400">Real-time Rates</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {currencyData.map((currency, index) => (
+              <div key={index} className="bg-slate-700/50 rounded-lg p-3 border border-slate-600/50">
+                <div className="text-sm font-medium text-white mb-1">{currency.pair}</div>
+                <div className="text-lg font-bold text-white">{formatNumber(currency.rate, currency.pair.includes('IDR') || currency.pair.includes('VND') ? 0 : 4)}</div>
+                <div className={`text-xs font-medium ${
+                  currency.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                }`}>
+                  {currency.change >= 0 ? '+' : ''}{formatNumber(currency.change, 3)} 
+                  ({currency.change >= 0 ? '+' : ''}{formatNumber(currency.changePercent, 2)}%)
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Economic Indicators */}
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center space-x-2 mb-6">
+            <Globe className="h-5 w-5 text-purple-400" />
+            <h2 className="text-lg font-semibold text-white">Economic Indicators</h2>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Country</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">GDP (B)</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Inflation</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Unemployment</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Interest Rate</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">USD Exchange</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700">
+                {economicData.map((country, index) => (
+                  <tr key={index} className="hover:bg-slate-700/30 transition-colors">
+                    <td className="py-4 px-4 font-medium text-white">{country.country}</td>
+                    <td className="py-4 px-4 text-right text-slate-300">${formatNumber(country.gdp, 1)}</td>
+                    <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.inflation, 1)}%</td>
+                    <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.unemployment, 1)}%</td>
+                    <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.interestRate, 2)}%</td>
+                    <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.exchangeRate, country.exchangeRate > 1000 ? 0 : 4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LiveMarketData;

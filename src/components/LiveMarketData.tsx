@@ -15,12 +15,12 @@ const LiveMarketData: React.FC = () => {
   useEffect(() => {
     fetchMarketData();
     
-    // Set up live updates every 5 seconds
+    // Set up live updates every 30 seconds for real-time feel
     const interval = setInterval(() => {
       if (isLive) {
         fetchMarketData();
       }
-    }, 5000);
+    }, 30000);
     
     return () => clearInterval(interval);
   }, [isLive]);

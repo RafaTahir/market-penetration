@@ -93,13 +93,29 @@ function App() {
           <div className="text-center py-8 relative">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
             <div className="relative">
-              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-emerald-400 to-purple-400 bg-clip-text text-transparent mb-6">
-                Southeast Asian Market Intelligence Platform
-              </h1>
+              <div className="flex items-center justify-center mb-6">
+                <svg className="h-16 w-16 mr-4" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#3B82F6" />
+                      <stop offset="50%" stopColor="#10B981" />
+                      <stop offset="100%" stopColor="#8B5CF6" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="50" cy="50" r="45" fill="url(#flowGradient)" opacity="0.1" />
+                  <path d="M25 35 Q50 15 75 35 Q50 55 25 35" fill="url(#flowGradient)" opacity="0.8" />
+                  <path d="M25 50 Q50 30 75 50 Q50 70 25 50" fill="url(#flowGradient)" opacity="0.6" />
+                  <path d="M25 65 Q50 45 75 65 Q50 85 25 65" fill="url(#flowGradient)" opacity="0.4" />
+                  <circle cx="25" cy="50" r="3" fill="#3B82F6" />
+                  <circle cx="75" cy="50" r="3" fill="#8B5CF6" />
+                </svg>
+                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-emerald-400 to-purple-400 bg-clip-text text-transparent">
+                  Flow
+                </h1>
+              </div>
               <p className="text-xl text-slate-300 max-w-4xl mx-auto leading-relaxed">
-                Comprehensive market research and analysis for Thailand, Malaysia, Singapore, 
-                Indonesia, Philippines, and Vietnam. Make data-driven decisions with city-level insights, 
-                industry analysis, and real market entry case studies.
+                Your guide to Penetrating Markets. Comprehensive market research and analysis for Southeast Asia. 
+                Make data-driven decisions with city-level insights, industry analysis, and real market entry case studies.
               </p>
             </div>
           </div>

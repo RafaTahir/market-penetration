@@ -32,7 +32,7 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
       id: 'ppt',
       name: 'PowerPoint',
       icon: <FileText className="h-4 w-4" />,
-      description: 'BCG-style executive presentation outline'
+      description: 'Professional executive presentation slides'
     }
   ];
 

@@ -519,393 +519,326 @@ This report synthesizes data from World Bank Economic Outlook, IMF databases, Go
   }
 
   async generatePowerPointOutline(data: ExportData): Promise<void> {
-    const slideContent = `
-FLOW MARKET INTELLIGENCE PRESENTATION
-Your guide to Penetrating Markets - Professional Market Research Report
+    const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape orientation for presentation
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    let slideNumber = 1;
 
-=== SLIDE 1: TITLE SLIDE ===
-🌊 Flow Market Intelligence
-Your guide to Penetrating Markets
+    // Color palette
+    const flowBlue = [59, 130, 246];
+    const flowEmerald = [16, 185, 129];
+    const flowPurple = [139, 92, 246];
+    const flowOrange = [245, 158, 11];
 
-Comprehensive Southeast Asian Market Analysis
-${data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(' • ')}
+    // Helper function to add Flow logo
+    const addFlowLogo = (x: number, y: number, size: number = 20) => {
+      pdf.setFillColor(...flowBlue);
+      pdf.circle(x + size/2, y + size/2, size/2, 'F');
+      
+      pdf.setFillColor(...flowEmerald);
+      pdf.ellipse(x + size/2, y + size/3, size/3, size/8, 'F');
+      
+      pdf.setFillColor(...flowPurple);
+      pdf.ellipse(x + size/2, y + size/2, size/3, size/8, 'F');
+      
+      pdf.setFillColor(...flowBlue);
+      pdf.ellipse(x + size/2, y + 2*size/3, size/3, size/8, 'F');
+    };
 
-Generated: ${new Date().toLocaleDateString()}
-Data Sources: World Bank, IMF, Google-Temasek e-Conomy SEA 2024
-
-=== SLIDE 2: EXECUTIVE SUMMARY ===
-📊 Key Market Insights
-• Total addressable market: $1.2+ trillion across selected regions
-• Digital economy growing at 18.6% annually
-• E-commerce and fintech leading growth sectors (22.8% and 18.4% CAGR)
-• Mobile-first consumer behavior driving innovation
-• 456M active internet users across the region
-
-🎯 Strategic Imperatives
-• Prioritize mobile-first digital strategies
-• Establish strategic local partnerships
-• Focus on tier-1 cities for initial entry
-• Adapt offerings to local preferences and competitive pricing
-
-=== SLIDE 3: MARKET SIZE OVERVIEW ===
-💰 Market Opportunity Matrix
-${data.selectedCountries.map(country => {
-  const marketData = this.getMarketDataForCountry(country);
-  return `🏛️ ${country.charAt(0).toUpperCase() + country.slice(1)}
-• Population: ${marketData.population}
-• Market Size: ${marketData.marketSize}
-• Growth Rate: ${marketData.growth}
-• Digital Penetration: ${marketData.digitalPenetration}%
-• Opportunity Score: ${marketData.opportunityScore}/100
-• Source: ${marketData.dataSource}`;
-}).join('\n\n')}
-
-=== SLIDE 4: INDUSTRY LANDSCAPE ===
-🏭 High-Growth Sectors & Opportunities
-📱 Technology & Software: $234.5B market, 15.2% growth
-   Source: IDC Asia Pacific, Gartner
-🛒 E-commerce & Retail: $187.3B market, 22.8% growth
-   Source: Google-Temasek e-Conomy SEA 2024
-🏦 Financial Services: $153.2B market, 18.4% growth
-   Source: PwC FinTech Survey, EY ASEAN Banking
-🏥 Healthcare & Pharma: $102.1B market, 12.3% growth
-   Source: IQVIA, McKinsey Global Health Institute
-
-📈 Key Trends Driving Growth
-• AI/ML adoption across industries
-• Social commerce and cross-border trade expansion
-• Digital banking and cryptocurrency integration
-• Telemedicine and digital therapeutics advancement
-
-=== SLIDE 5: DIGITAL TRANSFORMATION LANDSCAPE ===
-📱 Digital Adoption Leaders
-🇸🇬 Singapore: 92.3% mobile, 89.4% internet penetration
-   Source: IMDA Digital Society Report 2024
-🇹🇭 Thailand: 85.2% mobile, 82.1% internet penetration
-   Source: NBTC, ETDA Digital Thailand Report 2024
-🇲🇾 Malaysia: 78.9% mobile, 84.2% internet penetration
-   Source: MCMC, MDEC Malaysia Digital Economy Report
-
-🚀 High-Growth Markets
-🇮🇩 Indonesia: 273.5M population, 73.4% mobile penetration
-🇵🇭 Philippines: 109.6M population, 68.7% mobile penetration
-🇻🇳 Vietnam: 97.3M population, 75.3% mobile penetration
-
-=== SLIDE 6: CONSUMER BEHAVIOR INSIGHTS ===
-🛍️ Mobile-First Shopping Trends
-• 78.4% prefer mobile apps over desktop (Nielsen Consumer Insights SEA 2024)
-• 24.3% growth in mobile commerce adoption
-• Social commerce driving 65.7% of purchase decisions
-
-💳 Digital Payment Revolution
-• 72.1% adoption rate with 28.5% growth (Visa Consumer Payment Attitudes Study)
-• Cash-to-digital transition accelerating across all markets
-• Cross-border payment solutions gaining traction
-
-📺 Content Consumption Patterns
-• 84.2% video streaming adoption (Media Partners Asia OTT Report 2024)
-• Social media influences 74.8% of consumer decisions
-• Live commerce and influencer marketing driving sales
-
-=== SLIDE 7: MARKET ENTRY STRATEGY FRAMEWORK ===
-⏱️ Phase 1: Foundation (0-6 months)
-• Regulatory assessment and compliance framework development
-• Local partner identification and strategic due diligence
-• Digital presence establishment and cultural localization
-• Market research capabilities and consumer insights development
-
-🚀 Phase 2: Launch (6-18 months)
-• Pilot programs in priority tier-1 cities
-• Local customer service infrastructure establishment
-• Localized product offerings and competitive pricing strategies
-• Digital marketing implementation and social commerce integration
-
-📈 Phase 3: Scale (18+ months)
-• Multi-market expansion strategy execution
-• Regional operations establishment and optimization
-• Supply chain development and logistics partnerships
-• Strategic acquisitions and ecosystem partnerships
-
-=== SLIDE 8: SUCCESS FACTORS & CASE STUDIES ===
-✅ Critical Success Elements
-• Strategic local partnerships and regulatory compliance
-• Mobile-first digital strategy implementation
-• Cultural adaptation and market localization
-• Agile market entry approach with rapid iteration
-
-📚 Success Story Insights
-🚗 Grab: Localized approach, ecosystem building, government relations
-🛒 Shopee: Mobile-first strategy, social commerce focus, aggressive marketing
-🏍️ Gojek: Super app strategy, financial inclusion, driver partnerships
-
-❌ Learning from Market Exits
-🚗 Uber Thailand: Regulatory challenges, underestimated local competition
-🏪 Carrefour Malaysia: Failed localization, high operational costs
-🏬 Tesco Philippines: Scale challenges, market adaptation issues
-
-=== SLIDE 9: RISK ASSESSMENT & MITIGATION ===
-⚠️ Key Risk Areas & Impact Assessment
-🏛️ Regulatory Risk: Varying compliance requirements across markets
-💱 Currency Risk: Exchange rate volatility and hedging strategies
-🏆 Competition Risk: Strong local and international players
-🏛️ Political Risk: Stability variations and policy changes
-
-🛡️ Comprehensive Mitigation Strategies
-• Local legal counsel and continuous compliance monitoring
-• Currency hedging strategies and local operations setup
-• Differentiation through strategic local partnerships
-• Market diversification and operational flexibility maintenance
-
-=== SLIDE 10: INVESTMENT PRIORITIES & RESOURCE ALLOCATION ===
-🎯 Market Entry Priorities (Next 12 months)
-🇻🇳 Vietnam and Philippines: Highest growth potential markets (7.0% and 6.4% GDP growth)
-🇸🇬 Singapore and Malaysia: Stable, mature opportunities with strong infrastructure
-🇹🇭 Thailand and Indonesia: Large-scale market access with moderate complexity
-
-💰 Strategic Resource Allocation Framework
-• 40% Digital infrastructure and technology platform development
-• 30% Local partnerships, talent acquisition, and cultural training
-• 20% Marketing, brand building, and customer acquisition initiatives
-• 10% Regulatory compliance, risk management, and legal framework
-
-=== SLIDE 11: IMPLEMENTATION ROADMAP & SUCCESS METRICS ===
-📅 Recommended Action Plan & Timeline
-Q1 2025: Market selection finalization and strategic partner identification
-Q2 2025: Regulatory compliance framework and pilot program development
-Q3 2025: Pilot launch execution and initial market testing
-Q4 2025: Scale planning, expansion preparation, and performance optimization
-
-🎯 Success Metrics & KPI Framework
-• Market penetration rates and customer acquisition costs by country
-• Revenue growth trajectories and profitability metrics
-• Brand awareness levels and market share tracking
-• Customer satisfaction scores and retention rates
-
-📞 Next Steps & Strategic Consultation
-For detailed market entry strategy and implementation support:
-Flow - Your guide to Penetrating Markets
-Professional Market Intelligence & Strategic Consulting
-    `;
-
-    // Create a beautifully styled HTML presentation
-    const enhancedContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Flow Market Intelligence Presentation</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    // Helper function to add slide header
+    const addSlideHeader = (title: string, isTitle: boolean = false) => {
+      if (isTitle) {
+        // Title slide background
+        pdf.setFillColor(15, 23, 42);
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
         
-        body { 
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-            margin: 0; 
-            padding: 40px; 
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-            color: #f8fafc;
-            line-height: 1.6;
-        }
+        // Flow logo
+        addFlowLogo(pageWidth/2 - 15, 30, 30);
         
-        .slide { 
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            color: #1e293b;
-            padding: 60px 40px; 
-            margin: 30px 0; 
-            border-radius: 20px; 
-            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
-            page-break-after: always;
-            position: relative;
-            overflow: hidden;
-        }
+        // Title
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(36);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Flow', pageWidth / 2, 80, { align: 'center' });
         
-        .slide::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: linear-gradient(90deg, #3b82f6, #10b981, #8b5cf6);
-        }
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(148, 163, 184);
+        pdf.text('Your guide to Penetrating Markets', pageWidth / 2, 95, { align: 'center' });
         
-        .slide-header { 
-            color: #1e40af; 
-            font-size: 32px; 
-            font-weight: 700; 
-            margin-bottom: 30px; 
-            border-bottom: 3px solid transparent;
-            border-image: linear-gradient(90deg, #3b82f6, #10b981) 1;
-            padding-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
+        pdf.setFontSize(28);
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(title, pageWidth / 2, 120, { align: 'center' });
+      } else {
+        // Regular slide background
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
         
-        .flow-logo {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #3b82f6, #10b981, #8b5cf6);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-        }
+        // Header gradient bar
+        pdf.setFillColor(...flowBlue);
+        pdf.rect(0, 0, pageWidth, 8, 'F');
         
-        .bullet { 
-            color: #059669; 
-            margin: 15px 0; 
-            padding-left: 20px;
-            position: relative;
-        }
+        // Flow logo
+        addFlowLogo(20, 20, 15);
         
-        .bullet::before {
-            content: '•';
-            color: #3b82f6;
-            font-weight: bold;
-            position: absolute;
-            left: 0;
-            font-size: 20px;
-        }
-        
-        .highlight { 
-            background: linear-gradient(135deg, #dbeafe, #ecfdf5); 
-            padding: 25px; 
-            border-radius: 15px; 
-            margin: 20px 0; 
-            border-left: 6px solid #3b82f6;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-        
-        .metric { 
-            background: linear-gradient(135deg, #f0f9ff, #f0fdf4); 
-            padding: 20px; 
-            border-radius: 12px; 
-            margin: 12px 0;
-            border: 1px solid #e0e7ff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .metric-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: #1e40af;
-        }
-        
-        .country-flag { 
-            font-size: 24px; 
-            margin-right: 10px;
-        }
-        
-        .data-source {
-            font-size: 12px;
-            color: #64748b;
-            font-style: italic;
-            margin-top: 10px;
-            padding: 8px 12px;
-            background: #f1f5f9;
-            border-radius: 6px;
-            border-left: 3px solid #3b82f6;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .card {
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        
-        .title-slide {
-            text-align: center;
-            background: linear-gradient(135deg, #1e293b, #334155);
-            color: white;
-        }
-        
-        .title-slide .slide-header {
-            color: white;
-            font-size: 48px;
-            border-image: linear-gradient(90deg, #3b82f6, #10b981, #8b5cf6) 1;
-        }
-        
-        .subtitle {
-            font-size: 24px;
-            color: #94a3b8;
-            margin-bottom: 40px;
-        }
-        
-        .phase {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border-left: 6px solid #f59e0b;
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 8px;
-        }
-        
-        .phase h4 {
-            color: #92400e;
-            margin-top: 0;
-        }
-    </style>
-</head>
-<body>
-${slideContent.split('=== SLIDE').map((slide, index) => {
-  if (index === 0) return '';
-  const isTitle = index === 1;
-  return `<div class="slide ${isTitle ? 'title-slide' : ''}">
-    <div class="slide-header">
-      ${!isTitle ? '<div class="flow-logo">F</div>' : ''}
-      ${slide.split('===')[0].trim()}
-    </div>
-    <div class="slide-content">
-      ${slide.split('===')[1] ? slide.split('===')[1]
-        .replace(/🎯|📊|💰|🏭|📱|🛍️|⏱️|✅|⚠️|📅/g, '<span style="font-size: 1.2em;">$&</span>')
-        .replace(/•/g, '<div class="bullet">')
-        .replace(/\n\n/g, '</div><div class="bullet">')
-        .replace(/Source:/g, '<div class="data-source">Source:') + '</div>'
-        : ''}
-    </div>
-  </div>`;
-}).join('')}
+        // Title
+        pdf.setTextColor(30, 64, 175);
+        pdf.setFontSize(24);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(title, 45, 30);
+      }
+      
+      // Slide number
+      pdf.setTextColor(100, 116, 139);
+      pdf.setFontSize(10);
+      pdf.text(`${slideNumber}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+      slideNumber++;
+    };
 
-<div class="slide">
-    <div class="slide-header">
-        <div class="flow-logo">F</div>
-        Thank You
-    </div>
-    <div class="slide-content" style="text-align: center; padding: 60px 0;">
-        <h2 style="color: #1e40af; margin-bottom: 30px;">Flow - Your guide to Penetrating Markets</h2>
-        <p style="font-size: 18px; color: #64748b; margin-bottom: 40px;">
-            Professional Market Intelligence & Strategic Consulting
-        </p>
-        <div class="highlight">
-            <p><strong>Ready to enter Southeast Asian markets?</strong></p>
-            <p>Contact our team for personalized market entry strategies and implementation support.</p>
-        </div>
-    </div>
-</div>
+    // Slide 1: Title Slide
+    addSlideHeader('Southeast Asian Market Intelligence Report', true);
+    
+    // Selected markets info
+    pdf.setFillColor(...flowEmerald);
+    pdf.roundedRect(50, 140, pageWidth - 100, 25, 5, 5, 'F');
+    pdf.setFontSize(14);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(`Markets Analyzed: ${data.selectedCountries.length}`, pageWidth / 2, 150, { align: 'center' });
+    pdf.text(data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(' • '), pageWidth / 2, 160, { align: 'center' });
+    
+    // Date
+    pdf.setFillColor(...flowPurple);
+    pdf.roundedRect(50, 175, pageWidth - 100, 15, 5, 5, 'F');
+    pdf.setFontSize(12);
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 185, { align: 'center' });
 
-</body>
-</html>
-    `;
+    // Slide 2: Executive Summary
+    pdf.addPage();
+    addSlideHeader('Executive Summary');
+    
+    let yPos = 60;
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Key Market Insights', 30, yPos);
+    
+    yPos += 15;
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    const insights = [
+      'Total addressable market exceeds $1.2 trillion across selected regions',
+      'Digital economy growing at 18.6% annually with mobile-first behavior',
+      'E-commerce and fintech sectors showing highest growth (22.8% and 18.4% CAGR)',
+      '456M active internet users driving digital transformation'
+    ];
+    
+    insights.forEach(insight => {
+      pdf.setTextColor(...flowBlue);
+      pdf.text('•', 35, yPos);
+      pdf.setTextColor(0, 0, 0);
+      const lines = pdf.splitTextToSize(insight, pageWidth - 80);
+      pdf.text(lines, 45, yPos);
+      yPos += lines.length * 6 + 3;
+    });
+    
+    yPos += 10;
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Strategic Recommendations', 30, yPos);
+    
+    yPos += 15;
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    const recommendations = [
+      'Prioritize mobile-first digital strategies across all markets',
+      'Establish strategic local partnerships for regulatory compliance',
+      'Focus on tier-1 cities for initial market entry',
+      'Adapt products to local preferences and competitive pricing'
+    ];
+    
+    recommendations.forEach(rec => {
+      pdf.setTextColor(...flowEmerald);
+      pdf.text('•', 35, yPos);
+      pdf.setTextColor(0, 0, 0);
+      const lines = pdf.splitTextToSize(rec, pageWidth - 80);
+      pdf.text(lines, 45, yPos);
+      yPos += lines.length * 6 + 3;
+    });
 
-    const blob = new Blob([enhancedContent], { type: 'text/html' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Flow-Market-Presentation-${new Date().toISOString().split('T')[0]}.html`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    // Slide 3: Market Overview
+    pdf.addPage();
+    addSlideHeader('Market Size Overview');
+    
+    yPos = 60;
+    data.selectedCountries.forEach((country, index) => {
+      const marketData = this.getMarketDataForCountry(country);
+      const colors = [flowBlue, flowEmerald, flowPurple, flowOrange];
+      const currentColor = colors[index % colors.length];
+      
+      // Country header
+      pdf.setFillColor(...currentColor);
+      pdf.roundedRect(30, yPos - 3, pageWidth - 60, 12, 2, 2, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(country.charAt(0).toUpperCase() + country.slice(1), 35, yPos + 4);
+      
+      yPos += 20;
+      
+      // Market data in columns
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      
+      const dataPoints = [
+        `Population: ${marketData.population}`,
+        `GDP: ${marketData.gdp}`,
+        `Market Size: ${marketData.marketSize}`,
+        `Growth: ${marketData.growth}`
+      ];
+      
+      dataPoints.forEach((point, idx) => {
+        const xPos = 35 + (idx % 2) * 120;
+        const yOffset = Math.floor(idx / 2) * 8;
+        pdf.text(point, xPos, yPos + yOffset);
+      });
+      
+      yPos += 25;
+      
+      // Data source
+      pdf.setTextColor(100, 116, 139);
+      pdf.setFontSize(8);
+      pdf.text(`Source: ${marketData.dataSource}`, 35, yPos);
+      yPos += 15;
+    });
+
+    // Slide 4: Industry Analysis
+    pdf.addPage();
+    addSlideHeader('Industry Landscape');
+    
+    yPos = 60;
+    const industries = [
+      { name: 'Technology & Software', size: '$234.5B', growth: '15.2%', source: 'IDC Asia Pacific, Gartner' },
+      { name: 'E-commerce & Retail', size: '$187.3B', growth: '22.8%', source: 'Google-Temasek e-Conomy SEA 2024' },
+      { name: 'Financial Services', size: '$153.2B', growth: '18.4%', source: 'PwC FinTech Survey' },
+      { name: 'Healthcare & Pharma', size: '$102.1B', growth: '12.3%', source: 'IQVIA, McKinsey Global Health Institute' }
+    ];
+    
+    industries.forEach((industry, index) => {
+      const colors = [flowBlue, flowEmerald, flowPurple, flowOrange];
+      const currentColor = colors[index % colors.length];
+      
+      pdf.setFillColor(...currentColor);
+      pdf.roundedRect(30, yPos, pageWidth - 60, 20, 3, 3, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(industry.name, 35, yPos + 8);
+      pdf.text(`${industry.size} • ${industry.growth} growth`, 35, yPos + 15);
+      
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(8);
+      pdf.text(`Source: ${industry.source}`, 35, yPos + 25);
+      
+      yPos += 35;
+    });
+
+    // Slide 5: Digital Adoption
+    pdf.addPage();
+    addSlideHeader('Digital Transformation Landscape');
+    
+    yPos = 60;
+    const digitalData = [
+      { country: 'Singapore', mobile: '92.3%', internet: '89.4%', source: 'IMDA Digital Society Report 2024' },
+      { country: 'Thailand', mobile: '85.2%', internet: '82.1%', source: 'NBTC, ETDA Digital Thailand Report 2024' },
+      { country: 'Malaysia', mobile: '78.9%', internet: '84.2%', source: 'MCMC, MDEC Malaysia Digital Economy Report' }
+    ];
+    
+    digitalData.forEach((data, index) => {
+      const colors = [flowBlue, flowEmerald, flowPurple];
+      const currentColor = colors[index % colors.length];
+      
+      pdf.setFillColor(248, 250, 252);
+      pdf.roundedRect(30, yPos, pageWidth - 60, 25, 3, 3, 'F');
+      pdf.setDrawColor(...currentColor);
+      pdf.setLineWidth(2);
+      pdf.roundedRect(30, yPos, pageWidth - 60, 25, 3, 3, 'S');
+      
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(data.country, 35, yPos + 8);
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Mobile: ${data.mobile} • Internet: ${data.internet}`, 35, yPos + 15);
+      
+      pdf.setTextColor(100, 116, 139);
+      pdf.setFontSize(8);
+      pdf.text(`Source: ${data.source}`, 35, yPos + 22);
+      
+      yPos += 35;
+    });
+
+    // Slide 6: Market Entry Strategy
+    pdf.addPage();
+    addSlideHeader('Market Entry Strategy Framework');
+    
+    yPos = 60;
+    const phases = [
+      {
+        title: 'Phase 1: Foundation (0-6 months)',
+        items: ['Regulatory assessment', 'Local partnerships', 'Digital presence', 'Market research'],
+        color: flowEmerald
+      },
+      {
+        title: 'Phase 2: Launch (6-18 months)',
+        items: ['Pilot programs', 'Customer service', 'Product localization', 'Marketing campaigns'],
+        color: flowBlue
+      },
+      {
+        title: 'Phase 3: Scale (18+ months)',
+        items: ['Multi-market expansion', 'Operations setup', 'Supply chain', 'Strategic acquisitions'],
+        color: flowPurple
+      }
+    ];
+    
+    phases.forEach((phase, index) => {
+      pdf.setFillColor(...phase.color);
+      pdf.roundedRect(30, yPos, pageWidth - 60, 35, 3, 3, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(phase.title, 35, yPos + 8);
+      
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      phase.items.forEach((item, idx) => {
+        pdf.text(`• ${item}`, 35, yPos + 15 + (idx * 5));
+      });
+      
+      yPos += 45;
+    });
+
+    // Final slide: Thank You
+    pdf.addPage();
+    addSlideHeader('Thank You', true);
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Ready to enter Southeast Asian markets?', pageWidth / 2, 140, { align: 'center' });
+    
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Contact our team for personalized market entry strategies', pageWidth / 2, 160, { align: 'center' });
+    pdf.text('and implementation support.', pageWidth / 2, 175, { align: 'center' });
+
+    // Save the PDF
+    pdf.save(`Flow-Market-Presentation-${new Date().toISOString().split('T')[0]}.pdf`);
   }
 
   private getMarketDataForCountry(country: string) {

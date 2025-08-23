@@ -6,6 +6,9 @@ export interface ExportData {
   selectedCountries: string[];
   selectedCities: string[];
   activeTab: string;
+  activeInsightTab?: string;
+  selectedIndustry?: string;
+  selectedCaseStudy?: string;
   marketData?: any;
   caseStudies?: any;
   industryData?: any;
@@ -42,7 +45,7 @@ export class ExportService {
     pdf.ellipse(x + size/2, y + 2*size/3, size/3, size/8, 'F');
   }
 
-  async generatePDFReport(data: ExportData): Promise<void> {
+  async generatePDFReport(data: ExportData, currentViewData?: any): Promise<void> {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -138,6 +141,14 @@ export class ExportService {
     pdf.setFont('helvetica', 'normal');
     
     const executiveSummary = `This comprehensive market intelligence report provides strategic insights into ${data.selectedCountries.length} key Southeast Asian markets: ${data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')}.
+
+REPORT SCOPE & USER SELECTIONS:
+• Selected Markets: ${data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')}
+• Selected Cities: ${data.selectedCities.map(c => c.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())).join(', ')}
+• Analysis Focus: ${data.activeTab.charAt(0).toUpperCase() + data.activeTab.slice(1)} Analysis
+${data.activeInsightTab ? `• Market Intelligence Focus: ${data.activeInsightTab.charAt(0).toUpperCase() + data.activeInsightTab.slice(1)} Insights` : ''}
+${data.selectedIndustry ? `• Industry Focus: ${data.selectedIndustry}` : ''}
+${data.selectedCaseStudy ? `• Case Study Reference: ${data.selectedCaseStudy}` : ''}
 
 KEY MARKET INSIGHTS:
 • Total addressable market exceeds $1.2 trillion across selected regions
@@ -275,6 +286,29 @@ This report synthesizes data from World Bank Economic Outlook, IMF databases, Go
       
       yPosition += 10;
     });
+    // Add User-Specific Analysis Section
+    if (data.activeTab !== 'overview') {
+      pdf.addPage();
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+      yPosition = 20;
+      
+      // Add Flow logo to header
+      this.addFlowLogo(pdf, 15, yPosition - 5, 15);
+      
+      // Colorful header
+      pdf.setFillColor(...flowPurple);
+      pdf.roundedRect(35, yPosition - 5, pageWidth - 50, 15, 3, 3, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`${data.activeTab.charAt(0).toUpperCase() + data.activeTab.slice(1)} Analysis`, 40, yPosition + 5);
+      
+      yPosition += 30;
+      
+      // Add specific analysis based on user's current view
+      this.addUserSpecificAnalysis(pdf, data, yPosition, pageWidth, pageHeight);
+    }
 
     // Industry Analysis with enhanced charts and data sources
     pdf.addPage();
@@ -423,9 +457,22 @@ This report synthesizes data from World Bank Economic Outlook, IMF databases, Go
     pdf.save(`Flow-Market-Intelligence-Report-${new Date().toISOString().split('T')[0]}.pdf`);
   }
 
-  async generateExcelReport(data: ExportData): Promise<void> {
+  async generateExcelReport(data: ExportData, currentViewData?: any): Promise<void> {
     const workbook = XLSX.utils.book_new();
 
+    // Add User Selection Summary Sheet
+    const userSelectionData = [{
+      'Report Generated': new Date().toLocaleDateString(),
+      'Selected Markets': data.selectedCountries.join(', '),
+      'Selected Cities': data.selectedCities.join(', '),
+      'Active Analysis Tab': data.activeTab,
+      'Market Intelligence Focus': data.activeInsightTab || 'N/A',
+      'Industry Focus': data.selectedIndustry || 'All Industries',
+      'Case Study Reference': data.selectedCaseStudy || 'N/A'
+    }];
+    
+    const userSelectionSheet = XLSX.utils.json_to_sheet(userSelectionData);
+    XLSX.utils.book_append_sheet(workbook, userSelectionSheet, 'Report Summary');
     // Market Overview Sheet with comprehensive data and sources
     const marketOverview = data.selectedCountries.map(country => {
       const marketData = this.getMarketDataForCountry(country);
@@ -514,11 +561,17 @@ This report synthesizes data from World Bank Economic Outlook, IMF databases, Go
     const growthSheet = XLSX.utils.json_to_sheet(growthData);
     XLSX.utils.book_append_sheet(workbook, growthSheet, 'Growth Projections');
 
+    // Add Current View Data Sheet if available
+    if (currentViewData && data.activeTab !== 'overview') {
+      const currentViewSheet = XLSX.utils.json_to_sheet(currentViewData);
+      XLSX.utils.book_append_sheet(workbook, currentViewSheet, `${data.activeTab.charAt(0).toUpperCase() + data.activeTab.slice(1)} Data`);
+    }
+
     // Save the Excel file
     XLSX.writeFile(workbook, `Flow-Market-Data-${new Date().toISOString().split('T')[0]}.xlsx`);
   }
 
-  async generatePowerPointOutline(data: ExportData): Promise<void> {
+  async generatePowerPointOutline(data: ExportData, currentViewData?: any): Promise<void> {
     const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape orientation for presentation
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -607,11 +660,17 @@ This report synthesizes data from World Bank Economic Outlook, IMF databases, Go
     pdf.text(`Markets Analyzed: ${data.selectedCountries.length}`, pageWidth / 2, 150, { align: 'center' });
     pdf.text(data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(' • '), pageWidth / 2, 160, { align: 'center' });
     
-    // Date
-    pdf.setFillColor(...flowPurple);
+    // Add user focus area
+    pdf.setFillColor(...flowBlue);
     pdf.roundedRect(50, 175, pageWidth - 100, 15, 5, 5, 'F');
     pdf.setFontSize(12);
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 185, { align: 'center' });
+    pdf.text(`Analysis Focus: ${data.activeTab.charAt(0).toUpperCase() + data.activeTab.slice(1)}`, pageWidth / 2, 185, { align: 'center' });
+    
+    // Date
+    pdf.setFillColor(...flowPurple);
+    pdf.roundedRect(50, 200, pageWidth - 100, 15, 5, 5, 'F');
+    pdf.setFontSize(12);
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 210, { align: 'center' });
 
     // Slide 2: Executive Summary
     pdf.addPage();
@@ -713,6 +772,44 @@ This report synthesizes data from World Bank Economic Outlook, IMF databases, Go
       yPos += 15;
     });
 
+    // Add User-Specific Analysis Slide
+    if (data.activeTab !== 'overview') {
+      pdf.addPage();
+      addSlideHeader(`${data.activeTab.charAt(0).toUpperCase() + data.activeTab.slice(1)} Analysis`);
+      
+      yPos = 60;
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Focused Analysis: ${data.activeTab.charAt(0).toUpperCase() + data.activeTab.slice(1)}`, 30, yPos);
+      
+      yPos += 20;
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      
+      // Add specific content based on active tab
+      if (data.activeTab === 'cities') {
+        pdf.text(`Selected Cities: ${data.selectedCities.map(c => c.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())).join(', ')}`, 30, yPos);
+        yPos += 15;
+        pdf.text('City-level market analysis provides granular insights for targeted market entry strategies.', 30, yPos);
+      } else if (data.activeTab === 'industries') {
+        pdf.text(`Industry Focus: ${data.selectedIndustry || 'All Industries'}`, 30, yPos);
+        yPos += 15;
+        pdf.text('Industry-specific analysis reveals sector opportunities and competitive dynamics.', 30, yPos);
+      } else if (data.activeTab === 'insights') {
+        pdf.text(`Market Intelligence Focus: ${data.activeInsightTab || 'Overview'}`, 30, yPos);
+        yPos += 15;
+        pdf.text('Deep market intelligence provides actionable insights for strategic decision-making.', 30, yPos);
+      } else if (data.activeTab === 'cases') {
+        pdf.text(`Case Study Reference: ${data.selectedCaseStudy || 'Multiple Cases'}`, 30, yPos);
+        yPos += 15;
+        pdf.text('Real-world case studies provide proven strategies and lessons learned from market entries.', 30, yPos);
+      } else if (data.activeTab === 'data') {
+        pdf.text('Data Visualization Analysis: Comprehensive charts and metrics', 30, yPos);
+        yPos += 15;
+        pdf.text('Advanced data visualizations reveal patterns and trends for informed market decisions.', 30, yPos);
+      }
+    }
     // Slide 4: Industry Analysis
     pdf.addPage();
     addSlideHeader('Industry Landscape');
@@ -841,6 +938,137 @@ This report synthesizes data from World Bank Economic Outlook, IMF databases, Go
     pdf.save(`Flow-Market-Presentation-${new Date().toISOString().split('T')[0]}.pdf`);
   }
 
+  private addUserSpecificAnalysis(pdf: any, data: ExportData, yPosition: number, pageWidth: number, pageHeight: number): void {
+    const flowBlue = [59, 130, 246];
+    const flowEmerald = [16, 185, 129];
+    const flowPurple = [139, 92, 246];
+    const flowOrange = [245, 158, 11];
+    
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    
+    if (data.activeTab === 'cities') {
+      pdf.text('City-Level Market Analysis', 25, yPosition);
+      yPosition += 15;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Selected Cities: ${data.selectedCities.map(c => c.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())).join(', ')}`, 25, yPosition);
+      yPosition += 10;
+      
+      const cityInsights = [
+        'Urban market penetration strategies for tier-1 cities',
+        'Local business district analysis and commercial opportunities',
+        'Infrastructure readiness and digital connectivity assessment',
+        'Cost structure analysis and operational considerations'
+      ];
+      
+      cityInsights.forEach(insight => {
+        pdf.setTextColor(...flowBlue);
+        pdf.text('•', 30, yPosition);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(insight, 40, yPosition);
+        yPosition += 8;
+      });
+      
+    } else if (data.activeTab === 'industries') {
+      pdf.text('Industry Deep Dive Analysis', 25, yPosition);
+      yPosition += 15;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Industry Focus: ${data.selectedIndustry || 'All Industries'}`, 25, yPosition);
+      yPosition += 10;
+      
+      const industryInsights = [
+        'Sector-specific market dynamics and growth drivers',
+        'Competitive landscape analysis and market positioning',
+        'Technology adoption trends and innovation opportunities',
+        'Regulatory environment and compliance requirements'
+      ];
+      
+      industryInsights.forEach(insight => {
+        pdf.setTextColor(...flowEmerald);
+        pdf.text('•', 30, yPosition);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(insight, 40, yPosition);
+        yPosition += 8;
+      });
+      
+    } else if (data.activeTab === 'insights') {
+      pdf.text('Market Intelligence Deep Dive', 25, yPosition);
+      yPosition += 15;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Intelligence Focus: ${data.activeInsightTab || 'Market Overview'}`, 25, yPosition);
+      yPosition += 10;
+      
+      const intelligenceAreas = [
+        'Consumer behavior patterns and purchasing preferences',
+        'Competitive landscape mapping and market positioning',
+        'Regulatory environment assessment and compliance roadmap',
+        'Digital transformation trends and technology adoption'
+      ];
+      
+      intelligenceAreas.forEach(area => {
+        pdf.setTextColor(...flowPurple);
+        pdf.text('•', 30, yPosition);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(area, 40, yPosition);
+        yPosition += 8;
+      });
+      
+    } else if (data.activeTab === 'cases') {
+      pdf.text('Case Study Analysis', 25, yPosition);
+      yPosition += 15;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Case Study Focus: ${data.selectedCaseStudy || 'Multiple Market Entry Cases'}`, 25, yPosition);
+      yPosition += 10;
+      
+      const caseInsights = [
+        'Successful market entry strategies and implementation frameworks',
+        'Common failure patterns and risk mitigation approaches',
+        'Local adaptation requirements and cultural considerations',
+        'Timeline expectations and investment requirements'
+      ];
+      
+      caseInsights.forEach(insight => {
+        pdf.setTextColor(...flowOrange);
+        pdf.text('•', 30, yPosition);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(insight, 40, yPosition);
+        yPosition += 8;
+      });
+      
+    } else if (data.activeTab === 'data') {
+      pdf.text('Data Visualization Insights', 25, yPosition);
+      yPosition += 15;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Comprehensive data analysis across multiple dimensions', 25, yPosition);
+      yPosition += 10;
+      
+      const dataInsights = [
+        'Market size analysis and economic sector breakdown',
+        'Growth trend analysis and future projections',
+        'Digital adoption metrics and technology readiness',
+        'Investment flows and trade analysis patterns'
+      ];
+      
+      dataInsights.forEach(insight => {
+        pdf.setTextColor(...flowBlue);
+        pdf.text('•', 30, yPosition);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(insight, 40, yPosition);
+        yPosition += 8;
+      });
+    }
+  }
   private getMarketDataForCountry(country: string) {
     const marketData: { [key: string]: any } = {
       thailand: { 

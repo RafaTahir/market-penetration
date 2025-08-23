@@ -179,12 +179,18 @@ const caseStudies: CaseStudy[] = [
 
 interface CaseStudiesProps {
   selectedCountries: string[];
+  onCaseStudySelect?: (caseId: string) => void;
 }
 
-const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries }) => {
+const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStudySelect }) => {
   const [selectedType, setSelectedType] = useState<'all' | 'success' | 'failure'>('all');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('all');
   const [selectedCase, setSelectedCase] = useState<string>(caseStudies[0].id);
+
+  const handleCaseSelect = (caseId: string) => {
+    setSelectedCase(caseId);
+    onCaseStudySelect?.(caseId);
+  };
 
   const filteredCases = caseStudies.filter(caseStudy => {
     const countryMatch = selectedCountries.includes(caseStudy.country);
@@ -251,7 +257,7 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries }) => {
               {filteredCases.map((caseStudy) => (
                 <button
                   key={caseStudy.id}
-                  onClick={() => setSelectedCase(caseStudy.id)}
+                  onClick={() => handleCaseSelect(caseStudy.id)}
                   className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
                     selectedCase === caseStudy.id
                       ? 'border-amber-500 bg-amber-900/20 text-white'

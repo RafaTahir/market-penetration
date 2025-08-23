@@ -3,10 +3,16 @@ import { Eye, Users, DollarSign, TrendingUp, Globe, Smartphone, Target, Zap, Bar
 
 interface MarketInsightsProps {
   selectedCountries: string[];
+  onInsightTabChange?: (tab: string) => void;
 }
 
-const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries }) => {
+const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onInsightTabChange }) => {
   const [activeInsight, setActiveInsight] = useState<'overview' | 'consumer' | 'competitive' | 'regulatory'>('overview');
+
+  const handleInsightChange = (insight: 'overview' | 'consumer' | 'competitive' | 'regulatory') => {
+    setActiveInsight(insight);
+    onInsightTabChange?.(insight);
+  };
 
   // Market overview insights with sources
   const marketOverviewInsights = [
@@ -211,7 +217,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries }) =>
           {insightTabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveInsight(tab.id as any)}
+              onClick={() => handleInsightChange(tab.id as any)}
               className={`flex items-center space-x-2 p-3 rounded-lg border transition-all duration-200 ${
                 activeInsight === tab.id
                   ? 'border-blue-500 bg-blue-900/20 text-white'

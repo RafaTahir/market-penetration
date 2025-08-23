@@ -15,6 +15,9 @@ function App() {
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data'>('overview');
   const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics'>('main');
+  const [activeInsightTab, setActiveInsightTab] = useState<string>('overview');
+  const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
+  const [selectedCaseStudy, setSelectedCaseStudy] = useState<string>('grab-success');
 
   const handleCountryToggle = (countryId: string) => {
     setSelectedCountries(prev => 
@@ -335,15 +338,24 @@ function App() {
                 )}
                 
                 {activeTab === 'industries' && (
-                  <IndustryAnalysis selectedCountries={selectedCountries} />
+                  <IndustryAnalysis 
+                    selectedCountries={selectedCountries}
+                    onIndustrySelect={setSelectedIndustry}
+                  />
                 )}
                 
                 {activeTab === 'insights' && (
-                  <MarketInsights selectedCountries={selectedCountries} />
+                  <MarketInsights 
+                    selectedCountries={selectedCountries}
+                    onInsightTabChange={setActiveInsightTab}
+                  />
                 )}
                 
                 {activeTab === 'cases' && (
-                  <CaseStudies selectedCountries={selectedCountries} />
+                  <CaseStudies 
+                    selectedCountries={selectedCountries}
+                    onCaseStudySelect={setSelectedCaseStudy}
+                  />
                 )}
                 
                 {activeTab === 'data' && (
@@ -356,6 +368,9 @@ function App() {
                 selectedCountries={selectedCountries}
                 selectedCities={selectedCities}
                 activeTab={activeTab}
+                activeInsightTab={activeInsightTab}
+                selectedIndustry={selectedIndustry}
+                selectedCaseStudy={selectedCaseStudy}
               />
             </>
           )}

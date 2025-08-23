@@ -6,9 +6,19 @@ interface ExportToolsProps {
   selectedCountries: string[];
   selectedCities: string[];
   activeTab: string;
+  activeInsightTab?: string;
+  selectedIndustry?: string;
+  selectedCaseStudy?: string;
 }
 
-const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCities, activeTab }) => {
+const ExportTools: React.FC<ExportToolsProps> = ({ 
+  selectedCountries, 
+  selectedCities, 
+  activeTab, 
+  activeInsightTab, 
+  selectedIndustry, 
+  selectedCaseStudy 
+}) => {
   const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'ppt'>('pdf');
   const [emailSchedule, setEmailSchedule] = useState<'none' | 'weekly' | 'monthly'>('none');
   const [isExporting, setIsExporting] = useState(false);
@@ -20,19 +30,19 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
       id: 'pdf',
       name: 'PDF Report',
       icon: <FileText className="h-4 w-4" />,
-      description: 'McKinsey-style comprehensive market analysis report'
+      description: 'Comprehensive market analysis report with your current selections'
     },
     {
       id: 'excel',
       name: 'Excel Data',
       icon: <BarChart3 className="h-4 w-4" />,
-      description: 'Detailed data analytics in professional spreadsheet format'
+      description: 'Detailed data analytics matching your current view and selections'
     },
     {
       id: 'ppt',
       name: 'PowerPoint',
       icon: <FileText className="h-4 w-4" />,
-      description: 'Professional executive presentation slides'
+      description: 'Executive presentation slides based on your analysis focus'
     }
   ];
 
@@ -43,18 +53,24 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
       const exportData: ExportData = {
         selectedCountries,
         selectedCities,
-        activeTab
+        activeTab,
+        activeInsightTab,
+        selectedIndustry,
+        selectedCaseStudy
       };
+
+      // Gather current view data for synchronization
+      const currentViewData = this.getCurrentViewData();
 
       switch (exportFormat) {
         case 'pdf':
-          await exportService.generatePDFReport(exportData);
+          await exportService.generatePDFReport(exportData, currentViewData);
           break;
         case 'excel':
-          await exportService.generateExcelReport(exportData);
+          await exportService.generateExcelReport(exportData, currentViewData);
           break;
         case 'ppt':
-          await exportService.generatePowerPointOutline(exportData);
+          await exportService.generatePowerPointOutline(exportData, currentViewData);
           break;
       }
     } catch (error) {
@@ -65,6 +81,19 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
     }
   };
 
+  const getCurrentViewData = () => {
+    // This would gather the current view data based on active tab
+    // For now, return a placeholder that indicates the current focus
+    return [{
+      'Current Analysis': activeTab,
+      'Market Intelligence Focus': activeInsightTab || 'N/A',
+      'Industry Focus': selectedIndustry || 'All Industries',
+      'Case Study': selectedCaseStudy || 'N/A',
+      'Selected Markets': selectedCountries.join(', '),
+      'Selected Cities': selectedCities.join(', '),
+      'Report Generated': new Date().toISOString()
+    }];
+  };
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
       <div className="flex items-center space-x-2 mb-6">
@@ -102,9 +131,19 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
         {/* Report Contents */}
         <div>
           <h3 className="text-sm font-medium text-slate-300 mb-3">Report Contents</h3>
+          <div className="mb-4 p-3 bg-blue-900/20 border border-blue-700/50 rounded-lg">
+            <div className="text-sm font-medium text-blue-400 mb-2">Current Analysis Focus</div>
+            <div className="space-y-1 text-xs text-slate-300">
+              <div>• Analysis Tab: {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</div>
+              {activeInsightTab && <div>• Intelligence Focus: {activeInsightTab.charAt(0).toUpperCase() + activeInsightTab.slice(1)}</div>}
+              {selectedIndustry && <div>• Industry: {selectedIndustry}</div>}
+              {selectedCaseStudy && <div>• Case Study: {selectedCaseStudy}</div>}
+            </div>
+          </div>
           <div className="space-y-2">
             {[
               'Executive Summary',
+              `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Analysis (Current Focus)`,
               'Market Size & Growth Analysis',
               'City-Level Market Intelligence',
               'Industry Deep Dive Analysis',
@@ -112,6 +151,7 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
               'Consumer Behavior Insights',
               'Market Entry Case Studies',
               'Digital Adoption Metrics',
+              'Investment Flows & Trade Analysis',
               'ROI Projections',
               'Risk Assessment',
               'Strategic Recommendations'
@@ -119,10 +159,10 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
               <label key={index} className="flex items-center space-x-3">
                 <input
                   type="checkbox"
-                  defaultChecked
+                  defaultChecked={index < 8 || item.includes('Current Focus')}
                   className="w-4 h-4 text-orange-500 bg-slate-700 border-slate-600 rounded focus:ring-orange-500 focus:ring-2"
                 />
-                <span className="text-sm text-slate-300">{item}</span>
+                <span className={`text-sm ${item.includes('Current Focus') ? 'text-blue-300 font-medium' : 'text-slate-300'}`}>{item}</span>
               </label>
             ))}
           </div>
@@ -179,6 +219,18 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
                 </p>
               )}
             </div>
+            
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-300">Analysis Focus</span>
+                <span className="text-sm text-blue-400">{activeTab}</span>
+              </div>
+              <div className="space-y-1 text-xs text-slate-400">
+                {activeInsightTab && <div>Intelligence: {activeInsightTab}</div>}
+                {selectedIndustry && <div>Industry: {selectedIndustry}</div>}
+                {selectedCaseStudy && <div>Case Study: {selectedCaseStudy}</div>}
+              </div>
+            </div>
           </div>
         </div>
         
@@ -196,7 +248,7 @@ const ExportTools: React.FC<ExportToolsProps> = ({ selectedCountries, selectedCi
           ) : (
             <>
               <Download className="h-4 w-4" />
-              <span>Generate Professional {exportFormat.toUpperCase()} Report</span>
+              <span>Generate Synced {exportFormat.toUpperCase()} Report</span>
             </>
           )}
         </button>

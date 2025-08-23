@@ -77,10 +77,16 @@ const industries: Industry[] = [
 
 interface IndustryAnalysisProps {
   selectedCountries: string[];
+  onIndustrySelect?: (industry: string) => void;
 }
 
-const IndustryAnalysis: React.FC<IndustryAnalysisProps> = ({ selectedCountries }) => {
+const IndustryAnalysis: React.FC<IndustryAnalysisProps> = ({ selectedCountries, onIndustrySelect }) => {
   const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
+
+  const handleIndustrySelect = (industryId: string) => {
+    setSelectedIndustry(industryId);
+    onIndustrySelect?.(industryId);
+  };
 
   const getCompetitionColor = (competition: string) => {
     switch (competition) {
@@ -113,7 +119,7 @@ const IndustryAnalysis: React.FC<IndustryAnalysisProps> = ({ selectedCountries }
             {industries.map((industry) => (
               <button
                 key={industry.id}
-                onClick={() => setSelectedIndustry(industry.id)}
+                onClick={() => handleIndustrySelect(industry.id)}
                 className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
                   selectedIndustry === industry.id
                     ? 'border-emerald-500 bg-emerald-900/20 text-white'

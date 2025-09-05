@@ -72,19 +72,64 @@ const ExportTools: React.FC<ExportToolsProps> = ({
       }
       
       // Show success message
-      alert(`${exportFormat.toUpperCase()} report generated successfully! Check your downloads folder.`);
+      // Create a beautiful success notification
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+      notification.innerHTML = `
+        <div class="flex items-center space-x-3">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <div class="font-semibold">Report Generated Successfully!</div>
+            <div class="text-sm opacity-90">Your ${exportFormat.toUpperCase()} report is ready for download</div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(notification);
+      
+      // Remove notification after 5 seconds
+      setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => document.body.removeChild(notification), 300);
+      }, 5000);
     } catch (error) {
       console.error('Error generating export:', error);
-      alert(`Error generating ${exportFormat.toUpperCase()} report. Please try again.`);
+      // Create error notification
+      const errorNotification = document.createElement('div');
+      errorNotification.className = 'fixed top-4 right-4 bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+      errorNotification.innerHTML = `
+        <div class="flex items-center space-x-3">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <div class="font-semibold">Generation Failed</div>
+            <div class="text-sm opacity-90">Please try again or contact support</div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(errorNotification);
+      
+      setTimeout(() => {
+        errorNotification.style.transform = 'translateX(100%)';
+        setTimeout(() => document.body.removeChild(errorNotification), 300);
+      }, 5000);
     } finally {
       setIsExporting(false);
     }
   };
+
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
       <div className="flex items-center space-x-2 mb-6">
         <Download className="h-5 w-5 text-orange-400" />
-        <h2 className="text-lg font-semibold text-white">Export & Reporting</h2>
+        <h2 className="text-lg font-semibold text-white">Professional Report Generation</h2>
+        <div className="ml-auto">
+          <span className="px-2 py-1 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-xs rounded-full font-medium">
+            Enhanced Multi-Page Reports
+          </span>
+        </div>
       </div>
       
       <div className="space-y-6">
@@ -116,7 +161,7 @@ const ExportTools: React.FC<ExportToolsProps> = ({
         
         {/* Report Contents */}
         <div>
-          <h3 className="text-sm font-medium text-slate-300 mb-3">Report Contents</h3>
+          <h3 className="text-sm font-medium text-slate-300 mb-3">Comprehensive Report Contents (7+ Pages)</h3>
           <div className="mb-4 p-4 bg-gradient-to-r from-blue-900/20 to-emerald-900/20 border border-blue-700/50 rounded-lg">
             <div className="text-sm font-medium text-blue-400 mb-2">Current Analysis Focus</div>
             <div className="space-y-1 text-xs text-slate-300">
@@ -131,18 +176,26 @@ const ExportTools: React.FC<ExportToolsProps> = ({
           <div className="space-y-2">
             {[
               'Executive Summary',
+              'Executive Dashboard with Key Metrics',
+              'Market Analysis Deep Dive',
+              'Competitive Intelligence & Market Leaders',
+              'Consumer Behavior & Trends Analysis',
+              'Regulatory Environment & Risk Assessment',
+              'Investment Analysis & ROI Projections',
+              'Strategic Action Plan & Implementation Roadmap',
               `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Analysis ⭐ (Your Current Focus)`,
-              'Market Size & Growth Analysis',
               selectedCities.length > 0 ? 'Selected Cities Analysis' : 'City-Level Market Intelligence',
               selectedIndustry ? `${selectedIndustry.charAt(0).toUpperCase() + selectedIndustry.slice(1)} Industry Analysis` : 'Industry Deep Dive Analysis',
-              'Competitive Landscape',
               activeInsightTab === 'consumer' ? 'Consumer Behavior Insights ⭐ (Your Focus)' : 'Consumer Behavior Insights',
               selectedCaseStudy ? `${selectedCaseStudy} Case Study ⭐ (Your Selection)` : 'Market Entry Case Studies',
               'Digital Adoption Metrics',
               'Investment Flows & Trade Analysis',
-              'ROI Projections',
-              'Risk Assessment',
-              'Strategic Recommendations'
+              'Comprehensive Risk Assessment Matrix',
+              'Strategic Market Entry Recommendations',
+              'Implementation Timeline & Milestones',
+              'Success Metrics & KPI Framework',
+              'Next Steps & Action Items',
+              'Data Sources & Methodology'
             ].map((item, index) => (
               <label key={index} className="flex items-center space-x-3">
                 <input
@@ -231,12 +284,12 @@ const ExportTools: React.FC<ExportToolsProps> = ({
           {isExporting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Generating Synced {exportFormat.toUpperCase()} Report...</span>
+              <span>Generating Professional {exportFormat.toUpperCase()} Report...</span>
             </>
           ) : (
             <>
               <Download className="h-4 w-4" />
-              <span>Generate Beautiful {exportFormat.toUpperCase()} Report</span>
+              <span>Generate Comprehensive {exportFormat.toUpperCase()} Report</span>
             </>
           )}
         </button>

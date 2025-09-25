@@ -1,3 +1,6 @@
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
+
 export interface ExportData {
   selectedCountries: string[];
   selectedCities: string[];
@@ -18,2200 +21,979 @@ export class ExportService {
   }
 
   async generatePDFReport(data: ExportData): Promise<void> {
-    try {
-      // Import jsPDF dynamically
-      const { jsPDF } = await import('jspdf');
-      const pdf = new jsPDF();
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    let yPosition = 20;
 
-      // Set up document properties
-      pdf.setProperties({
-        title: 'Flow - Southeast Asian Market Intelligence Report',
-        subject: 'Market Analysis',
-        author: 'Flow - Market Intelligence Platform',
-        creator: 'Flow Analytics'
+    // Helper functions for consistent styling
+    const addGradientBackground = (startColor: string, endColor: string) => {
+      // Simulate gradient with overlapping rectangles
+      pdf.setFillColor(59, 130, 246); // Blue
+      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+      pdf.setFillColor(16, 185, 129); // Emerald
+      pdf.rect(0, 0, pageWidth, pageHeight/2, 'F');
+      pdf.setGlobalAlpha(0.1);
+      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+      pdf.setGlobalAlpha(1);
+    };
+
+    const addHeader = (title: string, subtitle?: string) => {
+      pdf.setFillColor(30, 41, 59); // slate-800
+      pdf.rect(0, 0, pageWidth, 40, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(title, 20, 25);
+      
+      if (subtitle) {
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(148, 163, 184); // slate-400
+        pdf.text(subtitle, 20, 35);
+      }
+      
+      return 50;
+    };
+
+    const addSection = (title: string, content: string[], startY: number) => {
+      let currentY = startY;
+      
+      // Section header with gradient background
+      pdf.setFillColor(59, 130, 246, 0.1); // blue with opacity
+      pdf.rect(15, currentY - 5, pageWidth - 30, 15, 'F');
+      
+      pdf.setTextColor(59, 130, 246); // blue-500
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(title, 20, currentY + 5);
+      currentY += 20;
+      
+      // Content
+      pdf.setTextColor(51, 65, 85); // slate-700
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      
+      content.forEach(item => {
+        const lines = pdf.splitTextToSize(item, pageWidth - 40);
+        lines.forEach((line: string) => {
+          if (currentY > pageHeight - 30) {
+            pdf.addPage();
+            currentY = 20;
+          }
+          pdf.text(line, 20, currentY);
+          currentY += 6;
+        });
+        currentY += 3;
       });
+      
+      return currentY + 10;
+    };
 
-      // Page 1: Title Page
-      this.createTitlePage(pdf, data);
+    const addMetricCard = (title: string, value: string, change: string, x: number, y: number, color: string) => {
+      const cardWidth = 45;
+      const cardHeight = 25;
       
-      // Page 2: Executive Summary
-      pdf.addPage();
-      this.createExecutiveSummary(pdf, data);
+      // Card background
+      pdf.setFillColor(248, 250, 252); // slate-50
+      pdf.rect(x, y, cardWidth, cardHeight, 'F');
       
-      // Page 3: Market Overview & Key Metrics
-      pdf.addPage();
-      this.createMarketOverview(pdf, data);
+      // Border
+      const colors = {
+        blue: [59, 130, 246],
+        emerald: [16, 185, 129],
+        purple: [139, 92, 246],
+        orange: [249, 115, 22]
+      };
+      const [r, g, b] = colors[color as keyof typeof colors] || colors.blue;
+      pdf.setDrawColor(r, g, b);
+      pdf.setLineWidth(0.5);
+      pdf.rect(x, y, cardWidth, cardHeight);
       
-      // Page 4: Market Analysis Deep Dive
-      pdf.addPage();
-      this.createMarketAnalysis(pdf, data);
+      // Title
+      pdf.setTextColor(100, 116, 139); // slate-500
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(title, x + 2, y + 6);
       
-      // Page 5: Country Insights & Opportunities
-      pdf.addPage();
-      this.createCountryInsights(pdf, data);
+      // Value
+      pdf.setTextColor(15, 23, 42); // slate-900
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(value, x + 2, y + 14);
       
-      // Page 6: Competitive Landscape
-      pdf.addPage();
-      this.createCompetitiveLandscape(pdf, data);
-      
-      // Page 7: Consumer Behavior & Digital Trends
-      pdf.addPage();
-      this.createConsumerInsights(pdf, data);
-      
-      // Page 8: Strategic Recommendations
-      pdf.addPage();
-      this.createStrategicRecommendations(pdf, data);
-      
-      // Page 9: Implementation Roadmap
-      pdf.addPage();
-      this.createImplementationRoadmap(pdf, data);
-      
-      // Page 10: Risk Assessment & Mitigation
-      pdf.addPage();
-      this.createRiskAssessment(pdf, data);
+      // Change
+      pdf.setTextColor(r, g, b);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(change, x + 2, y + 21);
+    };
 
-      // Save the PDF
-      const fileName = `Flow_Market_Report_${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(fileName);
+    const addChart = (title: string, data: any[], x: number, y: number, width: number, height: number) => {
+      // Chart background
+      pdf.setFillColor(248, 250, 252); // slate-50
+      pdf.rect(x, y, width, height, 'F');
       
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      throw new Error('Failed to generate PDF report');
-    }
+      // Chart border
+      pdf.setDrawColor(226, 232, 240); // slate-200
+      pdf.setLineWidth(0.5);
+      pdf.rect(x, y, width, height);
+      
+      // Chart title
+      pdf.setTextColor(51, 65, 85); // slate-700
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(title, x + 2, y + 8);
+      
+      // Simple bar chart simulation
+      const barWidth = (width - 10) / data.length;
+      const maxValue = Math.max(...data.map(d => d.value));
+      
+      data.forEach((item, index) => {
+        const barHeight = (item.value / maxValue) * (height - 20);
+        const barX = x + 5 + (index * barWidth);
+        const barY = y + height - 5 - barHeight;
+        
+        // Bar
+        pdf.setFillColor(59, 130, 246); // blue-500
+        pdf.rect(barX, barY, barWidth - 2, barHeight, 'F');
+        
+        // Label
+        pdf.setTextColor(100, 116, 139); // slate-500
+        pdf.setFontSize(7);
+        pdf.text(item.label, barX, y + height + 3);
+      });
+    };
+
+    // Page 1: Title Page
+    addGradientBackground('#3B82F6', '#10B981');
+    
+    // Flow logo simulation
+    pdf.setFillColor(255, 255, 255, 0.1);
+    pdf.circle(pageWidth/2, 60, 20, 'F');
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(36);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Flow', pageWidth/2 - 15, 65);
+    
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Your guide to Penetrating Markets', pageWidth/2 - 45, 75);
+    
+    pdf.setFontSize(28);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Southeast Asian Market', pageWidth/2 - 55, 120);
+    pdf.text('Intelligence Report', pageWidth/2 - 45, 135);
+    
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    const selectedMarketsText = data.selectedCountries.length > 0 
+      ? data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')
+      : 'All Southeast Asian Markets';
+    pdf.text(`Focus Markets: ${selectedMarketsText}`, pageWidth/2 - 40, 160);
+    
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth/2 - 25, 170);
+    
+    // Page 2: Executive Summary
+    pdf.addPage();
+    yPosition = addHeader('Executive Summary', 'Key insights and strategic overview');
+    
+    // Key metrics cards
+    addMetricCard('Total Market Size', '$1.2T', '+12.4%', 20, yPosition, 'blue');
+    addMetricCard('Digital Growth', '18.6%', '+3.2%', 70, yPosition, 'emerald');
+    addMetricCard('Internet Users', '456M', '+8.7%', 120, yPosition, 'purple');
+    addMetricCard('Cross-Border Trade', '$89.2B', '+31.4%', 165, yPosition, 'orange');
+    
+    yPosition += 35;
+    
+    const executiveSummary = [
+      '• Southeast Asia represents one of the world\'s most dynamic and rapidly growing markets, with a combined GDP of over $3.7 trillion and a population exceeding 680 million people.',
+      '• The digital economy is experiencing unprecedented growth at 18.6% annually, driven by mobile-first adoption and increasing internet penetration across all demographics.',
+      '• Key growth drivers include: rising middle class, urbanization trends, government digitization initiatives, and increasing foreign direct investment.',
+      '• Market entry opportunities are strongest in fintech, e-commerce, healthcare technology, and sustainable solutions sectors.',
+      '• Regulatory environments are becoming increasingly business-friendly, with Singapore and Thailand leading in ease of doing business rankings.'
+    ];
+    
+    yPosition = addSection('Market Overview', executiveSummary, yPosition);
+    
+    // Page 3: Market Analysis with Charts
+    pdf.addPage();
+    yPosition = addHeader('Market Analysis', 'Comprehensive market data and trends');
+    
+    // Population chart
+    const populationData = [
+      { label: 'ID', value: 273.5 },
+      { label: 'PH', value: 109.6 },
+      { label: 'VN', value: 97.3 },
+      { label: 'TH', value: 69.8 },
+      { label: 'MY', value: 32.7 },
+      { label: 'SG', value: 5.9 }
+    ];
+    addChart('Population (Millions)', populationData, 20, yPosition, 80, 40);
+    
+    // GDP chart
+    const gdpData = [
+      { label: 'ID', value: 1319 },
+      { label: 'TH', value: 543 },
+      { label: 'SG', value: 397 },
+      { label: 'MY', value: 432 },
+      { label: 'PH', value: 394 },
+      { label: 'VN', value: 409 }
+    ];
+    addChart('GDP (Billions USD)', gdpData, 110, yPosition, 80, 40);
+    
+    yPosition += 50;
+    
+    const marketAnalysis = [
+      '• Indonesia dominates the region with the largest population (273.5M) and economy ($1.32T GDP), offering massive scale opportunities.',
+      '• Singapore maintains the highest GDP per capita ($65,200) and serves as the regional financial and technology hub.',
+      '• Vietnam shows the strongest growth trajectory (6.8% projected 2024) with rapidly improving infrastructure and business environment.',
+      '• Thailand offers political stability and established infrastructure, making it an ideal regional headquarters location.',
+      '• Malaysia provides unique advantages in Islamic finance and halal product certification for global Muslim markets.',
+      '• Philippines presents significant opportunities in BPO services and has a large English-speaking workforce.'
+    ];
+    
+    yPosition = addSection('Country Analysis', marketAnalysis, yPosition);
+    
+    // Page 4: Digital Landscape
+    pdf.addPage();
+    yPosition = addHeader('Digital Landscape', 'Technology adoption and digital transformation trends');
+    
+    // Digital penetration metrics
+    addMetricCard('Mobile Users', '520M', '+12%', 20, yPosition, 'blue');
+    addMetricCard('Internet Penetration', '76%', '+8%', 70, yPosition, 'emerald');
+    addMetricCard('E-commerce Growth', '25%', '+15%', 120, yPosition, 'purple');
+    addMetricCard('Digital Payments', '68%', '+22%', 165, yPosition, 'orange');
+    
+    yPosition += 35;
+    
+    const digitalInsights = [
+      '• Mobile-first approach is critical: 85% of internet users access services primarily through mobile devices.',
+      '• Social commerce is driving e-commerce growth, with platforms like TikTok Shop and Instagram Shopping gaining massive traction.',
+      '• Digital payment adoption accelerated by 300% during 2020-2024, with super apps like Grab and Gojek leading the transformation.',
+      '• Cloud adoption is increasing rapidly among SMEs, creating opportunities for SaaS and infrastructure providers.',
+      '• Cybersecurity concerns are rising, creating demand for security solutions and compliance services.',
+      '• 5G rollout is creating new opportunities in IoT, AR/VR, and edge computing applications.'
+    ];
+    
+    yPosition = addSection('Digital Transformation Insights', digitalInsights, yPosition);
+    
+    // Page 5: Consumer Behavior
+    pdf.addPage();
+    yPosition = addHeader('Consumer Behavior', 'Understanding Southeast Asian consumers');
+    
+    const consumerBehavior = [
+      '• Price sensitivity remains high, but consumers are willing to pay premium for quality, convenience, and brand trust.',
+      '• Social media heavily influences purchase decisions, with 65% of consumers discovering products through social platforms.',
+      '• Sustainability consciousness is growing, particularly among millennials and Gen Z consumers in urban areas.',
+      '• Cross-border shopping is increasing, driven by better logistics and payment solutions.',
+      '• Local brands are gaining preference over international brands in categories like food, beauty, and fashion.',
+      '• Mobile payment adoption varies significantly by country: Singapore (85%), Thailand (72%), Indonesia (61%).'
+    ];
+    
+    yPosition = addSection('Consumer Insights', consumerBehavior, yPosition);
+    
+    // Page 6: Competitive Landscape
+    pdf.addPage();
+    yPosition = addHeader('Competitive Landscape', 'Market leaders and competitive dynamics');
+    
+    const competitiveAnalysis = [
+      '• E-commerce: Shopee leads with 68% market share, followed by Lazada (22%) and Tokopedia (15% in Indonesia).',
+      '• Fintech: Grab Financial dominates ride-hailing payments, while traditional banks are rapidly digitalizing.',
+      '• Food delivery: Grab Food and foodpanda compete intensely, with local players gaining ground in specific markets.',
+      '• Logistics: Established players like DHL and FedEx face competition from regional specialists and tech-enabled startups.',
+      '• Cloud services: AWS leads, but Alibaba Cloud and local providers are gaining market share.',
+      '• Telecommunications: National champions dominate, but digital services create new competitive dynamics.'
+    ];
+    
+    yPosition = addSection('Competitive Analysis', competitiveAnalysis, yPosition);
+    
+    // Page 7: Regulatory Environment
+    pdf.addPage();
+    yPosition = addHeader('Regulatory Environment', 'Legal and regulatory considerations');
+    
+    const regulatoryInsights = [
+      '• Singapore: Most business-friendly environment with clear regulations and strong IP protection.',
+      '• Thailand: Improving ease of doing business with new digital economy initiatives and foreign investment incentives.',
+      '• Malaysia: Stable regulatory environment with special advantages for Islamic finance and halal industries.',
+      '• Indonesia: Large market with complex regulations; local partnerships often required for market entry.',
+      '• Philippines: Improving business environment with ongoing regulatory reforms and infrastructure development.',
+      '• Vietnam: Rapidly modernizing legal framework with increasing openness to foreign investment.'
+    ];
+    
+    yPosition = addSection('Regulatory Overview', regulatoryInsights, yPosition);
+    
+    // Page 8: Strategic Recommendations
+    pdf.addPage();
+    yPosition = addHeader('Strategic Recommendations', 'Actionable insights for market entry');
+    
+    const recommendations = [
+      '• Start with Singapore or Thailand as regional headquarters for regulatory ease and infrastructure quality.',
+      '• Prioritize mobile-first product development and user experience design for all markets.',
+      '• Invest in local partnerships and cultural adaptation rather than direct market entry approaches.',
+      '• Focus on tier-1 cities initially, then expand to tier-2 cities as operations mature.',
+      '• Develop localized payment solutions and integrate with popular super apps and digital wallets.',
+      '• Build strong social media presence and influencer partnerships for brand awareness and trust building.'
+    ];
+    
+    yPosition = addSection('Market Entry Strategy', recommendations, yPosition);
+    
+    // Page 9: Implementation Roadmap
+    pdf.addPage();
+    yPosition = addHeader('Implementation Roadmap', '12-month market entry timeline');
+    
+    const roadmap = [
+      '• Months 1-3: Market research, regulatory compliance, and local partnership identification.',
+      '• Months 4-6: Product localization, pilot program launch in primary market, team building.',
+      '• Months 7-9: Marketing campaign launch, customer acquisition, feedback integration.',
+      '• Months 10-12: Scale operations, expand to secondary markets, optimize based on learnings.',
+      '• Key milestones: Regulatory approval (Month 2), First customer (Month 5), Break-even (Month 10).',
+      '• Success metrics: Customer acquisition cost, lifetime value, market share, brand awareness.'
+    ];
+    
+    yPosition = addSection('12-Month Timeline', roadmap, yPosition);
+    
+    // Page 10: Risk Assessment & Appendix
+    pdf.addPage();
+    yPosition = addHeader('Risk Assessment', 'Potential challenges and mitigation strategies');
+    
+    const riskAssessment = [
+      '• Regulatory Risk: Medium - Monitor policy changes and maintain compliance expertise.',
+      '• Currency Risk: Low-Medium - Hedge major exposures and price in local currencies.',
+      '• Competition Risk: High - Differentiate through superior user experience and local adaptation.',
+      '• Political Risk: Low - Focus on stable markets and diversify across multiple countries.',
+      '• Technology Risk: Medium - Invest in robust infrastructure and cybersecurity measures.',
+      '• Cultural Risk: Medium - Hire local talent and invest in cultural training for international teams.'
+    ];
+    
+    yPosition = addSection('Risk Analysis', riskAssessment, yPosition);
+    
+    // Footer on last page
+    pdf.setTextColor(100, 116, 139);
+    pdf.setFontSize(8);
+    pdf.text('Generated by Flow - Southeast Asian Market Intelligence Platform', 20, pageHeight - 10);
+    pdf.text(`Report Date: ${new Date().toLocaleDateString()} | Markets: ${selectedMarketsText}`, 20, pageHeight - 5);
+
+    pdf.save(`SEA-Market-Analysis-${new Date().toISOString().split('T')[0]}.pdf`);
   }
 
   async generateExcelReport(data: ExportData): Promise<void> {
-    try {
-      // Import XLSX dynamically
-      const XLSX = await import('xlsx');
-      
-      // Create workbook
-      const wb = XLSX.utils.book_new();
-      
-      // Market Overview Sheet
-      const marketData = this.getMarketOverviewData(data);
-      const ws1 = XLSX.utils.json_to_sheet(marketData);
-      XLSX.utils.book_append_sheet(wb, ws1, 'Market Overview');
-      
-      // Country Analysis Sheet
-      const countryData = this.getCountryAnalysisData(data);
-      const ws2 = XLSX.utils.json_to_sheet(countryData);
-      XLSX.utils.book_append_sheet(wb, ws2, 'Country Analysis');
-      
-      // Digital Metrics Sheet
-      const digitalData = this.getDigitalMetricsData(data);
-      const ws3 = XLSX.utils.json_to_sheet(digitalData);
-      XLSX.utils.book_append_sheet(wb, ws3, 'Digital Metrics');
-      
-      // Economic Indicators Sheet
-      const economicData = this.getEconomicData(data);
-      const ws4 = XLSX.utils.json_to_sheet(economicData);
-      XLSX.utils.book_append_sheet(wb, ws4, 'Economic Indicators');
-      
-      // Save the Excel file
-      const fileName = `Flow_Market_Data_${new Date().toISOString().split('T')[0]}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-      
-    } catch (error) {
-      console.error('Excel generation error:', error);
-      throw new Error('Failed to generate Excel report');
-    }
+    const workbook = XLSX.utils.book_new();
+    
+    // Market Overview Sheet
+    const marketOverview = [
+      ['Country', 'Population (M)', 'GDP (B USD)', 'Growth Rate (%)', 'Digital Penetration (%)', 'Market Size (B USD)', 'Opportunity Score'],
+      ['Indonesia', 273.5, 1319, 5.2, 73, 287, 78],
+      ['Philippines', 109.6, 394, 6.2, 68, 156, 75],
+      ['Vietnam', 97.3, 409, 6.8, 75, 142, 82],
+      ['Thailand', 69.8, 543, 2.8, 85, 127, 71],
+      ['Malaysia', 32.7, 432, 4.5, 78, 98, 73],
+      ['Singapore', 5.9, 397, 2.6, 92, 89, 68]
+    ];
+    
+    // Economic Indicators Sheet
+    const economicData = [
+      ['Country', 'GDP Growth 2024 (%)', 'Inflation (%)', 'Unemployment (%)', 'Interest Rate (%)', 'USD Exchange Rate', 'Ease of Business (1-100)'],
+      ['Indonesia', 5.2, 3.2, 5.8, 6.00, 15750, 68],
+      ['Philippines', 6.2, 4.1, 4.5, 6.50, 56.25, 65],
+      ['Vietnam', 6.8, 3.6, 2.3, 4.50, 24350, 70],
+      ['Thailand', 2.8, 1.2, 1.1, 2.50, 35.42, 78],
+      ['Malaysia', 4.5, 2.8, 3.3, 3.00, 4.68, 73],
+      ['Singapore', 2.6, 2.1, 2.0, 3.50, 1.35, 95]
+    ];
+    
+    // Digital Adoption Sheet
+    const digitalData = [
+      ['Country', 'Internet Penetration (%)', 'Mobile Penetration (%)', 'Social Media Users (%)', 'E-commerce Adoption (%)', 'Digital Payments (%)', 'Cloud Adoption (%)'],
+      ['Singapore', 89, 92, 85, 78, 85, 72],
+      ['Thailand', 82, 85, 76, 65, 72, 58],
+      ['Malaysia', 84, 78, 81, 58, 68, 54],
+      ['Indonesia', 71, 73, 68, 52, 61, 45],
+      ['Philippines', 67, 68, 72, 45, 55, 41],
+      ['Vietnam', 77, 75, 74, 49, 58, 43]
+    ];
+    
+    // Industry Analysis Sheet
+    const industryData = [
+      ['Industry', 'Market Size (B USD)', 'Growth Rate (%)', 'Competition Level', 'Opportunity Score', 'Key Trends'],
+      ['Technology & Software', 89.2, 12.4, 'High', 85, 'AI/ML adoption, Cloud migration, Mobile-first'],
+      ['E-commerce & Retail', 156.7, 18.6, 'High', 78, 'Social commerce, Cross-border, Sustainability'],
+      ['Financial Services', 67.3, 15.2, 'Medium', 92, 'Digital banking, Cryptocurrency, SME lending'],
+      ['Automotive', 45.8, 8.3, 'Medium', 71, 'Electric vehicles, Ride-sharing, Autonomous'],
+      ['Healthcare & Pharma', 78.4, 9.7, 'Low', 88, 'Telemedicine, Digital therapeutics, Personalized'],
+      ['Manufacturing', 234.1, 6.8, 'Medium', 65, 'Industry 4.0, Supply chain, Green manufacturing']
+    ];
+    
+    // Consumer Insights Sheet
+    const consumerData = [
+      ['Behavior Category', 'Penetration (%)', 'Growth Rate (%)', 'Key Insight', 'Market Opportunity'],
+      ['Mobile-First Shopping', 78.4, 24.3, 'Consumers prefer mobile apps over desktop', 'Optimize mobile checkout flows'],
+      ['Social Commerce', 65.7, 31.8, 'Social media drives 65% of purchase decisions', 'Invest in influencer marketing'],
+      ['Digital Payments', 72.1, 28.5, 'Cash-to-digital transition accelerating', 'Partner with local payment providers'],
+      ['Sustainability Focus', 54.2, 19.7, 'Growing preference for sustainable products', 'Develop eco-friendly product lines'],
+      ['Cross-border Shopping', 43.8, 35.2, 'International brands gaining popularity', 'Optimize logistics and customs'],
+      ['Voice Commerce', 28.5, 45.6, 'Voice assistants driving new shopping behaviors', 'Develop voice-optimized experiences']
+    ];
+    
+    // Create worksheets with styling
+    const ws1 = XLSX.utils.aoa_to_sheet(marketOverview);
+    const ws2 = XLSX.utils.aoa_to_sheet(economicData);
+    const ws3 = XLSX.utils.aoa_to_sheet(digitalData);
+    const ws4 = XLSX.utils.aoa_to_sheet(industryData);
+    const ws5 = XLSX.utils.aoa_to_sheet(consumerData);
+    
+    // Add worksheets to workbook
+    XLSX.utils.book_append_sheet(workbook, ws1, 'Market Overview');
+    XLSX.utils.book_append_sheet(workbook, ws2, 'Economic Indicators');
+    XLSX.utils.book_append_sheet(workbook, ws3, 'Digital Adoption');
+    XLSX.utils.book_append_sheet(workbook, ws4, 'Industry Analysis');
+    XLSX.utils.book_append_sheet(workbook, ws5, 'Consumer Insights');
+    
+    // Generate and download
+    XLSX.writeFile(workbook, `SEA-Market-Data-${new Date().toISOString().split('T')[0]}.xlsx`);
   }
 
   async generatePowerPointOutline(data: ExportData): Promise<void> {
-    try {
-      // Create a comprehensive PowerPoint outline as a text file
-      const outline = this.createPowerPointOutline(data);
-      
-      // Create and download the file
-      const blob = new Blob([outline], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Flow_Presentation_Outline_${new Date().toISOString().split('T')[0]}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-    } catch (error) {
-      console.error('PowerPoint outline generation error:', error);
-      throw new Error('Failed to generate PowerPoint outline');
-    }
-  }
+    const selectedMarketsText = data.selectedCountries.length > 0 
+      ? data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')
+      : 'All Southeast Asian Markets';
 
-  private createTitlePage(pdf: any, data: ExportData): void {
-    // Set light professional background
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Add subtle gradient effect with rectangles
-    pdf.setFillColor(59, 130, 246, 0.1); // blue with transparency
-    pdf.rect(0, 0, 210, 80, 'F');
-    pdf.setFillColor(16, 185, 129, 0.05); // emerald with transparency
-    pdf.rect(0, 217, 210, 80, 'F');
+    const pitchDeckContent = `
+# SOUTHEAST ASIAN MARKET ENTRY PITCH DECK
+## Professional Slide Deck Outline with Visual Design Guidelines
 
-    // Flow Logo Area
-    pdf.setFillColor(59, 130, 246); // blue-500
-    pdf.circle(105, 60, 25, 'F');
-    pdf.setFillColor(16, 185, 129); // emerald-500
-    pdf.circle(105, 60, 20, 'F');
-    pdf.setFillColor(139, 92, 246); // purple-500
-    pdf.circle(105, 60, 15, 'F');
-    
-    // Title
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(28);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Flow', 105, 100, { align: 'center' });
-    
-    pdf.setTextColor(59, 130, 246); // blue-600
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Southeast Asian Market Intelligence Report', 105, 115, { align: 'center' });
-    
-    pdf.setTextColor(71, 85, 105); // slate-600
-    pdf.setFontSize(12);
-    pdf.text('Professional Market Analysis & Strategic Insights', 105, 130, { align: 'center' });
-    
-    // Selected markets
-    if (data.selectedCountries.length > 0) {
-      pdf.setFillColor(239, 246, 255); // blue-50
-      pdf.rect(30, 150, 150, 40, 'F');
-      pdf.setDrawColor(59, 130, 246); // blue-600
-      pdf.rect(30, 150, 150, 40, 'S');
-      
-      pdf.setTextColor(30, 64, 175); // blue-800
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Target Markets:', 40, 165);
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(51, 65, 85); // slate-700
-      const countries = data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ');
-      const lines = pdf.splitTextToSize(countries, 130);
-      pdf.text(lines, 40, 175);
-    }
-    
-    // Footer with date and branding
-    pdf.setTextColor(100, 116, 139); // slate-500
-    pdf.setFontSize(10);
-    pdf.text(`Generated: ${new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })}`, 105, 260, { align: 'center' });
-    
-    pdf.setTextColor(148, 163, 184); // slate-400
-    pdf.setFontSize(8);
-    pdf.text('Powered by Flow Analytics Platform', 105, 270, { align: 'center' });
-  }
+Generated for: ${selectedMarketsText}
+Date: ${new Date().toLocaleDateString()}
+Focus: ${data.activeTab.charAt(0).toUpperCase() + data.activeTab.slice(1)} Analysis
 
-  private createExecutiveSummary(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(59, 130, 246); // blue-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Executive Summary', 20, 17);
-    
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'normal');
-    
-    let yPos = 45;
-    
-    // Key Highlights Box
-    pdf.setFillColor(239, 246, 255); // blue-50
-    pdf.rect(20, yPos - 5, 170, 60, 'F');
-    pdf.setDrawColor(59, 130, 246); // blue-600
-    pdf.rect(20, yPos - 5, 170, 60, 'S');
-    
-    pdf.setTextColor(30, 64, 175); // blue-800
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Market Opportunity Highlights', 25, yPos + 5);
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    yPos += 15;
-    
-    const metrics = [
-      '💰 Total Addressable Market: $1.2T across selected regions',
-      '📈 Digital Economy Growth: 18.6% annually (fastest globally)',
-      '👥 Internet Users: 456M active users across target markets',
-      '🌐 Cross-Border Trade: $89.2B in e-commerce transactions',
-      '📱 Mobile Commerce: 78% of consumers prefer mobile shopping'
-    ];
-    
-    metrics.forEach(metric => {
-      pdf.text(metric, 25, yPos);
-      yPos += 8;
-    });
-    
-    yPos += 20;
-    
-    // Strategic Insights Section
-    pdf.setFillColor(236, 253, 245); // emerald-50
-    pdf.rect(20, yPos - 5, 170, 80, 'F');
-    pdf.setDrawColor(16, 185, 129); // emerald-600
-    pdf.rect(20, yPos - 5, 170, 80, 'S');
-    
-    pdf.setTextColor(6, 95, 70); // emerald-800
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Strategic Market Entry Insights', 25, yPos + 5);
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    yPos += 15;
-    
-    const insights = [
-      '🎯 Mobile-First Strategy: Essential for market penetration',
-      '🤝 Local Partnerships: Critical for regulatory compliance and market access',
-      '🏙️ Tier-1 Cities: Optimal entry points with highest digital adoption',
-      '🛍️ Social Commerce: 65% of purchases influenced by social media',
-      '💳 Digital Payments: 72% adoption rate, growing 28% annually',
-      '🌱 Sustainability: Emerging consumer preference driving purchase decisions'
-    ];
-    
-    insights.forEach(insight => {
-      pdf.text(insight, 25, yPos);
-      yPos += 8;
-    });
-    
-    yPos += 20;
-    
-    // Market Entry Priority Matrix
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Market Entry Priority Assessment', 20, yPos);
-    yPos += 15;
-    
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
-    
-    const priorityData = [
-      { country: 'Vietnam', score: '82/100', reason: 'Highest growth rate (6.8%), young demographics' },
-      { country: 'Indonesia', score: '78/100', reason: 'Largest market size ($287B), mobile-first adoption' },
-      { country: 'Philippines', score: '75/100', reason: 'Strong English proficiency, BPO ecosystem' },
-      { country: 'Thailand', score: '71/100', reason: 'Stable economy, tourism infrastructure' },
-      { country: 'Malaysia', score: '73/100', reason: 'Islamic finance hub, strategic location' },
-      { country: 'Singapore', score: '68/100', reason: 'Regional HQ location, high competition' }
-    ];
-    
-    priorityData.filter(item => 
-      data.selectedCountries.length === 0 || 
-      data.selectedCountries.some(selected => 
-        item.country.toLowerCase().includes(selected) || 
-        selected.includes(item.country.toLowerCase())
-      )
-    ).forEach(item => {
-      pdf.setTextColor(30, 64, 175); // blue-800
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`${item.country}: ${item.score}`, 25, yPos);
-      pdf.setTextColor(71, 85, 105); // slate-600
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(item.reason, 80, yPos);
-      yPos += 12;
-    });
-  }
+---
 
-  private createMarketOverview(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(16, 185, 129); // emerald-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Market Overview & Key Metrics', 20, 17);
-    
-    let yPos = 45;
-    
-    // Regional Market Size Overview
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Southeast Asian Market Landscape', 20, yPos);
-    yPos += 15;
-    
-    pdf.setTextColor(71, 85, 105); // slate-600
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('The Southeast Asian market represents one of the world\'s fastest-growing economic regions,', 20, yPos);
-    yPos += 8;
-    pdf.text('with a combined GDP of $3.6T and a population exceeding 680 million people.', 20, yPos);
-    yPos += 20;
-    
-    // Key Metrics Grid
-    const metrics = [
-      { label: 'Combined GDP', value: '$3.6T', growth: '+4.7%', color: [59, 130, 246] },
-      { label: 'Total Population', value: '688M', growth: '+1.1%', color: [16, 185, 129] },
-      { label: 'Internet Users', value: '456M', growth: '+8.7%', color: [139, 92, 246] },
-      { label: 'Mobile Penetration', value: '78%', growth: '+12.3%', color: [245, 158, 11] }
-    ];
-    
-    let xPos = 20;
-    metrics.forEach((metric, index) => {
-      if (index === 2) {
-        xPos = 20;
-        yPos += 35;
-      }
-      
-      // Metric box
-      pdf.setFillColor(metric.color[0], metric.color[1], metric.color[2], 0.1);
-      pdf.rect(xPos, yPos - 5, 85, 30, 'F');
-      pdf.setDrawColor(metric.color[0], metric.color[1], metric.color[2]);
-      pdf.rect(xPos, yPos - 5, 85, 30, 'S');
-      
-      pdf.setTextColor(metric.color[0], metric.color[1], metric.color[2]);
-      pdf.setFontSize(18);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(metric.value, xPos + 5, yPos + 8);
-      
-      pdf.setTextColor(71, 85, 105); // slate-600
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(metric.label, xPos + 5, yPos + 16);
-      
-      pdf.setTextColor(16, 185, 129); // emerald-600
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(metric.growth, xPos + 5, yPos + 22);
-      
-      xPos += 90;
-    });
-    
-    yPos += 50;
-    
-    // Digital Economy Insights
-    pdf.setFillColor(254, 249, 195); // yellow-50
-    pdf.rect(20, yPos - 5, 170, 60, 'F');
-    pdf.setDrawColor(245, 158, 11); // amber-600
-    pdf.rect(20, yPos - 5, 170, 60, 'S');
-    
-    pdf.setTextColor(146, 64, 14); // amber-800
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Digital Economy Transformation', 25, yPos + 8);
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    yPos += 18;
-    
-    const digitalInsights = [
-      '• E-commerce GMV growing at 18.6% annually, reaching $174B in 2024',
-      '• Digital payments adoption accelerated by 300% post-pandemic',
-      '• Super app ecosystem dominance: Grab, Gojek, and regional players',
-      '• Cross-border e-commerce represents 23% of total online transactions',
-      '• Social commerce drives 65% of purchase discovery and decisions'
-    ];
-    
-    digitalInsights.forEach(insight => {
-      pdf.text(insight, 25, yPos);
-      yPos += 8;
-    });
-    
-    yPos += 20;
-    
-    // Investment Climate
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Investment & Trade Climate', 20, yPos);
-    yPos += 15;
-    
-    pdf.setTextColor(71, 85, 105); // slate-600
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    
-    const investmentData = [
-      'FDI Inflows: $156B in 2023, up 12% from previous year',
-      'Venture Capital: $8.2B invested in startups, led by fintech and e-commerce',
-      'Infrastructure Investment: $2.3T committed through 2030 for digital infrastructure',
-      'Trade Volume: $3.1T in total trade, with 31% growth in digital services exports'
-    ];
-    
-    investmentData.forEach(item => {
-      pdf.text(`• ${item}`, 25, yPos);
-      yPos += 10;
-    });
-  }
+## SLIDE 1: TITLE SLIDE
+**Visual Design:**
+- Dark gradient background (slate-900 to slate-800)
+- Flow logo with animated gradient effect (blue to emerald to purple)
+- Clean, modern typography
 
-  private createMarketAnalysis(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(139, 92, 246); // purple-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Market Analysis Deep Dive', 20, 17);
-    
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'normal');
-    
-    let yPos = 45;
-    
-    // Market Dynamics Section
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Market Dynamics & Growth Drivers', 20, yPos);
-    yPos += 15;
-    
-    pdf.setTextColor(71, 85, 105); // slate-600
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    
-    const growthDrivers = [
-      '🚀 Demographic Dividend: 60% of population under 35 years old',
-      '📱 Mobile-First Adoption: Leapfrogging traditional infrastructure',
-      '🏛️ Government Digitization: National digital transformation initiatives',
-      '💰 Rising Middle Class: 350M people entering middle-income bracket by 2030',
-      '🌐 ASEAN Integration: Reduced trade barriers and harmonized regulations'
-    ];
-    
-    growthDrivers.forEach(driver => {
-      pdf.text(driver, 25, yPos);
-      yPos += 10;
-    });
-    
-    yPos += 15;
-    
-    // Country-Specific Analysis Table
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Country-Specific Market Analysis', 20, yPos);
-    yPos += 15;
-    
-    const marketData = [
-      { country: 'Indonesia', population: '273.5M', gdp: '$1.32T', growth: '+5.2%', digital: '73%', opportunity: 'Largest market, mobile commerce leader' },
-      { country: 'Philippines', population: '109.6M', gdp: '$394B', growth: '+6.2%', digital: '68%', opportunity: 'English proficiency, BPO expertise' },
-      { country: 'Vietnam', population: '97.3M', gdp: '$409B', growth: '+6.8%', digital: '75%', opportunity: 'Manufacturing hub, young population' },
-      { country: 'Thailand', population: '69.8M', gdp: '$543B', growth: '+2.8%', digital: '85%', opportunity: 'Tourism gateway, stable economy' },
-      { country: 'Malaysia', population: '32.7M', gdp: '$432B', growth: '+4.5%', digital: '78%', opportunity: 'Islamic finance, strategic location' },
-      { country: 'Singapore', population: '5.9M', gdp: '$397B', growth: '+2.6%', digital: '92%', opportunity: 'Regional HQ, innovation hub' }
-    ];
-    
-    // Enhanced table with better formatting
-    pdf.setFillColor(241, 245, 249); // slate-100
-    pdf.rect(20, yPos - 3, 170, 12, 'F');
-    
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9);
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.text('Country', 25, yPos + 5);
-    pdf.text('Population', 60, yPos + 5);
-    pdf.text('GDP', 90, yPos + 5);
-    pdf.text('Growth', 115, yPos + 5);
-    pdf.text('Digital', 140, yPos + 5);
-    pdf.text('Key Opportunity', 160, yPos + 5);
-    yPos += 15;
-    
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    
-    marketData.forEach(country => {
-      if (data.selectedCountries.length === 0 || data.selectedCountries.some(selected => 
-        country.country.toLowerCase().includes(selected) || selected.includes(country.country.toLowerCase())
-      )) {
-        // Alternating row colors
-        if (marketData.indexOf(country) % 2 === 0) {
-          pdf.setFillColor(248, 250, 252); // slate-50
-          pdf.rect(20, yPos - 3, 170, 10, 'F');
-        }
-        
-        pdf.setTextColor(15, 23, 42); // slate-900
-        pdf.text(country.country, 25, yPos + 3);
-        pdf.text(country.population, 60, yPos + 3);
-        pdf.text(country.gdp, 90, yPos + 3);
-        
-        pdf.setTextColor(16, 185, 129); // emerald-600
-        pdf.text(country.growth, 115, yPos + 3);
-        
-        pdf.setTextColor(59, 130, 246); // blue-600
-        pdf.text(country.digital, 140, yPos + 3);
-        
-        pdf.setTextColor(71, 85, 105); // slate-600
-        const opportunityText = pdf.splitTextToSize(country.opportunity, 30);
-        pdf.text(opportunityText, 160, yPos + 3);
-        
-        yPos += 12;
-      }
-    });
-    
-    yPos += 15;
-    
-    // Market Entry Barriers Analysis
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Market Entry Considerations', 20, yPos);
-    yPos += 15;
-    
-    // Opportunities vs Challenges
-    const leftColumn = 105;
-    
-    // Opportunities
-    pdf.setFillColor(236, 253, 245); // emerald-50
-    pdf.rect(20, yPos - 5, 80, 60, 'F');
-    pdf.setDrawColor(16, 185, 129); // emerald-600
-    pdf.rect(20, yPos - 5, 80, 60, 'S');
-    
-    pdf.setTextColor(6, 95, 70); // emerald-800
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Key Opportunities', 25, yPos + 5);
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    
-    const opportunities = [
-      '• Untapped rural markets',
-      '• Government support for digitization',
-      '• Growing middle class consumption',
-      '• Regional trade agreements',
-      '• Infrastructure development',
-      '• Young, tech-savvy population'
-    ];
-    
-    let opYPos = yPos + 15;
-    opportunities.forEach(opp => {
-      pdf.text(opp, 25, opYPos);
-      opYPos += 7;
-    });
-    
-    // Challenges
-    pdf.setFillColor(254, 242, 242); // red-50
-    pdf.rect(leftColumn, yPos - 5, 80, 60, 'F');
-    pdf.setDrawColor(220, 38, 38); // red-600
-    pdf.rect(leftColumn, yPos - 5, 80, 60, 'S');
-    
-    pdf.setTextColor(153, 27, 27); // red-800
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Key Challenges', leftColumn + 5, yPos + 5);
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    
-    const challenges = [
-      '• Regulatory complexity',
-      '• Infrastructure gaps',
-      '• Cultural adaptation needs',
-      '• Local competition intensity',
-      '• Currency volatility',
-      '• Talent acquisition costs'
-    ];
-    
-    let chalYPos = yPos + 15;
-    challenges.forEach(chal => {
-      pdf.text(chal, leftColumn + 5, chalYPos);
-      chalYPos += 7;
-    });
-  }
+**Content:**
+- Main Title: "Southeast Asian Market Entry Strategy"
+- Subtitle: "Unlocking Growth in the World's Most Dynamic Region"
+- Focus Markets: ${selectedMarketsText}
+- Company Logo (your brand)
+- Date: ${new Date().toLocaleDateString()}
 
-  private createCountryInsights(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(245, 158, 11); // amber-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Country Insights & Market Opportunities', 20, 17);
-    
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'normal');
-    
-    let yPos = 45;
-    
-    const insights = [
-      {
-        country: 'Indonesia',
-        flag: '🇮🇩',
-        insight: 'World\'s 4th largest population with 273M people, archipelago nation with 17,000+ islands',
-        opportunity: 'Digital banking, e-commerce logistics, mobile payments',
-        keyStats: 'GDP: $1.32T | Growth: 5.2% | Digital: 73%',
-        marketEntry: 'Focus on Java island (60% of population), partner with local conglomerates',
-        challenges: 'Complex regulations, infrastructure gaps in outer islands'
-      },
-      {
-        country: 'Vietnam',
-        flag: '🇻🇳',
-        insight: 'Fastest growing economy at 6.8%, median age 32.5, strong manufacturing base',
-        opportunity: 'Manufacturing hub, tech outsourcing, consumer goods',
-        keyStats: 'GDP: $409B | Growth: 6.8% | Digital: 75%',
-        marketEntry: 'Ho Chi Minh City and Hanoi as primary markets, leverage cost advantages',
-        challenges: 'Limited English proficiency, evolving regulatory framework'
-      },
-      {
-        country: 'Philippines',
-        flag: '🇵🇭',
-        insight: 'Strong English proficiency, large BPO industry, remittance-driven economy',
-        opportunity: 'Digital services, remittance solutions, e-commerce',
-        keyStats: 'GDP: $394B | Growth: 6.2% | Digital: 68%',
-        marketEntry: 'Manila metro area focus, leverage English-speaking workforce',
-        challenges: 'Natural disaster risks, infrastructure quality, regulatory complexity'
-      },
-      {
-        country: 'Singapore',
-        flag: '🇸🇬',
-        insight: 'Regional financial hub, highest GDP per capita ($67K), innovation ecosystem',
-        opportunity: 'Fintech innovation, regional headquarters, wealth management',
-        keyStats: 'GDP: $397B | Growth: 2.6% | Digital: 92%',
-        marketEntry: 'Use as regional hub, focus on high-value services and innovation',
-        challenges: 'High operational costs, intense competition, limited domestic market'
-      },
-      {
-        country: 'Thailand',
-        flag: '🇹🇭',
-        insight: 'Tourism gateway, stable monarchy, automotive manufacturing hub',
-        opportunity: 'Tourism tech, automotive, food & agriculture',
-        keyStats: 'GDP: $543B | Growth: 2.8% | Digital: 85%',
-        marketEntry: 'Bangkok as primary market, leverage tourism and manufacturing sectors',
-        challenges: 'Political sensitivity, aging population, middle-income trap'
-      },
-      {
-        country: 'Malaysia',
-        flag: '🇲🇾',
-        insight: 'Islamic finance hub, strategic location, multicultural society',
-        opportunity: 'Islamic fintech, halal products, palm oil tech',
-        keyStats: 'GDP: $432B | Growth: 4.5% | Digital: 78%',
-        marketEntry: 'Kuala Lumpur focus, leverage Islamic finance expertise',
-        challenges: 'Bumiputera requirements, political considerations, skills gap'
-      }
-    ];
-    
-    const filteredInsights = insights.filter(item => 
-      data.selectedCountries.length === 0 || 
-      data.selectedCountries.some(selected => 
-        item.country.toLowerCase().includes(selected) || 
-        selected.includes(item.country.toLowerCase())
-      )
-    );
-    
-    filteredInsights.forEach((item, index) => {
-      // Country header with flag
-      pdf.setFillColor(59, 130, 246, 0.1); // blue with transparency
-      pdf.rect(20, yPos - 5, 170, 15, 'F');
-      
-      pdf.setTextColor(30, 64, 175); // blue-800
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`${item.flag} ${item.country}`, 25, yPos + 5);
-      
-      pdf.setTextColor(71, 85, 105); // slate-600
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(item.keyStats, 130, yPos + 5);
-      
-      yPos += 20;
-      
-      // Market Insight
-      pdf.setTextColor(15, 23, 42); // slate-900
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Market Profile:', 25, yPos);
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(51, 65, 85); // slate-700
-      const insightLines = pdf.splitTextToSize(item.insight, 160);
-      pdf.text(insightLines, 25, yPos + 8);
-      yPos += 8 + (insightLines.length * 6);
-      
-      // Opportunities
-      pdf.setTextColor(6, 95, 70); // emerald-800
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Key Opportunities:', 25, yPos);
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(51, 65, 85); // slate-700
-      const oppLines = pdf.splitTextToSize(item.opportunity, 160);
-      pdf.text(oppLines, 25, yPos + 8);
-      yPos += 8 + (oppLines.length * 6);
-      
-      // Market Entry Strategy
-      pdf.setTextColor(59, 130, 246); // blue-600
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Entry Strategy:', 25, yPos);
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(51, 65, 85); // slate-700
-      const entryLines = pdf.splitTextToSize(item.marketEntry, 160);
-      pdf.text(entryLines, 25, yPos + 8);
-      yPos += 8 + (entryLines.length * 6);
-      
-      // Challenges
-      pdf.setTextColor(153, 27, 27); // red-800
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Key Challenges:', 25, yPos);
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(51, 65, 85); // slate-700
-      const chalLines = pdf.splitTextToSize(item.challenges, 160);
-      pdf.text(chalLines, 25, yPos + 8);
-      yPos += 8 + (chalLines.length * 6) + 10;
-      
-      // Add spacing between countries
-      if (data.selectedCountries.length === 0 || data.selectedCountries.some(selected => 
-        item.country.toLowerCase().includes(selected) || selected.includes(item.country.toLowerCase())
-      )) {
-        if (index < filteredInsights.length - 1) {
-          // Add separator line
-          pdf.setDrawColor(203, 213, 225); // slate-300
-          pdf.line(20, yPos, 190, yPos);
-          yPos += 15;
-        }
-      }
-    });
-  }
+**Speaker Notes:**
+- Welcome audience and introduce the opportunity
+- Set context for Southeast Asia's importance
+- Preview the key markets we'll be discussing
 
-  private createCompetitiveLandscape(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(220, 38, 38); // red-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Competitive Landscape Analysis', 20, 17);
-    
-    let yPos = 45;
-    
-    // Market Leaders by Sector
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Market Leaders by Sector', 20, yPos);
-    yPos += 15;
-    
-    const sectors = [
-      {
-        name: 'E-commerce',
-        leaders: ['Shopee', 'Lazada', 'Tokopedia'],
-        marketShare: '68%',
-        competition: 'Very High',
-        barriers: 'High',
-        opportunity: 'B2B e-commerce, niche verticals'
-      },
-      {
-        name: 'Fintech',
-        leaders: ['Grab Financial', 'GoPay', 'TrueMoney'],
-        marketShare: '46%',
-        competition: 'High',
-        barriers: 'Very High',
-        opportunity: 'SME lending, cross-border payments'
-      },
-      {
-        name: 'Ride-hailing',
-        leaders: ['Grab', 'Gojek', 'InDriver'],
-        marketShare: '81%',
-        competition: 'Very High',
-        barriers: 'Very High',
-        opportunity: 'Corporate transport, logistics'
-      },
-      {
-        name: 'Food Delivery',
-        leaders: ['GrabFood', 'foodpanda', 'GoFood'],
-        marketShare: '72%',
-        competition: 'High',
-        barriers: 'High',
-        opportunity: 'Cloud kitchens, B2B catering'
-      }
-    ];
-    
-    sectors.forEach(sector => {
-      // Sector box
-      pdf.setFillColor(239, 246, 255); // blue-50
-      pdf.rect(20, yPos - 3, 170, 35, 'F');
-      pdf.setDrawColor(59, 130, 246); // blue-600
-      pdf.rect(20, yPos - 3, 170, 35, 'S');
-      
-      pdf.setTextColor(30, 64, 175); // blue-800
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(sector.name, 25, yPos + 5);
-      
-      pdf.setTextColor(51, 65, 85); // slate-700
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Leaders: ${sector.leaders.join(', ')}`, 25, yPos + 12);
-      pdf.text(`Market Share: ${sector.marketShare} | Competition: ${sector.competition}`, 25, yPos + 19);
-      pdf.text(`Opportunity: ${sector.opportunity}`, 25, yPos + 26);
-      
-      yPos += 40;
-    });
-    
-    yPos += 10;
-    
-    // Competitive Positioning Matrix
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Market Entry Strategy Matrix', 20, yPos);
-    yPos += 15;
-    
-    pdf.setTextColor(71, 85, 105); // slate-600
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Strategic positioning recommendations based on market dynamics and competitive intensity:', 20, yPos);
-    yPos += 15;
-    
-    const strategies = [
-      {
-        approach: 'Blue Ocean Strategy',
-        sectors: 'B2B SaaS, AgriTech, HealthTech',
-        rationale: 'Lower competition, government support, underserved markets'
-      },
-      {
-        approach: 'Niche Specialization',
-        sectors: 'Islamic Finance, Sustainable Tech, Elder Care',
-        rationale: 'Specific market needs, regulatory advantages, demographic trends'
-      },
-      {
-        approach: 'Partnership & Acquisition',
-        sectors: 'E-commerce, Fintech, Logistics',
-        rationale: 'High barriers to entry, established players, regulatory requirements'
-      },
-      {
-        approach: 'Technology Differentiation',
-        sectors: 'AI/ML, Blockchain, IoT',
-        rationale: 'Innovation gaps, early adoption phase, government initiatives'
-      }
-    ];
-    
-    strategies.forEach(strategy => {
-      pdf.setTextColor(16, 185, 129); // emerald-600
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`${strategy.approach}:`, 25, yPos);
-      
-      pdf.setTextColor(51, 65, 85); // slate-700
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Sectors: ${strategy.sectors}`, 25, yPos + 8);
-      
-      const rationaleLines = pdf.splitTextToSize(`Rationale: ${strategy.rationale}`, 160);
-      pdf.text(rationaleLines, 25, yPos + 16);
-      
-      yPos += 16 + (rationaleLines.length * 6) + 8;
-    });
-  }
-  
-  private createConsumerInsights(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(139, 92, 246); // purple-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Consumer Behavior & Digital Trends', 20, 17);
-    
-    let yPos = 45;
-    
-    // Digital Consumer Profile
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Southeast Asian Digital Consumer Profile', 20, yPos);
-    yPos += 15;
-    
-    const consumerStats = [
-      { metric: 'Mobile-First Shopping', value: '78%', trend: '+24%', insight: 'Prefer mobile apps over desktop' },
-      { metric: 'Social Commerce Influence', value: '65%', trend: '+32%', insight: 'Purchase decisions driven by social media' },
-      { metric: 'Digital Payment Adoption', value: '72%', trend: '+29%', insight: 'Cash-to-digital transition accelerating' },
-      { metric: 'Cross-border Shopping', value: '43%', trend: '+18%', insight: 'International brands via e-commerce' }
-    ];
-    
-    consumerStats.forEach((stat, index) => {
-      const xPos = 20 + (index % 2) * 85;
-      if (index === 2) yPos += 35;
-      
-      // Stat box
-      pdf.setFillColor(139, 92, 246, 0.1); // purple with transparency
-      pdf.rect(xPos, yPos - 5, 80, 30, 'F');
-      pdf.setDrawColor(139, 92, 246); // purple-600
-      pdf.rect(xPos, yPos - 5, 80, 30, 'S');
-      
-      pdf.setTextColor(139, 92, 246); // purple-600
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(stat.value, xPos + 5, yPos + 5);
-      
-      pdf.setTextColor(16, 185, 129); // emerald-600
-      pdf.setFontSize(10);
-      pdf.text(stat.trend, xPos + 35, yPos + 5);
-      
-      pdf.setTextColor(71, 85, 105); // slate-600
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(stat.metric, xPos + 5, yPos + 13);
-      
-      const insightLines = pdf.splitTextToSize(stat.insight, 70);
-      pdf.text(insightLines, xPos + 5, yPos + 19);
-    });
-    
-    yPos += 50;
-    
-    // Shopping Behavior Trends
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Key Shopping Behavior Trends', 20, yPos);
-    yPos += 15;
-    
-    const behaviorTrends = [
-      '🛒 Live Commerce: 34% have purchased through live streaming',
-      '🎯 Personalization: 67% expect tailored product recommendations',
-      '🌱 Sustainability: 54% willing to pay premium for eco-friendly products',
-      '⚡ Same-day Delivery: 71% expect delivery within 24 hours',
-      '💬 Customer Service: 82% prefer chat-based support over phone',
-      '🔒 Data Privacy: 59% concerned about personal data usage'
-    ];
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    
-    behaviorTrends.forEach(trend => {
-      pdf.text(trend, 25, yPos);
-      yPos += 10;
-    });
-    
-    yPos += 15;
-    
-    // Digital Payment Preferences
-    pdf.setFillColor(254, 249, 195); // yellow-50
-    pdf.rect(20, yPos - 5, 170, 50, 'F');
-    pdf.setDrawColor(245, 158, 11); // amber-600
-    pdf.rect(20, yPos - 5, 170, 50, 'S');
-    
-    pdf.setTextColor(146, 64, 14); // amber-800
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Digital Payment Ecosystem', 25, yPos + 8);
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    yPos += 18;
-    
-    const paymentInsights = [
-      '• E-wallets dominate: GrabPay, GoPay, TrueMoney lead adoption',
-      '• QR code payments: 89% of digital transactions use QR codes',
-      '• Buy Now Pay Later: 28% adoption rate, growing 45% annually',
-      '• Cryptocurrency: 12% have used crypto for payments',
-      '• Cross-border: 67% prefer local payment methods for international purchases'
-    ];
-    
-    paymentInsights.forEach(insight => {
-      pdf.text(insight, 25, yPos);
-      yPos += 7;
-    });
-    
-    yPos += 20;
-    
-    // Generational Differences
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Generational Consumer Preferences', 20, yPos);
-    yPos += 15;
-    
-    const generations = [
-      { name: 'Gen Z (18-25)', preferences: 'Social commerce, sustainability, mobile-first, instant gratification' },
-      { name: 'Millennials (26-40)', preferences: 'Convenience, brand loyalty, omnichannel, value for money' },
-      { name: 'Gen X (41-55)', preferences: 'Quality, security, customer service, traditional channels' }
-    ];
-    
-    generations.forEach(gen => {
-      pdf.setTextColor(59, 130, 246); // blue-600
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`${gen.name}:`, 25, yPos);
-      
-      pdf.setTextColor(51, 65, 85); // slate-700
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      const prefLines = pdf.splitTextToSize(gen.preferences, 150);
-      pdf.text(prefLines, 70, yPos);
-      
-      yPos += Math.max(10, prefLines.length * 6);
-    });
-  }
+---
 
-  private createStrategicRecommendations(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(16, 185, 129); // emerald-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Strategic Market Entry Recommendations', 20, 17);
-    
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'normal');
-    
-    let yPos = 45;
-    
-    // Executive Recommendation Summary
-    pdf.setFillColor(236, 253, 245); // emerald-50
-    pdf.rect(20, yPos - 5, 170, 40, 'F');
-    pdf.setDrawColor(16, 185, 129); // emerald-600
-    pdf.rect(20, yPos - 5, 170, 40, 'S');
-    
-    pdf.setTextColor(6, 95, 70); // emerald-800
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Executive Recommendation', 25, yPos + 8);
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    yPos += 18;
-    
-    const execSummary = 'Prioritize mobile-first digital strategies with local partnerships in tier-1 cities. Focus on Vietnam and Indonesia for highest growth potential, while using Singapore as regional headquarters.';
-    const summaryLines = pdf.splitTextToSize(execSummary, 160);
-    pdf.text(summaryLines, 25, yPos);
-    yPos += (summaryLines.length * 6) + 20;
-    
-    const phases = [
-      {
-        phase: 'Phase 1: Market Foundation',
-        timeline: '0-6 months',
-        color: [59, 130, 246], // blue
-        actions: [
-          'Conduct comprehensive market research and consumer insights analysis',
-          'Identify and engage strategic local partners and distributors',
-          'Establish regulatory compliance framework and legal entity',
-          'Develop localized digital presence and brand positioning',
-          'Build relationships with government agencies and industry associations',
-          'Recruit local talent and establish initial team structure'
-        ]
-      },
-      {
-        phase: 'Phase 2: Market Entry & Launch',
-        timeline: '6-18 months',
-        color: [139, 92, 246], // purple
-        actions: [
-          'Launch pilot programs in 2-3 tier-1 cities with selected partners',
-          'Build comprehensive customer service and support infrastructure',
-          'Implement localized marketing campaigns across digital channels',
-          'Establish supply chain partnerships and logistics networks',
-          'Deploy mobile-first technology platform with local integrations',
-          'Monitor performance metrics and gather customer feedback'
-        ]
-      },
-      {
-        phase: 'Phase 3: Scale & Optimization',
-        timeline: '18+ months',
-        color: [16, 185, 129], // emerald
-        actions: [
-          'Expand to secondary markets and tier-2 cities based on success metrics',
-          'Optimize operations and supply chain based on market learnings',
-          'Consider strategic acquisitions of local players or technologies',
-          'Build regional innovation capabilities and R&D centers',
-          'Develop ecosystem partnerships with complementary services',
-          'Establish thought leadership and industry presence'
-        ]
-      }
-    ];
-    
-    phases.forEach(phase => {
-      // Phase header
-      pdf.setFillColor(phase.color[0], phase.color[1], phase.color[2], 0.1);
-      pdf.rect(20, yPos - 5, 170, 15, 'F');
-      pdf.setDrawColor(phase.color[0], phase.color[1], phase.color[2]);
-      pdf.rect(20, yPos - 5, 170, 15, 'S');
-      
-      pdf.setTextColor(phase.color[0], phase.color[1], phase.color[2]);
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(phase.phase, 25, yPos + 5);
-      
-      pdf.setTextColor(71, 85, 105); // slate-600
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(phase.timeline, 140, yPos + 5);
-      
-      yPos += 20;
-      
-      pdf.setTextColor(51, 65, 85); // slate-700
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      phase.actions.forEach(action => {
-        pdf.text(`• ${action}`, 25, yPos);
-        yPos += 7;
-      });
-      yPos += 10;
-    });
-    
-    yPos += 10;
-    
-    // Success Metrics
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Key Success Metrics & KPIs', 20, yPos);
-    yPos += 15;
-    
-    const kpis = [
-      'Market Share: Target 5-10% in primary segments within 24 months',
-      'Revenue Growth: Achieve $50M+ ARR by end of Phase 2',
-      'Customer Acquisition: 100K+ active users in first 18 months',
-      'Partnership Network: 25+ strategic partnerships across value chain',
-      'Brand Recognition: Top 3 brand awareness in target categories',
-      'Operational Efficiency: <15% customer acquisition cost ratio'
-    ];
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    
-    kpis.forEach(kpi => {
-      pdf.text(`• ${kpi}`, 25, yPos);
-      yPos += 8;
-    });
-  }
-  
-  private createImplementationRoadmap(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(245, 158, 11); // amber-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Implementation Roadmap & Timeline', 20, 17);
-    
-    let yPos = 45;
-    
-    // 90-Day Quick Wins
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('90-Day Quick Wins Strategy', 20, yPos);
-    yPos += 15;
-    
-    const quickWins = [
-      { week: 'Week 1-2', action: 'Market research completion and partner identification' },
-      { week: 'Week 3-4', action: 'Legal entity setup and regulatory compliance initiation' },
-      { week: 'Week 5-8', action: 'Local team recruitment and office establishment' },
-      { week: 'Week 9-12', action: 'Pilot program design and initial partner agreements' }
-    ];
-    
-    quickWins.forEach(item => {
-      pdf.setFillColor(239, 246, 255); // blue-50
-      pdf.rect(20, yPos - 3, 170, 12, 'F');
-      
-      pdf.setTextColor(30, 64, 175); // blue-800
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(item.week, 25, yPos + 4);
-      
-      pdf.setTextColor(51, 65, 85); // slate-700
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(item.action, 70, yPos + 4);
-      
-      yPos += 15;
-    });
-    
-    yPos += 15;
-    
-    // Resource Requirements
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Resource Requirements & Investment', 20, yPos);
-    yPos += 15;
-    
-    const resources = [
-      { category: 'Initial Investment', amount: '$2-5M', details: 'Legal setup, office, initial inventory, marketing' },
-      { category: 'Team Size', amount: '15-25 people', details: 'Country manager, sales, marketing, operations, support' },
-      { category: 'Technology Stack', amount: '$500K-1M', details: 'Platform localization, payment integration, mobile apps' },
-      { category: 'Marketing Budget', amount: '$1-2M annually', details: 'Digital marketing, PR, events, partnerships' }
-    ];
-    
-    resources.forEach(resource => {
-      pdf.setTextColor(16, 185, 129); // emerald-600
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`${resource.category}: ${resource.amount}`, 25, yPos);
-      
-      pdf.setTextColor(71, 85, 105); // slate-600
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(resource.details, 25, yPos + 8);
-      
-      yPos += 18;
-    });
-    
-    yPos += 10;
-    
-    // Risk Mitigation Timeline
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Risk Mitigation & Contingency Planning', 20, yPos);
-    yPos += 15;
-    
-    const risks = [
-      { risk: 'Regulatory Changes', mitigation: 'Maintain government relations, legal monitoring, compliance buffer' },
-      { risk: 'Local Competition', mitigation: 'Differentiation strategy, partnership approach, niche focus' },
-      { risk: 'Currency Fluctuation', mitigation: 'Local sourcing, hedging strategies, flexible pricing' },
-      { risk: 'Talent Acquisition', mitigation: 'Competitive packages, training programs, retention strategies' }
-    ];
-    
-    risks.forEach(item => {
-      pdf.setTextColor(220, 38, 38); // red-600
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`Risk: ${item.risk}`, 25, yPos);
-      
-      pdf.setTextColor(51, 65, 85); // slate-700
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      const mitigationLines = pdf.splitTextToSize(`Mitigation: ${item.mitigation}`, 160);
-      pdf.text(mitigationLines, 25, yPos + 8);
-      
-      yPos += 8 + (mitigationLines.length * 6) + 5;
-    });
-  }
-  
-  private createRiskAssessment(pdf: any, data: ExportData): void {
-    // Light professional theme
-    pdf.setFillColor(248, 250, 252); // slate-50
-    pdf.rect(0, 0, 210, 297, 'F');
-    
-    // Header section
-    pdf.setFillColor(220, 38, 38); // red-600
-    pdf.rect(0, 0, 210, 25, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Risk Assessment & Mitigation Framework', 20, 17);
-    
-    let yPos = 45;
-    
-    // Risk Matrix
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Comprehensive Risk Analysis Matrix', 20, yPos);
-    yPos += 15;
-    
-    const riskMatrix = [
-      { category: 'Political/Regulatory', level: 'Medium', impact: 'High', probability: 'Medium', mitigation: 'Government relations, legal compliance, local partnerships' },
-      { category: 'Economic/Currency', level: 'Medium', impact: 'Medium', probability: 'High', mitigation: 'Hedging strategies, local sourcing, flexible pricing models' },
-      { category: 'Competitive', level: 'High', impact: 'High', probability: 'High', mitigation: 'Differentiation, partnerships, niche positioning' },
-      { category: 'Operational', level: 'Low', impact: 'Medium', probability: 'Medium', mitigation: 'Process standardization, local expertise, technology investment' },
-      { category: 'Cultural/Social', level: 'Medium', impact: 'Medium', probability: 'Low', mitigation: 'Cultural training, local hiring, community engagement' },
-      { category: 'Technology/Cyber', level: 'Medium', impact: 'High', probability: 'Medium', mitigation: 'Security protocols, data protection, backup systems' }
-    ];
-    
-    // Table header
-    pdf.setFillColor(241, 245, 249); // slate-100
-    pdf.rect(20, yPos - 3, 170, 12, 'F');
-    
-    pdf.setTextColor(51, 65, 85); // slate-700
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Risk Category', 25, yPos + 4);
-    pdf.text('Level', 70, yPos + 4);
-    pdf.text('Impact', 90, yPos + 4);
-    pdf.text('Probability', 110, yPos + 4);
-    pdf.text('Mitigation Strategy', 140, yPos + 4);
-    yPos += 15;
-    
-    riskMatrix.forEach((risk, index) => {
-      // Alternating row colors
-      if (index % 2 === 0) {
-        pdf.setFillColor(248, 250, 252); // slate-50
-        pdf.rect(20, yPos - 3, 170, 12, 'F');
-      }
-      
-      pdf.setTextColor(15, 23, 42); // slate-900
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(risk.category, 25, yPos + 4);
-      
-      // Color-coded risk levels
-      const levelColor = risk.level === 'High' ? [220, 38, 38] : risk.level === 'Medium' ? [245, 158, 11] : [16, 185, 129];
-      pdf.setTextColor(levelColor[0], levelColor[1], levelColor[2]);
-      pdf.text(risk.level, 70, yPos + 4);
-      
-      pdf.setTextColor(51, 65, 85); // slate-700
-      pdf.text(risk.impact, 90, yPos + 4);
-      pdf.text(risk.probability, 110, yPos + 4);
-      
-      const mitigationText = pdf.splitTextToSize(risk.mitigation, 45);
-      pdf.text(mitigationText, 140, yPos + 4);
-      
-      yPos += Math.max(12, mitigationText.length * 6);
-    });
-    
-    yPos += 15;
-    
-    // Scenario Planning
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Scenario Planning & Contingencies', 20, yPos);
-    yPos += 15;
-    
-    const scenarios = [
-      {
-        name: 'Best Case Scenario',
-        description: 'Rapid market acceptance, strong partnerships, favorable regulations',
-        actions: 'Accelerate expansion, increase investment, capture market share'
-      },
-      {
-        name: 'Base Case Scenario',
-        description: 'Steady growth, moderate competition, stable regulatory environment',
-        actions: 'Execute planned strategy, monitor metrics, adjust as needed'
-      },
-      {
-        name: 'Worst Case Scenario',
-        description: 'Regulatory barriers, intense competition, economic downturn',
-        actions: 'Pivot strategy, reduce costs, focus on core markets'
-      }
-    ];
-    
-    scenarios.forEach(scenario => {
-      const bgColor = scenario.name.includes('Best') ? [236, 253, 245] : 
-                     scenario.name.includes('Worst') ? [254, 242, 242] : [239, 246, 255];
-      const borderColor = scenario.name.includes('Best') ? [16, 185, 129] : 
-                         scenario.name.includes('Worst') ? [220, 38, 38] : [59, 130, 246];
-      
-      pdf.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
-      pdf.rect(20, yPos - 5, 170, 35, 'F');
-      pdf.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
-      pdf.rect(20, yPos - 5, 170, 35, 'S');
-      
-      pdf.setTextColor(borderColor[0], borderColor[1], borderColor[2]);
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(scenario.name, 25, yPos + 5);
-      
-      pdf.setTextColor(51, 65, 85); // slate-700
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      
-      const descLines = pdf.splitTextToSize(scenario.description, 160);
-      pdf.text(descLines, 25, yPos + 12);
-      
-      pdf.setTextColor(30, 64, 175); // blue-800
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Actions:', 25, yPos + 20);
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(51, 65, 85); // slate-700
-      const actionLines = pdf.splitTextToSize(scenario.actions, 130);
-      pdf.text(actionLines, 55, yPos + 20);
-      
-      yPos += 40;
-    });
-    
-    // Footer with data sources
-    yPos = 270;
-    pdf.setTextColor(100, 116, 139); // slate-500
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Data Sources: World Bank, IMF, ASEAN Secretariat, McKinsey Global Institute, Bain & Company, Google-Temasek e-Conomy SEA', 20, yPos);
-    pdf.text('Report generated by Flow Analytics Platform - Professional Market Intelligence', 20, yPos + 8);
-  }
+## SLIDE 2: EXECUTIVE SUMMARY
+**Visual Design:**
+- 4 key metric cards with gradient backgrounds
+- Clean icons for each metric
+- Professional color scheme (blue, emerald, purple, orange)
 
-  private getMarketOverviewData(data: ExportData) {
-    const allCountries = [
-      { Country: 'Indonesia', Population: '273.5M', GDP: '$1.32T', Growth: '5.2%', Market_Size: '$287B', Digital_Penetration: '73%', Urbanization: '56%', Median_Age: 30.2 },
-      { Country: 'Philippines', Population: '109.6M', GDP: '$394B', Growth: '6.2%', Market_Size: '$156B', Digital_Penetration: '68%', Urbanization: '47%', Median_Age: 25.7 },
-      { Country: 'Vietnam', Population: '97.3M', GDP: '$409B', Growth: '6.8%', Market_Size: '$142B', Digital_Penetration: '75%', Urbanization: '37%', Median_Age: 32.5 },
-      { Country: 'Thailand', Population: '69.8M', GDP: '$543B', Growth: '2.8%', Market_Size: '$127B', Digital_Penetration: '85%', Urbanization: '51%', Median_Age: 40.1 },
-      { Country: 'Malaysia', Population: '32.7M', GDP: '$432B', Growth: '4.5%', Market_Size: '$98B', Digital_Penetration: '78%', Urbanization: '77%', Median_Age: 30.3 },
-      { Country: 'Singapore', Population: '5.9M', GDP: '$397B', Growth: '2.6%', Market_Size: '$89B', Digital_Penetration: '92%', Urbanization: '100%', Median_Age: 42.2 }
-    ].filter(country => 
-      data.selectedCountries.length === 0 || 
-      data.selectedCountries.some(selected => 
-        country.Country.toLowerCase().includes(selected) || 
-        selected.includes(country.Country.toLowerCase())
-      )
-    );
-    
-    return allCountries;
-  }
+**Content:**
+- Total Addressable Market: $1.2T (+12.4% growth)
+- Digital Economy Growth: 18.6% annually
+- Internet Users: 456M active users
+- Cross-Border Trade: $89.2B (+31.4% growth)
 
-  private getCountryAnalysisData(data: ExportData) {
-    const allCountries = [
-      { Country: 'Indonesia', Digital_Penetration: '73%', Urbanization: '56%', Median_Age: 30.2, Working_Age_Pop: '68.7%', Internet_Users: '196M', Mobile_Penetration: '73%' },
-      { Country: 'Philippines', Digital_Penetration: '68%', Urbanization: '47%', Median_Age: 25.7, Working_Age_Pop: '64.1%', Internet_Users: '73M', Mobile_Penetration: '68%' },
-      { Country: 'Vietnam', Digital_Penetration: '75%', Urbanization: '37%', Median_Age: 32.5, Working_Age_Pop: '69.3%', Internet_Users: '75M', Mobile_Penetration: '75%' },
-      { Country: 'Thailand', Digital_Penetration: '85%', Urbanization: '51%', Median_Age: 40.1, Working_Age_Pop: '71.2%', Internet_Users: '57M', Mobile_Penetration: '85%' },
-      { Country: 'Malaysia', Digital_Penetration: '78%', Urbanization: '77%', Median_Age: 30.3, Working_Age_Pop: '69.6%', Internet_Users: '26M', Mobile_Penetration: '78%' },
-      { Country: 'Singapore', Digital_Penetration: '92%', Urbanization: '100%', Median_Age: 42.2, Working_Age_Pop: '72.1%', Internet_Users: '5.2M', Mobile_Penetration: '92%' }
-    ].filter(country => 
-      data.selectedCountries.length === 0 || 
-      data.selectedCountries.some(selected => 
-        country.Country.toLowerCase().includes(selected) || 
-        selected.includes(country.Country.toLowerCase())
-      )
-    );
-    
-    return allCountries;
-  }
+**Key Message:**
+"Southeast Asia represents the world's fastest-growing digital economy with unprecedented opportunities for market entry."
 
-  private getDigitalMetricsData(data: ExportData) {
-    const allCountries = [
-      { Country: 'Singapore', Internet: '89%', Mobile: '92%', Ecommerce: '78%', Digital_Payments: '85%', Social_Media: '85%', Cloud_Adoption: '72%', Fintech_Usage: '67%' },
-      { Country: 'Thailand', Internet: '82%', Mobile: '85%', Ecommerce: '65%', Digital_Payments: '72%', Social_Media: '76%', Cloud_Adoption: '58%', Fintech_Usage: '54%' },
-      { Country: 'Malaysia', Internet: '84%', Mobile: '78%', Ecommerce: '58%', Digital_Payments: '68%', Social_Media: '81%', Cloud_Adoption: '54%', Fintech_Usage: '49%' },
-      { Country: 'Indonesia', Internet: '71%', Mobile: '73%', Ecommerce: '52%', Digital_Payments: '61%', Social_Media: '68%', Cloud_Adoption: '45%', Fintech_Usage: '43%' },
-      { Country: 'Philippines', Internet: '67%', Mobile: '68%', Ecommerce: '45%', Digital_Payments: '55%', Social_Media: '72%', Cloud_Adoption: '41%', Fintech_Usage: '38%' },
-      { Country: 'Vietnam', Internet: '77%', Mobile: '75%', Ecommerce: '49%', Digital_Payments: '58%', Social_Media: '74%', Cloud_Adoption: '43%', Fintech_Usage: '41%' }
-    ].filter(country => 
-      data.selectedCountries.length === 0 || 
-      data.selectedCountries.some(selected => 
-        country.Country.toLowerCase().includes(selected) || 
-        selected.includes(country.Country.toLowerCase())
-      )
-    );
-    
-    return allCountries;
-  }
-
-  private getEconomicData(data: ExportData) {
-    const allCountries = [
-      { Country: 'Indonesia', GDP_Billions: 1319, Inflation: '3.2%', Unemployment: '5.8%', Interest_Rate: '6.0%', FDI_Billions: 28.6, Trade_Balance: '+7.4B', Ease_Business_Rank: 73 },
-      { Country: 'Philippines', GDP_Billions: 394, Inflation: '4.1%', Unemployment: '4.5%', Interest_Rate: '6.5%', FDI_Billions: 9.8, Trade_Balance: '-43.2B', Ease_Business_Rank: 95 },
-      { Country: 'Vietnam', GDP_Billions: 409, Inflation: '3.6%', Unemployment: '2.3%', Interest_Rate: '4.5%', FDI_Billions: 15.8, Trade_Balance: '+11.9B', Ease_Business_Rank: 70 },
-      { Country: 'Thailand', GDP_Billions: 543, Inflation: '1.2%', Unemployment: '1.1%', Interest_Rate: '2.5%', FDI_Billions: 8.2, Trade_Balance: '+19.1B', Ease_Business_Rank: 21 },
-      { Country: 'Malaysia', GDP_Billions: 432, Inflation: '2.8%', Unemployment: '3.3%', Interest_Rate: '3.0%', FDI_Billions: 3.9, Trade_Balance: '+37.8B', Ease_Business_Rank: 12 },
-      { Country: 'Singapore', GDP_Billions: 397, Inflation: '2.1%', Unemployment: '2.0%', Interest_Rate: '3.5%', FDI_Billions: 91.3, Trade_Balance: '+76.4B', Ease_Business_Rank: 2 }
-    ].filter(country => 
-      data.selectedCountries.length === 0 || 
-      data.selectedCountries.some(selected => 
-        country.Country.toLowerCase().includes(selected) || 
-        selected.includes(country.Country.toLowerCase())
-      )
-    );
-    
-    return allCountries;
-  }
-
-  private createPowerPointOutline(data: ExportData): string {
-    return `
-FLOW - PROFESSIONAL SOUTHEAST ASIAN MARKET INTELLIGENCE PITCH DECK
-Generated: ${new Date().toLocaleDateString()}
-Selected Markets: ${data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ') || 'All Markets'}
-Analysis Focus: ${data.activeTab?.charAt(0).toUpperCase() + data.activeTab?.slice(1) || 'Comprehensive'}
-
-================================================================================
-SLIDE 1: TITLE SLIDE - "The Southeast Asian Opportunity"
-================================================================================
-VISUAL DESIGN:
-- Clean, modern layout with Flow gradient logo (blue → emerald → purple)
-- Hero image: Southeast Asian skyline montage or digital transformation visual
-- Minimal text with strong typography hierarchy
-
-CONTENT:
-- Main Title: "Flow: Southeast Asian Market Intelligence"
-- Subtitle: "Strategic Market Entry Analysis & Recommendations"
-- Target Markets: ${data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ') || 'Indonesia, Philippines, Vietnam, Thailand, Malaysia, Singapore'}
-- Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-- Presenter credentials and company logo
-
-SPEAKER NOTES:
-- Welcome audience and introduce the opportunity in Southeast Asia
-- Mention that this analysis covers ${data.selectedCountries.length || 6} key markets
-- Set expectation for data-driven insights and actionable recommendations
-
-================================================================================
-SLIDE 2: EXECUTIVE SUMMARY - "The $1.2T Opportunity"
-================================================================================
-VISUAL DESIGN:
-- Large impact numbers with icons
-- Color-coded key metrics in cards/tiles
-- Simple infographic showing regional growth trajectory
-
-CONTENT:
-- Total Addressable Market: $1.2T (18.6% digital growth)
-- Population: 688M people (60% under 35)
-- Internet Users: 456M (growing 8.7% annually)
-- Mobile-First Economy: 78% prefer mobile commerce
-- Investment Climate: $156B FDI in 2023 (+12% YoY)
-
-KEY MESSAGE BOX:
-"Southeast Asia represents the world's fastest-growing digital economy with unprecedented market entry opportunities for innovative companies."
-
-SPEAKER NOTES:
+**Speaker Notes:**
 - Emphasize the scale and growth trajectory
-- Highlight the demographic dividend (young population)
-- Position as a once-in-a-decade opportunity
+- Compare to other global markets
+- Set up the investment thesis
 
-================================================================================
-SLIDE 3: MARKET LANDSCAPE - "Six Dynamic Economies"
-================================================================================
-VISUAL DESIGN:
-- Interactive map of Southeast Asia with country highlights
-- Bubble chart showing GDP vs Growth Rate vs Population
-- Flag icons with key statistics
+---
 
-CONTENT:
-Country Spotlight (focus on selected markets):
-${data.selectedCountries.length > 0 ? 
-  data.selectedCountries.map(country => {
-    const countryData = {
-      indonesia: { gdp: '$1.32T', growth: '5.2%', pop: '273M', highlight: 'Largest market, mobile commerce leader' },
-      philippines: { gdp: '$394B', growth: '6.2%', pop: '110M', highlight: 'English proficiency, BPO expertise' },
-      vietnam: { gdp: '$409B', growth: '6.8%', pop: '97M', highlight: 'Fastest growth, manufacturing hub' },
-      thailand: { gdp: '$543B', growth: '2.8%', pop: '70M', highlight: 'Tourism gateway, stable economy' },
-      malaysia: { gdp: '$432B', growth: '4.5%', pop: '33M', highlight: 'Islamic finance, strategic location' },
-      singapore: { gdp: '$397B', growth: '2.6%', pop: '6M', highlight: 'Regional HQ, innovation hub' }
-    }[country];
-    return `• ${country.charAt(0).toUpperCase() + country.slice(1)}: ${countryData?.gdp} GDP, ${countryData?.growth} growth - ${countryData?.highlight}`;
-  }).join('\n') :
-  `• Indonesia: $1.32T GDP, 5.2% growth - Largest market, mobile commerce leader
-• Philippines: $394B GDP, 6.2% growth - English proficiency, BPO expertise  
-• Vietnam: $409B GDP, 6.8% growth - Fastest growth, manufacturing hub
-• Thailand: $543B GDP, 2.8% growth - Tourism gateway, stable economy
-• Malaysia: $432B GDP, 4.5% growth - Islamic finance, strategic location
-• Singapore: $397B GDP, 2.6% growth - Regional HQ, innovation hub`}
+## SLIDE 3: MARKET OPPORTUNITY MATRIX
+**Visual Design:**
+- Interactive bubble chart showing market size vs. growth rate
+- Country flags as bubble identifiers
+- Color-coded opportunity scoring
 
-SPEAKER NOTES:
-- Walk through each country's unique value proposition
-- Emphasize diversity of opportunities across markets
-- Highlight complementary strengths for regional strategy
+**Content:**
+- X-axis: Market Size (GDP)
+- Y-axis: Growth Rate
+- Bubble size: Population
+- Color intensity: Opportunity Score
 
-================================================================================
-SLIDE 4: DIGITAL TRANSFORMATION - "Mobile-First Revolution"
-================================================================================
-VISUAL DESIGN:
-- Smartphone-centric design with app ecosystem visualization
-- Progressive bar charts showing digital adoption rates
-- Before/after comparison of traditional vs digital behaviors
+**Countries Plotted:**
+- Indonesia: Largest market, strong growth
+- Vietnam: Highest growth, emerging opportunity
+- Singapore: Premium market, stable growth
+- Thailand: Balanced market, moderate growth
+- Malaysia: Niche opportunities, steady growth
+- Philippines: High potential, developing infrastructure
 
-CONTENT:
-Digital Adoption Metrics:
-- Internet Penetration: 67-92% across markets
-- Mobile Commerce: 78% prefer mobile shopping
-- Digital Payments: 72% adoption (28% annual growth)
-- Social Commerce: 65% of purchases influenced by social media
-- Super App Usage: 89% use integrated platforms (Grab, Gojek)
+**Speaker Notes:**
+- Walk through each market's positioning
+- Explain the opportunity scoring methodology
+- Highlight sweet spots for entry
 
-Key Trends:
-• Leapfrogging traditional infrastructure
-• Government digitization initiatives
-• Cross-border e-commerce growth (23% of transactions)
-• Live commerce and social selling boom
+---
 
-SPEAKER NOTES:
-- Emphasize the mobile-first nature of the market
-- Explain how consumers skipped desktop and went straight to mobile
-- Highlight the importance of social commerce and super apps
+## SLIDE 4: DIGITAL TRANSFORMATION WAVE
+**Visual Design:**
+- Animated wave graphic showing digital adoption
+- Mobile-first iconography
+- Progressive disclosure of statistics
 
-================================================================================
-SLIDE 5: CONSUMER INSIGHTS - "Understanding the SEA Consumer"
-================================================================================
-VISUAL DESIGN:
-- Consumer persona illustrations with demographic data
-- Journey map showing digital touchpoints
-- Generational comparison chart (Gen Z, Millennials, Gen X)
+**Content:**
+- Mobile Internet Users: 520M (85% mobile-first)
+- E-commerce Growth: 25% annually
+- Digital Payment Adoption: 68% average
+- Social Commerce Penetration: 65%
 
-CONTENT:
-Consumer Profile:
-- Median Age: 25-42 years across markets
-- Digital Natives: 60% under 35 years old
-- Rising Middle Class: 350M entering middle income by 2030
-- English Proficiency: Varies by market (Philippines highest)
+**Key Insight:**
+"The region has leapfrogged traditional infrastructure, creating unique opportunities for digital-native solutions."
 
-Shopping Behaviors:
-• 78% mobile-first shopping preference
-• 65% social media purchase influence
-• 71% expect same-day delivery
-• 54% willing to pay premium for sustainability
-• 82% prefer chat-based customer service
+**Speaker Notes:**
+- Explain the mobile-first phenomenon
+- Compare to Western markets
+- Highlight implications for product strategy
 
-Payment Preferences:
-• E-wallets dominate (GrabPay, GoPay, TrueMoney)
-• QR codes: 89% of digital transactions
-• Buy Now Pay Later: 28% adoption, 45% growth
-• Cross-border: 67% prefer local payment methods
+---
 
-SPEAKER NOTES:
-- Paint a picture of the sophisticated digital consumer
-- Emphasize the importance of mobile-first strategy
-- Highlight generational differences in approach
+## SLIDE 5: CONSUMER BEHAVIOR INSIGHTS
+**Visual Design:**
+- Infographic-style layout with consumer personas
+- Behavioral flow diagrams
+- Social media integration visuals
 
-================================================================================
-SLIDE 6: COMPETITIVE LANDSCAPE - "Market Dynamics & Positioning"
-================================================================================
-VISUAL DESIGN:
-- Competitive positioning matrix (market share vs growth)
-- Sector-by-sector competitive analysis
-- Market entry difficulty heat map
+**Content:**
+- Price-conscious but quality-focused consumers
+- Social media influences 65% of purchase decisions
+- Growing sustainability consciousness
+- Cross-border shopping increasing 35% annually
 
-CONTENT:
-Market Leaders by Sector:
-• E-commerce: Shopee, Lazada, Tokopedia (68% combined share)
-• Fintech: Grab Financial, GoPay, TrueMoney (46% share)
-• Ride-hailing: Grab, Gojek, InDriver (81% share)
-• Food Delivery: GrabFood, foodpanda, GoFood (72% share)
+**Consumer Archetypes:**
+- Digital Native (Gen Z, urban, tech-savvy)
+- Aspiring Middle Class (millennials, brand-conscious)
+- Traditional Adopter (Gen X, value-focused)
 
-Market Entry Strategies:
-✓ Blue Ocean: B2B SaaS, AgriTech, HealthTech (low competition)
-✓ Niche Specialization: Islamic Finance, Sustainable Tech, Elder Care
-✓ Partnership/M&A: High-barrier sectors (e-commerce, fintech)
-✓ Technology Differentiation: AI/ML, Blockchain, IoT
+**Speaker Notes:**
+- Bring consumer insights to life with examples
+- Explain cultural nuances by market
+- Connect to product positioning strategy
 
-SPEAKER NOTES:
-- Acknowledge the competitive landscape but highlight opportunities
-- Emphasize the importance of differentiation and partnerships
-- Position as strategic rather than head-to-head competition
+---
 
-================================================================================
-SLIDE 7: MARKET ENTRY FRAMEWORK - "Strategic Approach"
-================================================================================
-VISUAL DESIGN:
-- Three-phase timeline with milestones
-- Resource allocation pie charts
-- Success metrics dashboard mockup
+## SLIDE 6: COMPETITIVE LANDSCAPE
+**Visual Design:**
+- Market share pie charts by industry
+- Competitive positioning matrix
+- Logo wall of key players
 
-CONTENT:
-Phase 1: Foundation (0-6 months) - $2-5M Investment
-• Market research and regulatory compliance
-• Local partnerships and team building
-• Digital presence and brand localization
-• Pilot program development
+**Content:**
+- E-commerce: Shopee (68%), Lazada (22%), Others (10%)
+- Fintech: Grab Financial, GoPay, TrueMoney
+- Food Delivery: Grab Food, foodpanda, Local players
+- Ride-hailing: Grab (81%), Gojek, InDriver
 
-Phase 2: Launch (6-18 months) - $5-10M Investment  
-• Tier-1 city launches with partners
-• Customer service infrastructure
-• Localized marketing campaigns
-• Technology platform deployment
+**Competitive Advantages:**
+- Local adaptation capabilities
+- Superior user experience
+- Strategic partnerships
+- Technology innovation
 
-Phase 3: Scale (18+ months) - $10-20M Investment
-• Multi-market expansion
-• Operations optimization
-• Strategic acquisitions consideration
-• Regional innovation capabilities
+**Speaker Notes:**
+- Analyze competitive strengths and weaknesses
+- Identify white space opportunities
+- Discuss differentiation strategies
 
-Success Metrics:
-• Market Share: 5-10% in primary segments (24 months)
-• Revenue: $50M+ ARR by end of Phase 2
-• Users: 100K+ active users (18 months)
-• Partnerships: 25+ strategic alliances
+---
 
-SPEAKER NOTES:
-- Walk through the phased approach and rationale
-- Emphasize the importance of local partnerships
-- Highlight the scalability of the model
+## SLIDE 7: REGULATORY ENVIRONMENT
+**Visual Design:**
+- Traffic light system (green/yellow/red) for regulatory ease
+- Country comparison dashboard
+- Timeline of recent regulatory changes
 
-================================================================================
-SLIDE 8: INVESTMENT ANALYSIS - "ROI & Financial Projections"
-================================================================================
-VISUAL DESIGN:
-- Revenue projection charts (3-year forecast)
-- Investment breakdown waterfall chart
-- ROI comparison with other regions
+**Content:**
+- Singapore: Green (95/100 ease of business)
+- Thailand: Yellow-Green (78/100, improving)
+- Malaysia: Yellow (73/100, stable)
+- Indonesia: Yellow (68/100, complex but large)
+- Philippines: Yellow (65/100, reforming)
+- Vietnam: Yellow-Green (70/100, modernizing)
 
-CONTENT:
-Investment Requirements:
-• Initial Setup: $2-5M (legal, office, team, marketing)
-• Technology: $500K-1M (platform localization, integrations)
-• Marketing: $1-2M annually (digital, PR, partnerships)
-• Operations: $3-5M (supply chain, customer service)
+**Key Regulations:**
+- Data protection laws
+- Foreign investment restrictions
+- Digital service requirements
+- Tax implications
 
-Revenue Projections (3-Year):
-• Year 1: $5-10M (pilot markets, early adoption)
-• Year 2: $25-50M (expansion, market penetration)
-• Year 3: $75-150M (multi-market, optimization)
+**Speaker Notes:**
+- Explain regulatory complexity vs. opportunity
+- Discuss compliance strategies
+- Highlight recent positive changes
 
-ROI Analysis:
-• Break-even: 18-24 months
-• 3-Year ROI: 200-400%
-• Market Valuation: 5-10x revenue multiple
-• Exit Opportunities: Strategic acquisition or IPO
+---
 
-SPEAKER NOTES:
-- Present realistic but compelling financial projections
-- Compare favorably to other emerging market opportunities
-- Address the investment timeline and milestones
+## SLIDE 8: MARKET ENTRY STRATEGY
+**Visual Design:**
+- Strategic framework diagram
+- Phase-based timeline
+- Success metrics dashboard
 
-================================================================================
-SLIDE 9: RISK ASSESSMENT - "Mitigation & Contingencies"
-================================================================================
-VISUAL DESIGN:
-- Risk matrix (probability vs impact)
+**Content:**
+**Phase 1: Foundation (0-6 months)**
+- Market research and regulatory setup
+- Local partnership identification
+- Product localization
+- Team building
+
+**Phase 2: Launch (6-18 months)**
+- Pilot program in tier-1 cities
+- Marketing campaign launch
+- Customer acquisition
+- Feedback integration
+
+**Phase 3: Scale (18+ months)**
+- Multi-market expansion
+- Operations optimization
+- Strategic partnerships
+- Market leadership
+
+**Speaker Notes:**
+- Walk through each phase in detail
+- Explain resource requirements
+- Discuss risk mitigation strategies
+
+---
+
+## SLIDE 9: FINANCIAL PROJECTIONS
+**Visual Design:**
+- Revenue growth charts
+- Investment timeline
+- ROI projections
+- Break-even analysis
+
+**Content:**
+- Year 1: Market entry and setup ($2M investment)
+- Year 2: Revenue growth to $5M (150% growth)
+- Year 3: Scale to $15M (200% growth)
+- Year 4: Market leadership $35M (133% growth)
+- Year 5: Regional expansion $75M (114% growth)
+
+**Key Metrics:**
+- Customer Acquisition Cost: $25-50
+- Lifetime Value: $200-400
+- Break-even: Month 18
+- ROI: 300%+ by Year 5
+
+**Speaker Notes:**
+- Explain assumptions behind projections
+- Compare to industry benchmarks
+- Discuss sensitivity analysis
+
+---
+
+## SLIDE 10: TECHNOLOGY STACK
+**Visual Design:**
+- Architecture diagram
+- Cloud infrastructure visualization
+- Security and compliance badges
+
+**Content:**
+- Cloud-first architecture (AWS/Azure)
+- Mobile-responsive design
+- API-first development
+- Microservices architecture
+- Real-time analytics
+- Multi-language support
+
+**Key Features:**
+- Scalable infrastructure
+- Local payment integration
+- Social media connectivity
+- Advanced analytics
+- Security compliance
+
+**Speaker Notes:**
+- Explain technical differentiation
+- Discuss scalability advantages
+- Address security and compliance
+
+---
+
+## SLIDE 11: PARTNERSHIP STRATEGY
+**Visual Design:**
+- Partnership ecosystem map
+- Logo integration with connection lines
+- Value proposition for each partner type
+
+**Content:**
+**Strategic Partners:**
+- Local market leaders
+- Technology providers
+- Payment processors
+- Logistics companies
+
+**Channel Partners:**
+- Distributors and resellers
+- Digital marketing agencies
+- System integrators
+- Consultants
+
+**Value Propositions:**
+- Revenue sharing models
+- Technology access
+- Market expansion
+- Brand association
+
+**Speaker Notes:**
+- Explain partnership selection criteria
+- Discuss mutual value creation
+- Share preliminary partnership discussions
+
+---
+
+## SLIDE 12: RISK ASSESSMENT
+**Visual Design:**
+- Risk heat map matrix
 - Mitigation strategy flowchart
-- Scenario planning comparison table
+- Contingency planning timeline
 
-CONTENT:
-Key Risks & Mitigation:
-• Regulatory Changes → Government relations, legal monitoring
-• Local Competition → Differentiation, partnerships, niche focus
-• Currency Fluctuation → Local sourcing, hedging, flexible pricing
-• Talent Acquisition → Competitive packages, training programs
-• Cultural Adaptation → Local hiring, cultural training
-• Technology/Cyber → Security protocols, data protection
+**Content:**
+**High Impact, Low Probability:**
+- Political instability
+- Major economic downturn
+- Regulatory changes
 
-Scenario Planning:
-• Best Case: Accelerate expansion, increase investment
-• Base Case: Execute planned strategy, monitor metrics
-• Worst Case: Pivot strategy, reduce costs, focus core markets
+**Medium Impact, Medium Probability:**
+- Competitive response
+- Currency fluctuation
+- Technology disruption
 
-Contingency Fund: 20% of total investment for unforeseen challenges
+**Low Impact, High Probability:**
+- Operational challenges
+- Cultural adaptation
+- Talent acquisition
 
-SPEAKER NOTES:
-- Acknowledge risks but demonstrate thorough planning
-- Show that mitigation strategies are already considered
-- Emphasize the management team's experience with emerging markets
+**Mitigation Strategies:**
+- Diversification across markets
+- Local partnerships
+- Flexible business model
+- Strong cash reserves
 
-================================================================================
-SLIDE 10: COUNTRY DEEP DIVE - "${data.selectedCountries.length > 0 ? data.selectedCountries[0].charAt(0).toUpperCase() + data.selectedCountries[0].slice(1) : 'Indonesia'} Focus"
-================================================================================
-VISUAL DESIGN:
-- Country flag and key imagery
-- Infographic with key statistics
-- Market opportunity heat map
+**Speaker Notes:**
+- Acknowledge risks transparently
+- Explain mitigation strategies
+- Demonstrate preparedness
 
-CONTENT:
-${data.selectedCountries.length > 0 ? 
-  (() => {
-    const country = data.selectedCountries[0];
-    const countryInfo = {
-      indonesia: {
-        profile: 'World\'s 4th largest population, archipelago nation with 17,000+ islands',
-        opportunity: 'Digital banking, e-commerce logistics, mobile payments',
-        strategy: 'Focus on Java island (60% of population), partner with local conglomerates',
-        challenges: 'Complex regulations, infrastructure gaps in outer islands'
-      },
-      vietnam: {
-        profile: 'Fastest growing economy, median age 32.5, strong manufacturing base',
-        opportunity: 'Manufacturing hub, tech outsourcing, consumer goods',
-        strategy: 'Ho Chi Minh City and Hanoi as primary markets, leverage cost advantages',
-        challenges: 'Limited English proficiency, evolving regulatory framework'
-      },
-      philippines: {
-        profile: 'Strong English proficiency, large BPO industry, remittance-driven economy',
-        opportunity: 'Digital services, remittance solutions, e-commerce',
-        strategy: 'Manila metro area focus, leverage English-speaking workforce',
-        challenges: 'Natural disaster risks, infrastructure quality'
-      },
-      singapore: {
-        profile: 'Regional financial hub, highest GDP per capita, innovation ecosystem',
-        opportunity: 'Fintech innovation, regional headquarters, wealth management',
-        strategy: 'Use as regional hub, focus on high-value services and innovation',
-        challenges: 'High operational costs, intense competition, limited domestic market'
-      },
-      thailand: {
-        profile: 'Tourism gateway, stable monarchy, automotive manufacturing hub',
-        opportunity: 'Tourism tech, automotive, food & agriculture',
-        strategy: 'Bangkok as primary market, leverage tourism and manufacturing sectors',
-        challenges: 'Political sensitivity, aging population, middle-income trap'
-      },
-      malaysia: {
-        profile: 'Islamic finance hub, strategic location, multicultural society',
-        opportunity: 'Islamic fintech, halal products, palm oil tech',
-        strategy: 'Kuala Lumpur focus, leverage Islamic finance expertise',
-        challenges: 'Bumiputera requirements, political considerations'
-      }
-    }[country];
-    
-    return `Market Profile: ${countryInfo?.profile}
-Key Opportunities: ${countryInfo?.opportunity}
-Entry Strategy: ${countryInfo?.strategy}
-Key Challenges: ${countryInfo?.challenges}`;
-  })() :
-  `Market Profile: World's 4th largest population, archipelago nation with 17,000+ islands
-Key Opportunities: Digital banking, e-commerce logistics, mobile payments
-Entry Strategy: Focus on Java island (60% of population), partner with local conglomerates
-Key Challenges: Complex regulations, infrastructure gaps in outer islands`}
+---
 
-Market Metrics:
-• Population: ${data.selectedCountries.includes('indonesia') ? '273.5M' : data.selectedCountries.includes('vietnam') ? '97.3M' : data.selectedCountries.includes('philippines') ? '109.6M' : '273.5M'}
-• GDP Growth: ${data.selectedCountries.includes('vietnam') ? '6.8%' : data.selectedCountries.includes('philippines') ? '6.2%' : data.selectedCountries.includes('indonesia') ? '5.2%' : '5.2%'}
-• Digital Penetration: ${data.selectedCountries.includes('singapore') ? '92%' : data.selectedCountries.includes('thailand') ? '85%' : '73%'}
-• Market Size: ${data.selectedCountries.includes('indonesia') ? '$287B' : data.selectedCountries.includes('philippines') ? '$156B' : '$287B'}
+## SLIDE 13: TEAM & EXECUTION
+**Visual Design:**
+- Organizational chart
+- Team member profiles with photos
+- Skills and experience highlights
 
-SPEAKER NOTES:
-- Deep dive into the primary target market
-- Explain why this market was prioritized
-- Address specific entry strategies and partnerships
+**Content:**
+**Leadership Team:**
+- CEO: Regional expansion experience
+- CTO: Southeast Asian tech background
+- CMO: Local market expertise
+- CFO: International finance experience
 
-================================================================================
-SLIDE 11: TECHNOLOGY STACK - "Platform & Integration Strategy"
-================================================================================
-VISUAL DESIGN:
-- Technology architecture diagram
-- Integration ecosystem map
-- Mobile app mockups and user interface examples
+**Advisory Board:**
+- Former executives from successful SEA companies
+- Government relations experts
+- Industry thought leaders
+- Investor representatives
 
-CONTENT:
-Core Technology Requirements:
-• Mobile-First Platform: iOS/Android native apps
-• Payment Integration: Local e-wallets, QR codes, BNPL
-• Language Localization: Multi-language support
-• Cloud Infrastructure: AWS/Azure with local data centers
-• API Ecosystem: Integration with local services
+**Execution Capabilities:**
+- Proven track record in market entry
+- Deep regional relationships
+- Technical expertise
+- Cultural understanding
 
-Key Integrations:
-• Payment Gateways: GrabPay, GoPay, TrueMoney, local banks
-• Logistics Partners: Local delivery networks, last-mile solutions
-• Social Platforms: Facebook, Instagram, TikTok, local social networks
-• Government Systems: Tax, regulatory, compliance APIs
-• Analytics: Local data analytics and consumer insights platforms
+**Speaker Notes:**
+- Highlight relevant experience
+- Explain team assembly strategy
+- Discuss advisory board value
 
-Development Approach:
-• Agile methodology with local development teams
-• Continuous integration/deployment
-• A/B testing for localization optimization
-• Security-first architecture with data protection compliance
+---
 
-SPEAKER NOTES:
-- Emphasize the importance of local technology partnerships
-- Highlight the mobile-first approach
-- Address data security and compliance requirements
+## SLIDE 14: INVESTMENT REQUIREMENTS
+**Visual Design:**
+- Investment breakdown pie chart
+- Funding timeline
+- Use of funds waterfall
 
-================================================================================
-SLIDE 12: PARTNERSHIP STRATEGY - "Local Ecosystem Integration"
-================================================================================
-VISUAL DESIGN:
-- Partnership ecosystem diagram
-- Logos of potential partners by category
-- Value chain integration flowchart
+**Content:**
+**Total Investment Required: $10M over 24 months**
 
-CONTENT:
-Strategic Partnership Categories:
+**Use of Funds:**
+- Product Development: 30% ($3M)
+- Marketing & Customer Acquisition: 25% ($2.5M)
+- Operations & Infrastructure: 20% ($2M)
+- Team Building: 15% ($1.5M)
+- Working Capital: 10% ($1M)
 
-Distribution Partners:
-• Local retailers and distributors
-• E-commerce platforms (Shopee, Lazada)
-• Super apps (Grab, Gojek) for service integration
+**Funding Timeline:**
+- Series A: $4M (Months 1-6)
+- Series A Extension: $3M (Months 12-18)
+- Series B: $3M (Months 18-24)
 
-Technology Partners:
-• Payment processors and fintech companies
-• Cloud service providers with local presence
-• System integrators and development agencies
+**Speaker Notes:**
+- Justify investment requirements
+- Explain funding strategy
+- Discuss investor value proposition
 
-Government & Regulatory:
-• Industry associations and chambers of commerce
-• Government agencies for compliance and support
-• Local legal and consulting firms
+---
 
-Financial Partners:
-• Local banks for payment processing
-• Investment firms for funding and market access
-• Insurance companies for risk management
+## SLIDE 15: SUCCESS METRICS & MILESTONES
+**Visual Design:**
+- KPI dashboard mockup
+- Milestone timeline
+- Success celebration imagery
 
-Partnership Benefits:
-• Market access and local credibility
-• Regulatory compliance and government relations
-• Technology integration and operational efficiency
-• Risk mitigation and shared resources
+**Content:**
+**Key Performance Indicators:**
+- Monthly Active Users (MAU)
+- Customer Acquisition Cost (CAC)
+- Lifetime Value (LTV)
+- Market Share by Country
+- Revenue Growth Rate
+- Net Promoter Score (NPS)
 
-SPEAKER NOTES:
-- Emphasize the critical importance of local partnerships
-- Explain how partnerships reduce risk and accelerate market entry
-- Highlight specific partnership opportunities identified
+**Major Milestones:**
+- Month 6: First market launch
+- Month 12: 100K active users
+- Month 18: Break-even achieved
+- Month 24: Multi-market presence
+- Month 36: Market leadership
 
-================================================================================
-SLIDE 13: MARKETING & BRAND STRATEGY - "Localization & Engagement"
-================================================================================
-VISUAL DESIGN:
-- Brand adaptation examples across markets
-- Social media engagement metrics and examples
-- Customer journey mapping with local touchpoints
+**Success Definition:**
+- Top 3 market position in primary markets
+- $50M+ annual revenue run rate
+- Positive unit economics
+- Strong brand recognition
 
-CONTENT:
-Brand Localization Strategy:
-• Cultural Adaptation: Local values, traditions, and preferences
-• Language Localization: Native language content and support
-• Visual Identity: Culturally appropriate colors, imagery, symbols
-• Local Influencers: Partnership with regional KOLs and celebrities
+**Speaker Notes:**
+- Explain metric selection rationale
+- Discuss tracking and reporting
+- Connect to investor returns
 
-Digital Marketing Mix:
-• Social Commerce: Facebook, Instagram, TikTok campaigns (65% influence)
-• Search Marketing: Google, local search engines optimization
-• Mobile Advertising: In-app ads, mobile video content
-• Content Marketing: Educational content, local success stories
-• Community Building: Local events, user-generated content
+---
 
-Marketing Budget Allocation:
-• Digital Advertising: 40% ($800K annually)
-• Influencer Partnerships: 25% ($500K annually)
-• Content Creation: 20% ($400K annually)
-• Events & PR: 15% ($300K annually)
+## SLIDE 16: CALL TO ACTION
+**Visual Design:**
+- Bold, action-oriented design
+- Contact information prominently displayed
+- Next steps clearly outlined
 
-Success Metrics:
-• Brand Awareness: Target 60% in primary markets (12 months)
-• Social Engagement: 5% average engagement rate
-• Customer Acquisition Cost: <$25 per user
-• Conversion Rate: 3-5% from awareness to trial
+**Content:**
+**The Opportunity is Now**
+- Southeast Asia's digital transformation is accelerating
+- First-mover advantages are still available
+- Market conditions are optimal for entry
 
-SPEAKER NOTES:
-- Emphasize the importance of cultural sensitivity
-- Highlight the role of social commerce in the region
-- Address the balance between global brand consistency and local adaptation
+**Next Steps:**
+1. Due diligence deep dive
+2. Market validation pilot
+3. Partnership discussions
+4. Investment commitment
+5. Launch preparation
 
-================================================================================
-SLIDE 14: OPERATIONAL EXCELLENCE - "Scaling for Success"
-================================================================================
-VISUAL DESIGN:
-- Organizational chart with local and regional roles
-- Process flow diagrams for key operations
-- Quality metrics dashboard
+**Contact Information:**
+- Email: [your-email]
+- Phone: [your-phone]
+- LinkedIn: [your-linkedin]
+- Website: [your-website]
 
-CONTENT:
-Organizational Structure:
-• Regional HQ: Singapore (strategy, finance, legal)
-• Country Managers: Local market leadership and execution
-• Shared Services: Technology, marketing, supply chain
-• Local Teams: Sales, customer service, operations
+**Speaker Notes:**
+- Create urgency around the opportunity
+- Clearly state what you're asking for
+- Provide multiple ways to follow up
+- Thank the audience for their time
 
-Key Operational Processes:
-• Supply Chain: Local sourcing, inventory management, logistics
-• Customer Service: Multi-language support, chat-based service
-• Quality Assurance: Local standards compliance, continuous improvement
-• Financial Management: Multi-currency, local accounting, tax compliance
+---
 
-Performance Management:
-• KPI Dashboard: Real-time metrics across all markets
-• Regular Reviews: Monthly country performance, quarterly regional
-• Continuous Improvement: Process optimization, best practice sharing
-• Risk Management: Early warning systems, contingency planning
+## APPENDIX SLIDES
 
-Scaling Considerations:
-• Standardized processes with local flexibility
-• Technology platform scalability
-• Talent development and retention programs
-• Knowledge management and transfer systems
+### A1: DETAILED FINANCIAL MODEL
+- 5-year P&L projections
+- Cash flow analysis
+- Sensitivity scenarios
+- Comparable company analysis
 
-SPEAKER NOTES:
-- Emphasize the balance between standardization and localization
-- Highlight the importance of local talent and leadership
-- Address scalability and operational efficiency
+### A2: MARKET RESEARCH METHODOLOGY
+- Primary research approach
+- Data sources and validation
+- Sample sizes and demographics
+- Research limitations
 
-================================================================================
-SLIDE 15: NEXT STEPS - "Implementation Roadmap"
-================================================================================
-VISUAL DESIGN:
-- 90-day action plan timeline
-- Milestone markers with success criteria
-- Resource allocation and responsibility matrix
+### A3: COMPETITIVE ANALYSIS DEEP DIVE
+- Detailed competitor profiles
+- SWOT analysis
+- Pricing comparison
+- Feature comparison matrix
 
-CONTENT:
-Immediate Actions (Next 30 Days):
-• Finalize market selection and prioritization
-• Initiate legal entity setup and regulatory compliance
-• Begin recruitment for country manager positions
-• Engage with potential strategic partners
-• Secure initial funding and budget approval
+### A4: REGULATORY COMPLIANCE CHECKLIST
+- Country-specific requirements
+- Timeline for approvals
+- Cost estimates
+- Legal partner recommendations
 
-90-Day Milestones:
-• Complete market research and competitive analysis
-• Establish legal entities and regulatory compliance
-• Hire key local team members
-• Sign initial partnership agreements
-• Begin technology platform localization
+### A5: TECHNOLOGY ARCHITECTURE
+- Detailed system diagrams
+- Security protocols
+- Scalability planning
+- Integration capabilities
 
-6-Month Goals:
-• Launch pilot programs in primary markets
-• Establish customer service infrastructure
-• Complete brand localization and marketing campaigns
-• Achieve first customer acquisitions and revenue
-• Validate business model and unit economics
+---
 
-Investment Requirements:
-• Phase 1 Funding: $2-5M (immediate)
-• Series A: $10-15M (6-12 months)
-• Growth Capital: $25-50M (18-24 months)
+## PRESENTATION TIPS:
 
-Decision Points:
-• Market selection confirmation (30 days)
-• Partnership strategy approval (60 days)
-• Go/no-go decision for full launch (90 days)
+**Visual Design Guidelines:**
+- Use consistent color palette (blue, emerald, purple, orange)
+- Maintain 60-30-10 color rule
+- Use high-quality images and icons
+- Ensure readability with proper contrast
+- Keep slides uncluttered with plenty of white space
 
-SPEAKER NOTES:
-- Create urgency around the market opportunity
-- Outline clear next steps and decision points
-- Address funding requirements and timeline
-- Emphasize the competitive advantage of early entry
+**Animation Recommendations:**
+- Subtle entrance animations for key points
+- Progressive disclosure for complex information
+- Smooth transitions between slides
+- Avoid distracting or excessive animations
 
-================================================================================
-SLIDE 16: APPENDIX - "Supporting Data & Analysis"
-================================================================================
-VISUAL DESIGN:
-- Data tables and detailed charts
-- Methodology explanation
-- Source citations and references
+**Delivery Best Practices:**
+- Practice timing (20 minutes presentation, 10 minutes Q&A)
+- Prepare for common questions
+- Have backup slides ready
+- Test all technology beforehand
+- Bring printed handouts as backup
 
-CONTENT:
-Detailed Market Data:
-• Country-by-country economic indicators
-• Digital adoption metrics and trends
-• Competitive landscape analysis
-• Consumer behavior research findings
-• Regulatory environment assessment
+**Audience Engagement:**
+- Start with a compelling hook
+- Use storytelling to illustrate points
+- Include interactive elements where appropriate
+- End with clear next steps
+- Follow up within 24 hours
 
-Financial Models:
-• Revenue projections and assumptions
-• Cost structure analysis
-• ROI calculations and sensitivity analysis
-• Funding requirements and use of funds
-• Exit scenario modeling
-
-Risk Analysis:
-• Comprehensive risk register
-• Probability and impact assessments
-• Mitigation strategies and contingency plans
-• Scenario planning and stress testing
-
-Data Sources:
-• World Bank, IMF, ASEAN Secretariat
-• McKinsey Global Institute, Bain & Company
-• Google-Temasek e-Conomy SEA Report
-• Local government statistics and industry reports
-• Primary research and expert interviews
-
-SPEAKER NOTES:
-- Reference appendix for detailed questions
-- Highlight the rigor of the analysis
-- Provide contact information for follow-up
-
-================================================================================
-PRESENTATION DESIGN GUIDELINES:
-================================================================================
-
-VISUAL CONSISTENCY:
-• Use Flow brand colors throughout: Blue (#3B82F6), Emerald (#10B981), Purple (#8B5CF6), Amber (#F59E0B)
-• Consistent typography: Headlines (Helvetica Bold), Body (Helvetica Regular)
-• White space: Generous margins and spacing for premium feel
-• High-quality imagery: Professional photos, custom illustrations, clean icons
-
-SLIDE LAYOUT PRINCIPLES:
-• Maximum 6 bullet points per slide
-• Large, readable fonts (minimum 24pt for body text)
-• Consistent alignment and spacing
-• Visual hierarchy with color and size
-• Progressive disclosure of complex information
-
-DATA VISUALIZATION:
-• Clean, modern charts with Flow brand colors
-• Clear labels and legends
-• Consistent chart types and styling
-• Interactive elements where appropriate
-• Source citations for all data
-
-STORYTELLING FLOW:
-• Problem/Opportunity → Solution → Evidence → Action
-• Build excitement and urgency throughout
-• Address objections proactively
-• End with clear call to action
-• Maintain audience engagement with visuals and interaction
-
-SPEAKER SUPPORT:
-• Detailed speaker notes for each slide
-• Transition phrases between sections
-• Anticipated Q&A preparation
-• Backup slides for deep-dive questions
-• Handout materials for follow-up
-
-================================================================================
-ADDITIONAL RESOURCES:
-================================================================================
-
-EXECUTIVE SUMMARY (1-page):
-• Key findings and recommendations
-• Investment requirements and ROI
-• Next steps and timeline
-• Contact information
-
-DETAILED FINANCIAL MODEL:
-• 5-year P&L projections
-• Cash flow analysis
-• Sensitivity analysis
-• Funding requirements
-• Exit scenarios
-
-MARKET RESEARCH REPORT:
-• Comprehensive country analysis
-• Consumer research findings
-• Competitive intelligence
-• Regulatory assessment
-• Partnership opportunities
-
-IMPLEMENTATION PLAYBOOK:
-• Step-by-step execution guide
-• Templates and checklists
-• Best practices and lessons learned
-• Risk mitigation strategies
-• Success metrics and KPIs
-
-This comprehensive pitch deck outline provides a professional framework for presenting Southeast Asian market opportunities with compelling visuals, data-driven insights, and actionable recommendations. Each slide is designed to build a compelling narrative that leads to investment and partnership decisions.
-
-For best results:
-1. Customize content based on your specific industry and business model
-2. Update data with the most recent available statistics
-3. Include company-specific case studies and examples
-4. Adapt visual design to match your brand guidelines
-5. Practice the presentation with local market experts for cultural sensitivity
-6. Prepare for Q&A with additional supporting materials
-7. Follow up with detailed implementation plans and next steps
-
-Total estimated presentation time: 45-60 minutes including Q&A
-Recommended audience: C-level executives, investors, board members, strategic partners
+This comprehensive pitch deck outline provides a professional framework for presenting your Southeast Asian market entry strategy. Each slide is designed to build upon the previous one, creating a compelling narrative that leads to a clear call to action.
 `;
+
+    // Create and download the PowerPoint outline
+    const blob = new Blob([pitchDeckContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `SEA-Market-Pitch-Deck-Outline-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 }

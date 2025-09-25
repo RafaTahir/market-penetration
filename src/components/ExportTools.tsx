@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileText, BarChart3, Loader2, Sparkles } from 'lucide-react';
+import { Download, FileText, BarChart3, Loader2, Sparkles, Presentation } from 'lucide-react';
 import { ExportService, ExportData } from '../services/exportService';
 
 interface ExportToolsProps {
@@ -28,20 +28,20 @@ const ExportTools: React.FC<ExportToolsProps> = ({
     {
       id: 'pdf',
       name: 'PDF Report',
-      icon: <FileText className="h-4 w-4" />,
-      description: 'Professional market analysis report with executive summary and insights'
+      icon: <FileText className="h-5 w-5" />,
+      description: 'Visually stunning market analysis report with charts, graphs, and professional design'
     },
     {
       id: 'excel',
       name: 'Excel Data',
-      icon: <BarChart3 className="h-4 w-4" />,
-      description: 'Comprehensive data workbook with multiple analysis sheets'
+      icon: <BarChart3 className="h-5 w-5" />,
+      description: 'Comprehensive data workbook with formatted charts and professional styling'
     },
     {
       id: 'ppt',
-      name: 'PowerPoint',
-      icon: <FileText className="h-4 w-4" />,
-      description: 'Professional pitch deck outline with detailed slide guidance'
+      name: 'Pitch Deck',
+      icon: <Presentation className="h-5 w-5" />,
+      description: 'Professional slide deck with stunning visuals and executive-ready content'
     }
   ];
 
@@ -174,8 +174,8 @@ const ExportTools: React.FC<ExportToolsProps> = ({
             </div>
           </div>
           <div className="mt-3 text-xs text-slate-400">
-            ✨ All comprehensive content automatically included: Executive Summary, Market Analysis, 
-            Competitive Intelligence, Consumer Insights, Regulatory Assessment, Strategic Recommendations, and more.
+            ✨ Beautiful visual reports with charts, graphs, market data, competitive analysis, 
+            consumer insights, strategic recommendations, and professional design matching your app's aesthetic.
           </div>
         </div>
         

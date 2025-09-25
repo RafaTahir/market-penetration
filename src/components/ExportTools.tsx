@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileText, BarChart3, Mail, Calendar, Loader2 } from 'lucide-react';
+import { Download, FileText, BarChart3, Loader2, Sparkles } from 'lucide-react';
 import { ExportService, ExportData } from '../services/exportService';
 
 interface ExportToolsProps {
@@ -20,7 +20,6 @@ const ExportTools: React.FC<ExportToolsProps> = ({
   selectedCaseStudy 
 }) => {
   const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'ppt'>('pdf');
-  const [emailSchedule, setEmailSchedule] = useState<'none' | 'weekly' | 'monthly'>('none');
   const [isExporting, setIsExporting] = useState(false);
   
   const exportService = ExportService.getInstance();
@@ -30,19 +29,19 @@ const ExportTools: React.FC<ExportToolsProps> = ({
       id: 'pdf',
       name: 'PDF Report',
       icon: <FileText className="h-4 w-4" />,
-      description: 'Comprehensive market analysis report with your current selections'
+      description: 'Professional market analysis report with executive summary and insights'
     },
     {
       id: 'excel',
       name: 'Excel Data',
       icon: <BarChart3 className="h-4 w-4" />,
-      description: 'Detailed data analytics matching your current view and selections'
+      description: 'Comprehensive data workbook with multiple analysis sheets'
     },
     {
       id: 'ppt',
       name: 'PowerPoint',
       icon: <FileText className="h-4 w-4" />,
-      description: 'Executive presentation slides based on your analysis focus'
+      description: 'Professional pitch deck outline with detailed slide guidance'
     }
   ];
 
@@ -123,11 +122,11 @@ const ExportTools: React.FC<ExportToolsProps> = ({
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
       <div className="flex items-center space-x-2 mb-6">
-        <Download className="h-5 w-5 text-orange-400" />
-        <h2 className="text-lg font-semibold text-white">Professional Report Generation</h2>
+        <Sparkles className="h-5 w-5 text-orange-400" />
+        <h2 className="text-lg font-semibold text-white">Professional Report Suite</h2>
         <div className="ml-auto">
           <span className="px-2 py-1 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-xs rounded-full font-medium">
-            Enhanced Multi-Page Reports
+            Premium Analytics Reports
           </span>
         </div>
       </div>
@@ -159,71 +158,25 @@ const ExportTools: React.FC<ExportToolsProps> = ({
           </div>
         </div>
         
-        {/* Report Contents */}
-        <div>
-          <h3 className="text-sm font-medium text-slate-300 mb-3">Comprehensive Report Contents (7+ Pages)</h3>
-          <div className="mb-4 p-4 bg-gradient-to-r from-blue-900/20 to-emerald-900/20 border border-blue-700/50 rounded-lg">
-            <div className="text-sm font-medium text-blue-400 mb-2">Current Analysis Focus</div>
-            <div className="space-y-1 text-xs text-slate-300">
-              <div>• Analysis Tab: {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</div>
-              {activeInsightTab && <div>• Intelligence Focus: {activeInsightTab.charAt(0).toUpperCase() + activeInsightTab.slice(1)}</div>}
-              {selectedIndustry && <div>• Industry: {selectedIndustry}</div>}
-              {selectedCaseStudy && <div>• Case Study: {selectedCaseStudy}</div>}
-              <div>• Selected Markets: {selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')}</div>
-              {selectedCities.length > 0 && <div>• Selected Cities: {selectedCities.map(c => c.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())).join(', ')}</div>}
+        {/* Report Preview */}
+        <div className="bg-gradient-to-r from-blue-900/20 to-emerald-900/20 border border-blue-700/50 rounded-lg p-4">
+          <div className="text-sm font-medium text-blue-400 mb-3">Report Preview - Your Analysis Focus</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+            <div className="space-y-1">
+              <div>📊 Analysis: {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</div>
+              {activeInsightTab && <div>🧠 Intelligence: {activeInsightTab.charAt(0).toUpperCase() + activeInsightTab.slice(1)}</div>}
+              {selectedIndustry && <div>🏭 Industry: {selectedIndustry.charAt(0).toUpperCase() + selectedIndustry.slice(1)}</div>}
+              {selectedCaseStudy && <div>📚 Case Study: {selectedCaseStudy.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>}
+            </div>
+            <div className="space-y-1">
+              <div>🌏 Markets: {selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')}</div>
+              {selectedCities.length > 0 && <div>🏙️ Cities: {selectedCities.map(c => c.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())).join(', ')}</div>}
             </div>
           </div>
-          <div className="space-y-2">
-            {[
-              'Executive Summary',
-              'Executive Dashboard with Key Metrics',
-              'Market Analysis Deep Dive',
-              'Competitive Intelligence & Market Leaders',
-              'Consumer Behavior & Trends Analysis',
-              'Regulatory Environment & Risk Assessment',
-              'Investment Analysis & ROI Projections',
-              'Strategic Action Plan & Implementation Roadmap',
-              `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Analysis ⭐ (Your Current Focus)`,
-              selectedCities.length > 0 ? 'Selected Cities Analysis' : 'City-Level Market Intelligence',
-              selectedIndustry ? `${selectedIndustry.charAt(0).toUpperCase() + selectedIndustry.slice(1)} Industry Analysis` : 'Industry Deep Dive Analysis',
-              activeInsightTab === 'consumer' ? 'Consumer Behavior Insights ⭐ (Your Focus)' : 'Consumer Behavior Insights',
-              selectedCaseStudy ? `${selectedCaseStudy} Case Study ⭐ (Your Selection)` : 'Market Entry Case Studies',
-              'Digital Adoption Metrics',
-              'Investment Flows & Trade Analysis',
-              'Comprehensive Risk Assessment Matrix',
-              'Strategic Market Entry Recommendations',
-              'Implementation Timeline & Milestones',
-              'Success Metrics & KPI Framework',
-              'Next Steps & Action Items',
-              'Data Sources & Methodology'
-            ].map((item, index) => (
-              <label key={index} className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  defaultChecked={index < 8 || item.includes('⭐')}
-                  className="w-4 h-4 text-orange-500 bg-slate-700 border-slate-600 rounded focus:ring-orange-500 focus:ring-2"
-                />
-                <span className={`text-sm ${item.includes('⭐') ? 'text-blue-300 font-medium' : 'text-slate-300'}`}>{item}</span>
-              </label>
-            ))}
+          <div className="mt-3 text-xs text-slate-400">
+            ✨ All comprehensive content automatically included: Executive Summary, Market Analysis, 
+            Competitive Intelligence, Consumer Insights, Regulatory Assessment, Strategic Recommendations, and more.
           </div>
-        </div>
-        
-        {/* Email Schedule */}
-        <div>
-          <h3 className="text-sm font-medium text-slate-300 mb-3">
-            <Mail className="h-4 w-4 inline mr-2" />
-            Email Schedule
-          </h3>
-          <select
-            value={emailSchedule}
-            onChange={(e) => setEmailSchedule(e.target.value as 'none' | 'weekly' | 'monthly')}
-            className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-          >
-            <option value="none">No automatic reports</option>
-            <option value="weekly">Weekly updates</option>
-            <option value="monthly">Monthly reports</option>
-          </select>
         </div>
         
         {/* Market Selection Summary */}
@@ -260,18 +213,6 @@ const ExportTools: React.FC<ExportToolsProps> = ({
                 </p>
               )}
             </div>
-            
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-300">Analysis Focus</span>
-                <span className="text-sm text-blue-400">{activeTab}</span>
-              </div>
-              <div className="space-y-1 text-xs text-slate-400">
-                {activeInsightTab && <div>Intelligence: {activeInsightTab}</div>}
-                {selectedIndustry && <div>Industry: {selectedIndustry}</div>}
-                {selectedCaseStudy && <div>Case Study: {selectedCaseStudy}</div>}
-              </div>
-            </div>
           </div>
         </div>
         
@@ -284,22 +225,15 @@ const ExportTools: React.FC<ExportToolsProps> = ({
           {isExporting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Generating Professional {exportFormat.toUpperCase()} Report...</span>
+              <span>Crafting Professional {exportFormat.toUpperCase()} Report...</span>
             </>
           ) : (
             <>
               <Download className="h-4 w-4" />
-              <span>Generate Comprehensive {exportFormat.toUpperCase()} Report</span>
+              <span>Generate Premium {exportFormat.toUpperCase()} Report</span>
             </>
           )}
         </button>
-        
-        {emailSchedule !== 'none' && (
-          <div className="flex items-center space-x-2 text-sm text-emerald-400 bg-emerald-900/20 p-3 rounded-lg border border-emerald-700/50">
-            <Calendar className="h-4 w-4" />
-            <span>Automatic {emailSchedule} reports enabled</span>
-          </div>
-        )}
       </div>
     </div>
   );

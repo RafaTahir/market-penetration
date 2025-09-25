@@ -33,9 +33,6 @@ export class ExportService {
       pdf.rect(0, 0, pageWidth, pageHeight, 'F');
       pdf.setFillColor(16, 185, 129); // Emerald
       pdf.rect(0, 0, pageWidth, pageHeight/2, 'F');
-      pdf.setGlobalAlpha(0.1);
-      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-      pdf.setGlobalAlpha(1);
     };
 
     const addHeader = (title: string, subtitle?: string) => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, DollarSign, BarChart3, Globe, Activity } from 'lucide-react';
-import { MarketDataService, MarketData, EconomicIndicator, CurrencyRate } from '../services/marketDataService';
+import { TrendingUp, TrendingDown, RefreshCw, DollarSign, BarChart3, Globe, Activity, Clock } from 'lucide-react';
+import { MarketData, EconomicIndicator, CurrencyRate } from '../services/marketDataService';
+import { UnifiedDataService } from '../services/unifiedDataService';
 
 const LiveMarketData: React.FC = () => {
   const [marketData, setMarketData] = useState<MarketData[]>([]);
@@ -9,31 +10,44 @@ const LiveMarketData: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isLive, setIsLive] = useState(true);
+  const [dataAge, setDataAge] = useState<number>(0);
 
-  const marketService = MarketDataService.getInstance();
+  const unifiedService = UnifiedDataService.getInstance();
 
   useEffect(() => {
     fetchMarketData();
-    
-    // Set up live updates every 30 seconds for real-time feel
-    const interval = setInterval(() => {
-      if (isLive) {
-        fetchMarketData();
-      }
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, [isLive]);
+
+    const stopRealTimeUpdates = unifiedService.startRealTimeUpdates(30000);
+
+    const ageInterval = setInterval(() => {
+      setDataAge(Date.now() - lastUpdated.getTime());
+    }, 1000);
+
+    return () => {
+      stopRealTimeUpdates();
+      clearInterval(ageInterval);
+    };
+  }, [isLive, lastUpdated]);
 
   const fetchMarketData = async () => {
+    if (!isLive) return;
+
     try {
       const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
-      const stocks = await marketService.getStockData(symbols);
-      const economic = marketService.getEconomicIndicators();
-      const currency = await marketService.getCurrencyRates();
-      
+      const stocks = await unifiedService.getMarketData(symbols);
+      const economic = await unifiedService.getUnifiedEconomicData();
+      const currency = await unifiedService.getCurrencyRates();
+
       setMarketData(stocks);
-      setEconomicData(economic);
+      setEconomicData(economic.map(e => ({
+        country: e.country,
+        gdp: e.gdp,
+        inflation: e.inflation,
+        unemployment: e.unemployment,
+        interestRate: e.interestRate,
+        exchangeRate: e.exchangeRate,
+        lastUpdated: e.lastUpdated
+      })));
       setCurrencyData(currency);
       setLastUpdated(new Date());
     } catch (error) {
@@ -87,7 +101,11 @@ const LiveMarketData: React.FC = () => {
               </button>
               <div className="text-right">
                 <div className="text-sm text-slate-400">Last Updated</div>
-                <div className="text-sm text-white">{lastUpdated.toLocaleTimeString()}</div>
+                <div className="text-sm text-white flex items-center space-x-2">
+                  <Clock className="h-3 w-3" />
+                  <span>{lastUpdated.toLocaleTimeString()}</span>
+                  {dataAge > 0 && <span className="text-xs text-slate-500">({Math.floor(dataAge / 1000)}s ago)</span>}
+                </div>
               </div>
               <button
                 onClick={fetchMarketData}
@@ -153,8 +171,9 @@ const LiveMarketData: React.FC = () => {
             <TrendingUp className="h-5 w-5 text-emerald-400" />
             <h2 className="text-lg font-semibold text-white">Stock Market Indices</h2>
             <div className="ml-auto flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-xs text-slate-400">Live Updates</span>
+              <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></div>
+              <span className="text-xs text-slate-400">{isLive ? 'Live Updates' : 'Updates Paused'}</span>
+              <span className="text-xs text-slate-500">• Simulated Data</span>
             </div>
           </div>
           
@@ -203,6 +222,7 @@ const LiveMarketData: React.FC = () => {
             <div className="ml-auto flex items-center space-x-2">
               <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
               <span className="text-xs text-slate-400">Real-time Rates</span>
+              <span className="text-xs text-slate-500">• exchangerate-api.com</span>
             </div>
           </div>
           
@@ -227,6 +247,10 @@ const LiveMarketData: React.FC = () => {
           <div className="flex items-center space-x-2 mb-6">
             <Globe className="h-5 w-5 text-purple-400" />
             <h2 className="text-lg font-semibold text-white">Economic Indicators</h2>
+            <div className="ml-auto flex items-center space-x-2">
+              <span className="text-xs text-slate-400">Source:</span>
+              <span className="text-xs text-slate-500">World Bank • IMF</span>
+            </div>
           </div>
           
           <div className="overflow-x-auto">

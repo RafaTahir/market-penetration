@@ -9,12 +9,13 @@ import MarketInsights from './components/MarketInsights';
 import CaseStudies from './components/CaseStudies';
 import ExportTools from './components/ExportTools';
 import DataVisualization from './components/DataVisualization';
+import InstitutionalReports from './components/InstitutionalReports';
 
 function App() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['singapore', 'thailand']);
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data'>('overview');
-  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics'>('main');
+  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports'>('main');
   const [activeInsightTab, setActiveInsightTab] = useState<string>('overview');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
   const [selectedCaseStudy, setSelectedCaseStudy] = useState<string>('grab-success');
@@ -58,15 +59,41 @@ function App() {
   if (currentView === 'analytics') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header 
+        <Header
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('main')}
         />
         <AnalyticsDashboard />
+        <div className="fixed bottom-6 right-6 space-x-2 flex">
+          <button
+            onClick={() => setCurrentView('reports')}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            Reports →
+          </button>
+          <button
+            onClick={() => setCurrentView('main')}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            ← Back to Research
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'reports') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Header
+          onLiveDataClick={() => setCurrentView('live-data')}
+          onAnalyticsClick={() => setCurrentView('analytics')}
+        />
+        <InstitutionalReports />
         <div className="fixed bottom-6 right-6">
           <button
             onClick={() => setCurrentView('main')}
-            className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
           >
             ← Back to Research
           </button>
@@ -97,6 +124,12 @@ function App() {
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
             <div className="relative">
               <div className="flex items-center justify-center mb-6">
+                <button
+                  onClick={() => setCurrentView('reports')}
+                  className="absolute top-4 right-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
+                >
+                  View Institutional Reports →
+                </button>
                 <svg className="h-16 w-16 mr-4" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <defs>
                     <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="100%">

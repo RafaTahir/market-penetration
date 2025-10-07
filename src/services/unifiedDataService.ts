@@ -1,6 +1,7 @@
 import { WorldBankService } from './worldBankService';
 import { IMFService } from './imfService';
 import { MarketDataService } from './marketDataService';
+import { MarketHoursService } from './marketHoursService';
 
 export interface UnifiedEconomicData {
   country: string;
@@ -29,12 +30,15 @@ export class UnifiedDataService {
   private worldBankService: WorldBankService;
   private imfService: IMFService;
   private marketDataService: MarketDataService;
+  private marketHoursService: MarketHoursService;
 
   private dataCache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
   private readonly DEFAULT_TTL = 300000;
   private readonly FAST_TTL = 60000;
+  private readonly MARKET_UPDATE_INTERVAL = 300000;
 
   private updateCallbacks: Map<string, Array<(data: any) => void>> = new Map();
+  private updateIntervalId: NodeJS.Timeout | null = null;
 
   public static getInstance(): UnifiedDataService {
     if (!UnifiedDataService.instance) {
@@ -47,6 +51,7 @@ export class UnifiedDataService {
     this.worldBankService = WorldBankService.getInstance();
     this.imfService = IMFService.getInstance();
     this.marketDataService = MarketDataService.getInstance();
+    this.marketHoursService = MarketHoursService.getInstance();
   }
 
   private getCachedData<T>(key: string): T | null {
@@ -342,18 +347,38 @@ export class UnifiedDataService {
     }
   }
 
-  startRealTimeUpdates(intervalMs: number = 30000): () => void {
-    const intervalId = setInterval(async () => {
-      try {
-        await Promise.all([
-          this.getMarketData(['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM']),
-          this.getCurrencyRates()
-        ]);
-      } catch (error) {
-        console.error('Error during real-time update:', error);
-      }
-    }, intervalMs);
+  startRealTimeUpdates(): () => void {
+    if (this.updateIntervalId) {
+      clearInterval(this.updateIntervalId);
+    }
 
-    return () => clearInterval(intervalId);
+    const updateIfMarketOpen = async () => {
+      const isAnyMarketOpen = this.marketHoursService.isAnyMarketOpen();
+
+      if (isAnyMarketOpen) {
+        try {
+          await Promise.all([
+            this.getMarketData(['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM']),
+            this.getCurrencyRates()
+          ]);
+          console.log('Market data updated at', new Date().toLocaleTimeString());
+        } catch (error) {
+          console.error('Error during real-time update:', error);
+        }
+      } else {
+        console.log('All markets closed. Skipping update.');
+      }
+    };
+
+    updateIfMarketOpen();
+
+    this.updateIntervalId = setInterval(updateIfMarketOpen, this.MARKET_UPDATE_INTERVAL);
+
+    return () => {
+      if (this.updateIntervalId) {
+        clearInterval(this.updateIntervalId);
+        this.updateIntervalId = null;
+      }
+    };
   }
 }

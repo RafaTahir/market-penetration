@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { FinnhubService } from './finnhubService';
+import { MarketHoursService } from './marketHoursService';
 
 export interface MarketData {
   symbol: string;
@@ -32,8 +34,15 @@ export class MarketDataService {
   private static instance: MarketDataService;
   private currencyCache: { [key: string]: CurrencyRate } = {};
   private lastCurrencyUpdate = 0;
-  private readonly CACHE_DURATION = 60000; // 1 minute cache
-  
+  private readonly CACHE_DURATION = 60000;
+  private finnhubService: FinnhubService;
+  private marketHoursService: MarketHoursService;
+
+  private constructor() {
+    this.finnhubService = FinnhubService.getInstance();
+    this.marketHoursService = MarketHoursService.getInstance();
+  }
+
   public static getInstance(): MarketDataService {
     if (!MarketDataService.instance) {
       MarketDataService.instance = new MarketDataService();
@@ -43,40 +52,41 @@ export class MarketDataService {
 
   async getStockData(symbols: string[]): Promise<MarketData[]> {
     try {
-      // Using Yahoo Finance API alternative with realistic data
-      return this.getRealtimeStockData();
+      const isAnyMarketOpen = this.marketHoursService.isAnyMarketOpen();
+
+      if (!isAnyMarketOpen) {
+        return this.getCachedStockData(symbols);
+      }
+
+      const stockData = await this.finnhubService.fetchAndCacheStockData(symbols);
+
+      return stockData.map(stock => ({
+        symbol: stock.symbol,
+        name: stock.name,
+        price: stock.price,
+        change: stock.change,
+        changePercent: stock.change_percent,
+        volume: stock.volume || 0,
+        marketCap: stock.market_cap
+      }));
     } catch (error) {
       console.error('Error fetching stock data:', error);
-      return this.getRealtimeStockData();
+      return this.getCachedStockData(symbols);
     }
   }
 
-  private getRealtimeStockData(): MarketData[] {
-    const baseData = [
-      { symbol: 'SET.BK', name: 'Stock Exchange of Thailand Index', basePrice: 1642.50 },
-      { symbol: 'STI.SI', name: 'Straits Times Index', basePrice: 3245.80 },
-      { symbol: 'KLCI.KL', name: 'FTSE Bursa Malaysia KLCI', basePrice: 1498.60 },
-      { symbol: 'JKSE.JK', name: 'Jakarta Composite Index', basePrice: 7156.25 },
-      { symbol: 'PSEI.PS', name: 'Philippine Stock Exchange Index', basePrice: 6842.30 },
-      { symbol: 'VN-INDEX.HM', name: 'Ho Chi Minh Stock Index', basePrice: 1245.80 }
-    ];
+  private async getCachedStockData(symbols: string[]): Promise<MarketData[]> {
+    const cachedData = await this.finnhubService.getAllCachedStockData(symbols);
 
-    return baseData.map(stock => {
-      const volatility = 0.02; // 2% max change
-      const changePercent = (Math.random() - 0.5) * 2 * volatility * 100;
-      const change = (stock.basePrice * changePercent) / 100;
-      const currentPrice = stock.basePrice + change;
-      const volume = Math.floor(Math.random() * 50000000) + 1000000;
-
-      return {
-        symbol: stock.symbol,
-        name: stock.name,
-        price: currentPrice,
-        change: change,
-        changePercent: changePercent,
-        volume: volume
-      };
-    });
+    return cachedData.map(stock => ({
+      symbol: stock.symbol,
+      name: stock.name,
+      price: stock.price,
+      change: stock.change,
+      changePercent: stock.change_percent,
+      volume: stock.volume || 0,
+      marketCap: stock.market_cap
+    }));
   }
 
   async getCurrencyRates(): Promise<CurrencyRate[]> {

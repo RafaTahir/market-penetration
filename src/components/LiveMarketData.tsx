@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, BarChart3, Globe, Activity, Clock } from 'lucide-react';
 import { MarketData, EconomicIndicator, CurrencyRate } from '../services/marketDataService';
 import { UnifiedDataService } from '../services/unifiedDataService';
+import { MarketHoursService, MarketStatus } from '../services/marketHoursService';
+import MarketClock from './MarketClock';
 
 const LiveMarketData: React.FC = () => {
   const [marketData, setMarketData] = useState<MarketData[]>([]);
@@ -9,29 +11,39 @@ const LiveMarketData: React.FC = () => {
   const [currencyData, setCurrencyData] = useState<CurrencyRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [isLive, setIsLive] = useState(true);
   const [dataAge, setDataAge] = useState<number>(0);
+  const [marketStatuses, setMarketStatuses] = useState<MarketStatus[]>([]);
 
   const unifiedService = UnifiedDataService.getInstance();
+  const marketHoursService = MarketHoursService.getInstance();
 
   useEffect(() => {
     fetchMarketData();
+    updateMarketStatuses();
 
-    const stopRealTimeUpdates = unifiedService.startRealTimeUpdates(30000);
+    const stopRealTimeUpdates = unifiedService.startRealTimeUpdates();
 
     const ageInterval = setInterval(() => {
       setDataAge(Date.now() - lastUpdated.getTime());
     }, 1000);
 
+    const statusInterval = setInterval(() => {
+      updateMarketStatuses();
+    }, 1000);
+
     return () => {
       stopRealTimeUpdates();
       clearInterval(ageInterval);
+      clearInterval(statusInterval);
     };
-  }, [isLive, lastUpdated]);
+  }, [lastUpdated]);
+
+  const updateMarketStatuses = () => {
+    const statuses = marketHoursService.getAllMarketStatuses();
+    setMarketStatuses(statuses);
+  };
 
   const fetchMarketData = async () => {
-    if (!isLive) return;
-
     try {
       const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
       const stocks = await unifiedService.getMarketData(symbols);
@@ -71,6 +83,18 @@ const LiveMarketData: React.FC = () => {
     return `$${num.toFixed(2)}`;
   };
 
+  const getDataFreshnessStatus = () => {
+    const ageInMinutes = dataAge / 60000;
+
+    if (ageInMinutes < 5) {
+      return { label: 'Fresh', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20' };
+    } else if (ageInMinutes < 15) {
+      return { label: 'Recent', color: 'text-blue-400', bgColor: 'bg-blue-400/20' };
+    } else {
+      return { label: 'Stale', color: 'text-amber-400', bgColor: 'bg-amber-400/20' };
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -88,26 +112,46 @@ const LiveMarketData: React.FC = () => {
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
-                <span className="text-sm text-slate-400">{isLive ? 'LIVE' : 'PAUSED'}</span>
+                <div className={`w-2 h-2 rounded-full ${
+                  marketHoursService.isAnyMarketOpen() ? 'bg-green-400 animate-pulse' : 'bg-slate-400'
+                }`}></div>
+                <span className="text-sm text-slate-400">
+                  {marketHoursService.isAnyMarketOpen() ? 'Markets Open' : 'Markets Closed'}
+                </span>
               </div>
-              <button
-                onClick={() => setIsLive(!isLive)}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  isLive ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-green-600 hover:bg-green-500 text-white'
-                }`}
-              >
-                {isLive ? 'Pause' : 'Resume'}
-              </button>
-              <div className="text-right">
-                <div className="text-sm text-slate-400">Last Updated</div>
-                <div className="text-sm text-white flex items-center space-x-2">
-                  <Clock className="h-3 w-3" />
-                  <span>{lastUpdated.toLocaleTimeString()}</span>
-                  {dataAge > 0 && <span className="text-xs text-slate-500">({Math.floor(dataAge / 1000)}s ago)</span>}
+              <div className="flex items-center space-x-3">
+                <div className={`px-2 py-1 rounded text-xs font-medium ${getDataFreshnessStatus().bgColor} ${getDataFreshnessStatus().color}`}>
+                  {getDataFreshnessStatus().label}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-slate-400">Last Updated</div>
+                  <div className="text-sm text-white flex items-center space-x-2">
+                    <Clock className="h-3 w-3" />
+                    <span>{lastUpdated.toLocaleTimeString()}</span>
+                    {dataAge > 0 && <span className="text-xs text-slate-500">({Math.floor(dataAge / 1000)}s ago)</span>}
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Market Status Clocks */}
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center space-x-2 mb-6">
+            <Clock className="h-5 w-5 text-blue-400" />
+            <h2 className="text-lg font-semibold text-white">Trading Hours</h2>
+            <div className="ml-auto flex items-center space-x-2">
+              <span className="text-xs text-slate-400">
+                {marketStatuses.filter(s => s.isOpen).length} of {marketStatuses.length} markets open
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {marketStatuses.map((status) => (
+              <MarketClock key={status.exchange} status={status} />
+            ))}
           </div>
         </div>
 
@@ -164,9 +208,13 @@ const LiveMarketData: React.FC = () => {
             <TrendingUp className="h-5 w-5 text-emerald-400" />
             <h2 className="text-lg font-semibold text-white">Stock Market Indices</h2>
             <div className="ml-auto flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></div>
-              <span className="text-xs text-slate-400">{isLive ? 'Live Updates' : 'Updates Paused'}</span>
-              <span className="text-xs text-slate-500">• Simulated Data</span>
+              <div className={`w-2 h-2 rounded-full ${
+                marketHoursService.isAnyMarketOpen() ? 'bg-green-400 animate-pulse' : 'bg-slate-400'
+              }`}></div>
+              <span className="text-xs text-slate-400">
+                {marketHoursService.isAnyMarketOpen() ? 'Live from Finnhub' : 'Using Cached Data'}
+              </span>
+              <span className="text-xs text-slate-500">• Updates every 5 min</span>
             </div>
           </div>
           

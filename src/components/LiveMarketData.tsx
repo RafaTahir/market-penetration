@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, DollarSign, BarChart3, Globe, Activity, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, Globe, Activity, Clock } from 'lucide-react';
 import { MarketData, EconomicIndicator, CurrencyRate } from '../services/marketDataService';
 import { UnifiedDataService } from '../services/unifiedDataService';
 
@@ -107,13 +107,6 @@ const LiveMarketData: React.FC = () => {
                   {dataAge > 0 && <span className="text-xs text-slate-500">({Math.floor(dataAge / 1000)}s ago)</span>}
                 </div>
               </div>
-              <button
-                onClick={fetchMarketData}
-                disabled={loading}
-                className="p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white rounded-lg transition-colors"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </button>
             </div>
           </div>
         </div>

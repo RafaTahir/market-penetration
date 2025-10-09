@@ -612,22 +612,27 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="h-80">
-                  <h4 className="text-sm font-medium text-slate-300 mb-3">Growth Rate by Industry</h4>
+                <div className="h-96">
+                  <h4 className="text-sm font-medium text-slate-300 mb-3">Growth Rate by Industry (% YoY)</h4>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={industryBreakdownData} layout="horizontal">
+                    <BarChart data={industryBreakdownData} layout="vertical" margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis type="number" stroke="#9CA3AF" />
-                      <YAxis dataKey="name" type="category" stroke="#9CA3AF" width={120} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
+                      <XAxis type="number" stroke="#9CA3AF" tick={{ fontSize: 12 }} label={{ value: 'Growth Rate (%)', position: 'bottom', style: { fill: '#9CA3AF', fontSize: 12 } }} />
+                      <YAxis dataKey="name" type="category" stroke="#9CA3AF" width={140} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1F2937',
                           border: '1px solid #374151',
                           borderRadius: '8px',
                           color: '#F9FAFB'
-                        }} 
+                        }}
+                        formatter={(value: any) => [`${value}%`, 'Growth Rate']}
                       />
-                      <Bar dataKey="growth" fill="#10B981" radius={[0, 4, 4, 0]} name="Growth Rate %" />
+                      <Bar dataKey="growth" radius={[0, 4, 4, 0]} name="Growth Rate %">
+                        {industryBreakdownData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.growth > 0 ? '#10B981' : '#EF4444'} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -659,52 +664,91 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="h-80">
-                  <h4 className="text-sm font-medium text-slate-300 mb-3">Digital Adoption Radar</h4>
+                <div className="h-96">
+                  <h4 className="text-sm font-medium text-slate-300 mb-3">Digital Adoption by Country (%)</h4>
                   <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={digitalAdoptionData}>
-                      <PolarGrid stroke="#374151" />
-                      <PolarAngleAxis dataKey="country" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#9CA3AF', fontSize: 10 }} />
-                      <Radar name="Mobile" dataKey="mobile" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.2} strokeWidth={2} />
-                      <Radar name="Internet" dataKey="internet" stroke="#10B981" fill="#10B981" fillOpacity={0.2} strokeWidth={2} />
-                      <Radar name="E-commerce" dataKey="ecommerce" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.2} strokeWidth={2} />
-                      <Radar name="Digital Payments" dataKey="digital_payments" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.2} strokeWidth={2} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
+                    <BarChart data={digitalAdoptionData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="country" stroke="#9CA3AF" tick={{ fontSize: 11 }} angle={-20} textAnchor="end" height={70} />
+                      <YAxis stroke="#9CA3AF" tick={{ fontSize: 11 }} domain={[0, 100]} label={{ value: 'Adoption Rate (%)', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: 12 } }} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1F2937',
                           border: '1px solid #374151',
                           borderRadius: '8px',
                           color: '#F9FAFB'
-                        }} 
+                        }}
+                        formatter={(value: any) => `${value}%`}
                       />
-                    </RadarChart>
+                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                      <Bar dataKey="mobile" fill="#3B82F6" name="Mobile" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="internet" fill="#10B981" name="Internet" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="ecommerce" fill="#8B5CF6" name="E-commerce" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="digital_payments" fill="#F59E0B" name="Digital Payments" radius={[4, 4, 0, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="h-80">
+                <div className="h-96">
                   <h4 className="text-sm font-medium text-slate-300 mb-3">AI Readiness vs Cloud Adoption</h4>
                   <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart data={digitalAdoptionData}>
+                    <ScatterChart margin={{ top: 20, right: 30, bottom: 40, left: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="cloud_adoption" stroke="#9CA3AF" name="Cloud Adoption %" />
-                      <YAxis dataKey="ai_readiness" stroke="#9CA3AF" name="AI Readiness %" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
+                      <XAxis
+                        type="number"
+                        dataKey="cloud_adoption"
+                        stroke="#9CA3AF"
+                        name="Cloud Adoption"
+                        tick={{ fontSize: 11 }}
+                        domain={[30, 80]}
+                        label={{ value: 'Cloud Adoption (%)', position: 'bottom', style: { fill: '#9CA3AF', fontSize: 12 } }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="ai_readiness"
+                        stroke="#9CA3AF"
+                        name="AI Readiness"
+                        tick={{ fontSize: 11 }}
+                        domain={[30, 75]}
+                        label={{ value: 'AI Readiness (%)', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: 12 } }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1F2937',
                           border: '1px solid #374151',
                           borderRadius: '8px',
                           color: '#F9FAFB'
-                        }} 
+                        }}
                         cursor={{ strokeDasharray: '3 3' }}
-                        formatter={(value, name, props) => [
-                          `${value}%`,
-                          name === 'ai_readiness' ? 'AI Readiness' : name,
-                          props.payload.country
-                        ]}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-slate-800 border border-slate-600 rounded-lg p-3">
+                                <p className="text-white font-medium mb-2">{data.country}</p>
+                                <p className="text-blue-400 text-sm">Cloud Adoption: {data.cloud_adoption}%</p>
+                                <p className="text-purple-400 text-sm">AI Readiness: {data.ai_readiness}%</p>
+                                <p className="text-slate-400 text-xs mt-1">Cybersecurity: {data.cybersecurity}%</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
                       />
-                      <Scatter name="Countries" dataKey="ai_readiness" fill="#8B5CF6" />
+                      <Scatter name="Countries" data={digitalAdoptionData} fill="#8B5CF6">
+                        {digitalAdoptionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'][index % 6]} />
+                        ))}
+                      </Scatter>
                     </ScatterChart>
                   </ResponsiveContainer>
+                  <div className="mt-2 flex flex-wrap gap-2 justify-center">
+                    {digitalAdoptionData.map((country, index) => (
+                      <div key={index} className="flex items-center space-x-1 text-xs">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'][index % 6] }}></div>
+                        <span className="text-slate-300">{country.country}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
@@ -761,30 +805,68 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="h-80">
+                <div className="h-96">
                   <h4 className="text-sm font-medium text-slate-300 mb-3">Customer Satisfaction vs Usage Frequency</h4>
                   <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart data={consumerBehaviorData}>
+                    <ScatterChart margin={{ top: 20, right: 30, bottom: 40, left: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="frequency" stroke="#9CA3AF" name="Usage Frequency (times/month)" />
-                      <YAxis dataKey="satisfaction" stroke="#9CA3AF" name="Satisfaction Score" domain={[3, 5]} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
+                      <XAxis
+                        type="number"
+                        dataKey="frequency"
+                        stroke="#9CA3AF"
+                        name="Usage Frequency"
+                        tick={{ fontSize: 11 }}
+                        domain={[0, 18]}
+                        label={{ value: 'Usage Frequency (times/month)', position: 'bottom', style: { fill: '#9CA3AF', fontSize: 12 } }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="satisfaction"
+                        stroke="#9CA3AF"
+                        name="Satisfaction Score"
+                        tick={{ fontSize: 11 }}
+                        domain={[3.5, 4.6]}
+                        label={{ value: 'Satisfaction Score (out of 5)', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: 12 } }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1F2937',
                           border: '1px solid #374151',
                           borderRadius: '8px',
                           color: '#F9FAFB'
-                        }} 
+                        }}
                         cursor={{ strokeDasharray: '3 3' }}
-                        formatter={(value, name, props) => [
-                          name === 'satisfaction' ? `${value}/5.0` : `${value} times/month`,
-                          name === 'satisfaction' ? 'Satisfaction' : 'Frequency',
-                          props.payload.category
-                        ]}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-slate-800 border border-slate-600 rounded-lg p-3">
+                                <p className="text-white font-medium mb-2">{data.category}</p>
+                                <p className="text-orange-400 text-sm">Satisfaction: {data.satisfaction}/5.0</p>
+                                <p className="text-blue-400 text-sm">Frequency: {data.frequency} times/month</p>
+                                <p className="text-emerald-400 text-sm">Adoption: {data.percentage}%</p>
+                                <p className="text-purple-400 text-sm">Growth: +{data.growth}%</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
                       />
-                      <Scatter name="Categories" dataKey="satisfaction" fill="#F59E0B" />
+                      <Scatter name="Consumer Behaviors" data={consumerBehaviorData} fill="#F59E0B">
+                        {consumerBehaviorData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                        ))}
+                      </Scatter>
                     </ScatterChart>
                   </ResponsiveContainer>
+                  <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    {consumerBehaviorData.map((behavior, index) => (
+                      <div key={index} className="flex items-center space-x-1">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }}></div>
+                        <span className="text-slate-300 truncate">{behavior.category}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -812,30 +894,78 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="h-80">
+                <div className="h-96">
                   <h4 className="text-sm font-medium text-slate-300 mb-3">Market Share vs Competition Level</h4>
                   <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart data={competitiveAnalysisData}>
+                    <ScatterChart margin={{ top: 20, right: 30, bottom: 40, left: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="marketShare" stroke="#9CA3AF" name="Market Share %" />
-                      <YAxis dataKey="competitionLevel" stroke="#9CA3AF" name="Competition Level" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
+                      <XAxis
+                        type="number"
+                        dataKey="marketShare"
+                        stroke="#9CA3AF"
+                        name="Market Share"
+                        tick={{ fontSize: 11 }}
+                        domain={[15, 85]}
+                        label={{ value: 'Market Share (%)', position: 'bottom', style: { fill: '#9CA3AF', fontSize: 12 } }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="competitionLevel"
+                        stroke="#9CA3AF"
+                        name="Competition Level"
+                        tick={{ fontSize: 11 }}
+                        domain={[30, 100]}
+                        label={{ value: 'Competition Level (0-100)', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: 12 } }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1F2937',
                           border: '1px solid #374151',
                           borderRadius: '8px',
                           color: '#F9FAFB'
-                        }} 
+                        }}
                         cursor={{ strokeDasharray: '3 3' }}
-                        formatter={(value, name, props) => [
-                          `${value}${name === 'marketShare' ? '%' : '/100'}`,
-                          name === 'marketShare' ? 'Market Share' : 'Competition Level',
-                          props.payload.sector
-                        ]}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-slate-800 border border-slate-600 rounded-lg p-3">
+                                <p className="text-white font-medium mb-2">{data.sector}</p>
+                                <p className="text-blue-400 text-sm">Market Share: {data.marketShare}%</p>
+                                <p className="text-red-400 text-sm">Competition: {data.competitionLevel}/100</p>
+                                <p className="text-emerald-400 text-sm">Opportunity: {data.opportunity}/100</p>
+                                <p className="text-orange-400 text-sm">Entry Barrier: {data.entryBarrier}/100</p>
+                                <p className="text-slate-400 text-xs mt-1">Leaders: {data.leaders}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
                       />
-                      <Scatter name="Sectors" dataKey="competitionLevel" fill="#EF4444" />
+                      <Scatter name="Sectors" data={competitiveAnalysisData} fill="#EF4444">
+                        {competitiveAnalysisData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.opportunity > 70 ? '#10B981' : entry.opportunity > 50 ? '#F59E0B' : '#EF4444'}
+                          />
+                        ))}
+                      </Scatter>
                     </ScatterChart>
                   </ResponsiveContainer>
+                  <div className="mt-2 flex flex-wrap gap-3 justify-center text-xs">
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                      <span className="text-slate-300">High Opportunity (70+)</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                      <span className="text-slate-300">Medium Opportunity (50-70)</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                      <span className="text-slate-300">Low Opportunity (&lt;50)</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="h-80">
                   <h4 className="text-sm font-medium text-slate-300 mb-3">Market Opportunity Score</h4>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ScatterChart, Scatter, Treemap } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ScatterChart, Scatter, Treemap } from 'recharts';
 import { BarChart3, TrendingUp, PieChart as PieChartIcon, Activity, Globe, Users, DollarSign, Smartphone, Target, Zap, Eye, ShoppingCart, Building2, Briefcase } from 'lucide-react';
 
 interface DataVisualizationProps {
@@ -422,9 +422,10 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={marketSizeData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="country" stroke="#9CA3AF" />
-                      <YAxis yAxisId="left" stroke="#9CA3AF" />
-                      <YAxis yAxisId="right" orientation="right" stroke="#9CA3AF" />
+                      <XAxis dataKey="country" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                      <YAxis yAxisId="left" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                      <YAxis yAxisId="right" orientation="right" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: '12px' }} />
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: '#1F2937', 
@@ -443,8 +444,9 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={marketSizeData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="country" stroke="#9CA3AF" />
-                      <YAxis stroke="#9CA3AF" />
+                      <XAxis dataKey="country" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                      <YAxis stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: '12px' }} />
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: '#1F2937', 
@@ -498,8 +500,9 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={growthTrendsData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="year" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
+                    <XAxis dataKey="year" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                    <YAxis stroke="#9CA3AF" tick={{ fontSize: 12 }} label={{ value: 'Growth %', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF' } }} />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: '#1F2937', 
@@ -587,15 +590,17 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                         data={industryBreakdownData}
                         cx="50%"
                         cy="50%"
-                        outerRadius={100}
+                        outerRadius={90}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}%`}
+                        label={({ value }) => `${value}%`}
+                        labelLine={false}
                       >
                         {industryBreakdownData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
+                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px' }} />
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: '#1F2937', 
@@ -993,12 +998,15 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                           color: '#F9FAFB'
                         }} 
                       />
-                      <Bar 
-                        dataKey="tradeBalance" 
-                        fill={(entry: any) => entry.tradeBalance >= 0 ? '#10B981' : '#EF4444'}
-                        radius={[4, 4, 0, 0]} 
-                        name="Trade Balance (USD B)" 
-                      />
+                      <Bar
+                        dataKey="tradeBalance"
+                        radius={[4, 4, 0, 0]}
+                        name="Trade Balance (USD B)"
+                      >
+                        {tradeAnalysisData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.tradeBalance >= 0 ? '#10B981' : '#EF4444'} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

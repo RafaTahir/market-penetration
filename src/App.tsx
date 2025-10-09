@@ -10,12 +10,13 @@ import CaseStudies from './components/CaseStudies';
 import ExportTools from './components/ExportTools';
 import DataVisualization from './components/DataVisualization';
 import InstitutionalReports from './components/InstitutionalReports';
+import ReportGenerator from './components/ReportGenerator';
 
 function App() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['singapore', 'thailand']);
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data'>('overview');
-  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports'>('main');
+  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator'>('main');
   const [activeInsightTab, setActiveInsightTab] = useState<string>('overview');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
   const [selectedCaseStudy, setSelectedCaseStudy] = useState<string>('grab-success');
@@ -90,6 +91,32 @@ function App() {
           onAnalyticsClick={() => setCurrentView('analytics')}
         />
         <InstitutionalReports />
+        <div className="fixed bottom-6 right-6 space-x-2 flex">
+          <button
+            onClick={() => setCurrentView('report-generator')}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            Generate Reports →
+          </button>
+          <button
+            onClick={() => setCurrentView('main')}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            ← Back to Research
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'report-generator') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Header
+          onLiveDataClick={() => setCurrentView('live-data')}
+          onAnalyticsClick={() => setCurrentView('analytics')}
+        />
+        <ReportGenerator />
         <div className="fixed bottom-6 right-6">
           <button
             onClick={() => setCurrentView('main')}

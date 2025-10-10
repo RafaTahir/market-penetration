@@ -84,38 +84,32 @@ const MarketClock: React.FC<MarketClockProps> = ({ status, marketData }) => {
         })}
       </div>
 
-      <div className="mt-3 pt-3 border-t border-slate-600/50">
-        {marketData ? (
-          <>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-slate-400">{marketData.symbol}</span>
-              <div className={`flex items-center space-x-1 ${
-                marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
-              }`}>
-                {marketData.change >= 0 ?
-                  <TrendingUp className="h-3 w-3" /> :
-                  <TrendingDown className="h-3 w-3" />
-                }
-              </div>
+      {marketData && (
+        <div className="mt-3 pt-3 border-t border-slate-600/50">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-slate-400">{marketData.symbol}</span>
+            <div className={`flex items-center space-x-1 ${
+              marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+            }`}>
+              {marketData.change >= 0 ?
+                <TrendingUp className="h-3 w-3" /> :
+                <TrendingDown className="h-3 w-3" />
+              }
             </div>
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-bold text-white">
-                {formatNumber(marketData.price)}
-              </div>
-              <div className={`text-sm font-medium ${
-                marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
-              }`}>
-                {marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.change)}
-                ({marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.changePercent)}%)
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-2">
-            <div className="text-xs text-slate-500">Loading market data...</div>
           </div>
-        )}
-      </div>
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-bold text-white">
+              {formatNumber(marketData.price)}
+            </div>
+            <div className={`text-sm font-medium ${
+              marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+            }`}>
+              {marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.change)}
+              ({marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.changePercent)}%)
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

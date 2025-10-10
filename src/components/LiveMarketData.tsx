@@ -46,9 +46,13 @@ const LiveMarketData: React.FC = () => {
   const fetchMarketData = async () => {
     try {
       const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
-      const stocks = await unifiedService.getMarketData(symbols);
-      const economic = await unifiedService.getUnifiedEconomicData();
-      const currency = await unifiedService.getCurrencyRates();
+
+      // Fetch all data in parallel
+      const [stocks, economic, currency] = await Promise.all([
+        unifiedService.getMarketData(symbols),
+        unifiedService.getUnifiedEconomicData(),
+        unifiedService.getCurrencyRates()
+      ]);
 
       setMarketData(stocks);
       setEconomicData(economic.map(e => ({
@@ -62,9 +66,9 @@ const LiveMarketData: React.FC = () => {
       })));
       setCurrencyData(currency);
       setLastUpdated(new Date());
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching market data:', error);
-    } finally {
       setLoading(false);
     }
   };

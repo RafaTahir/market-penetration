@@ -52,26 +52,36 @@ export class MarketDataService {
 
   async getStockData(symbols: string[]): Promise<MarketData[]> {
     try {
+      // Always try to get cached data first for instant display
+      const cachedData = await this.getCachedStockData(symbols);
+
       const isAnyMarketOpen = this.marketHoursService.isAnyMarketOpen();
 
+      // If markets are closed, return cached data immediately
       if (!isAnyMarketOpen) {
-        return this.getCachedStockData(symbols);
+        return cachedData;
       }
 
-      const stockData = await this.finnhubService.fetchAndCacheStockData(symbols);
+      // If markets are open, fetch fresh data but return cached if available
+      try {
+        const stockData = await this.finnhubService.fetchAndCacheStockData(symbols);
 
-      return stockData.map(stock => ({
-        symbol: stock.symbol,
-        name: stock.name,
-        price: stock.price,
-        change: stock.change,
-        changePercent: stock.change_percent,
-        volume: stock.volume || 0,
-        marketCap: stock.market_cap
-      }));
+        return stockData.map(stock => ({
+          symbol: stock.symbol,
+          name: stock.name,
+          price: stock.price,
+          change: stock.change,
+          changePercent: stock.change_percent,
+          volume: stock.volume || 0,
+          marketCap: stock.market_cap
+        }));
+      } catch (fetchError) {
+        console.error('Error fetching fresh stock data, using cache:', fetchError);
+        return cachedData;
+      }
     } catch (error) {
       console.error('Error fetching stock data:', error);
-      return this.getCachedStockData(symbols);
+      return [];
     }
   }
 

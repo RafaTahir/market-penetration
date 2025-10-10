@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
+import { ProfessionalDeckService } from './professionalDeckService';
 
 export interface ExportData {
   selectedCountries: string[];
@@ -453,7 +454,17 @@ export class ExportService {
   }
 
   async generatePowerPointOutline(data: ExportData): Promise<void> {
-    const selectedMarketsText = data.selectedCountries.length > 0 
+    // Use the professional deck service instead of generating text
+    const deckService = ProfessionalDeckService.getInstance();
+    await deckService.generateProfessionalDeck({
+      selectedCountries: data.selectedCountries,
+      selectedCities: data.selectedCities,
+      marketData: data
+    });
+    return;
+
+    // OLD CODE BELOW (kept for reference but not executed)
+    const selectedMarketsText = data.selectedCountries.length > 0
       ? data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')
       : 'All Southeast Asian Markets';
 

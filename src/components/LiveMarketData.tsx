@@ -150,21 +150,27 @@ const LiveMarketData: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {marketStatuses.map((status) => {
-              const marketDataForExchange = marketData.find(stock => {
-                if (status.exchange.includes('SET')) return stock.symbol === 'SET.BK';
-                if (status.exchange.includes('SGX')) return stock.symbol === 'STI.SI';
-                if (status.exchange.includes('Bursa')) return stock.symbol === 'KLCI.KL';
-                if (status.exchange.includes('IDX')) return stock.symbol === 'JKSE.JK';
-                if (status.exchange.includes('PSE')) return stock.symbol === 'PSEI.PS';
-                if (status.exchange.includes('HOSE')) return stock.symbol === 'VN-INDEX.HM';
-                return false;
-              });
+              let matchingMarketData: MarketData | undefined;
+
+              if (status.exchange.includes('SET')) {
+                matchingMarketData = marketData.find(stock => stock.symbol === 'SET.BK');
+              } else if (status.exchange.includes('SGX')) {
+                matchingMarketData = marketData.find(stock => stock.symbol === 'STI.SI');
+              } else if (status.exchange.includes('Bursa')) {
+                matchingMarketData = marketData.find(stock => stock.symbol === 'KLCI.KL');
+              } else if (status.exchange.includes('IDX')) {
+                matchingMarketData = marketData.find(stock => stock.symbol === 'JKSE.JK');
+              } else if (status.exchange.includes('PSE')) {
+                matchingMarketData = marketData.find(stock => stock.symbol === 'PSEI.PS');
+              } else if (status.exchange.includes('HOSE')) {
+                matchingMarketData = marketData.find(stock => stock.symbol === 'VN-INDEX.HM');
+              }
 
               return (
                 <MarketClock
                   key={status.exchange}
                   status={status}
-                  marketData={marketDataForExchange}
+                  marketData={matchingMarketData}
                 />
               );
             })}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { FileText, Download, Presentation } from 'lucide-react';
+import { FileText, Download, Presentation, Sparkles } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { ProfessionalDeckService } from '../services/professionalDeckService';
 
 interface ReportData {
   type: 'written' | 'presentation';
@@ -449,6 +450,22 @@ const ReportGenerator: React.FC = () => {
     }
   };
 
+  const generateProfessionalDeck = async () => {
+    setGenerating(true);
+
+    try {
+      const deckService = ProfessionalDeckService.getInstance();
+      await deckService.generateProfessionalDeck({
+        selectedCountries: ['Indonesia', 'Thailand', 'Singapore', 'Vietnam', 'Malaysia', 'Philippines'],
+        selectedCities: []
+      });
+    } catch (error) {
+      console.error('Error generating professional deck:', error);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const generatePresentationDeck = () => {
     setGenerating(true);
 
@@ -648,7 +665,7 @@ const ReportGenerator: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
           <div className="bg-slate-700/50 rounded-lg p-6 border border-slate-600">
             <div className="flex items-center space-x-3 mb-4">
               <FileText className="h-8 w-8 text-blue-400" />
@@ -700,6 +717,36 @@ const ReportGenerator: React.FC = () => {
             >
               <Download className="h-5 w-5" />
               <span>{generating ? 'Generating...' : 'Generate Deck'}</span>
+            </button>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-lg p-6 border-2 border-purple-500/50 relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+              NEW
+            </div>
+            <div className="flex items-center space-x-3 mb-4">
+              <Sparkles className="h-8 w-8 text-purple-400" />
+              <div>
+                <h3 className="text-lg font-semibold text-white">Professional Deck</h3>
+                <p className="text-sm text-slate-300">Premium pitch style</p>
+              </div>
+            </div>
+
+            <ul className="space-y-2 mb-6 text-sm text-slate-200">
+              <li>• Modern dark theme design</li>
+              <li>• Split-screen layouts</li>
+              <li>• Purple gradient accents</li>
+              <li>• Mission & vision slides</li>
+              <li>• Professional branding</li>
+            </ul>
+
+            <button
+              onClick={generateProfessionalDeck}
+              disabled={generating}
+              className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:from-slate-600 disabled:to-slate-600 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-lg hover:shadow-purple-500/50"
+            >
+              <Download className="h-5 w-5" />
+              <span>{generating ? 'Generating...' : 'Generate Pro Deck'}</span>
             </button>
           </div>
         </div>

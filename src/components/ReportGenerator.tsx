@@ -466,10 +466,14 @@ const ReportGenerator: React.FC = () => {
     }
   };
 
-  const generatePresentationDeck = () => {
+  const generatePresentationDeck = async () => {
     setGenerating(true);
 
     try {
+      // Use the professional deck service
+      await generateProfessionalDeck();
+      return;
+
       const doc = new jsPDF('landscape');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();

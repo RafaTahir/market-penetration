@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, TrendingUp, TrendingDown } from 'lucide-react';
 import { MarketStatus, MarketHoursService } from '../services/marketHoursService';
+import { MarketData } from '../services/marketDataService';
 
 interface MarketClockProps {
   status: MarketStatus;
+  marketData?: MarketData;
 }
 
-const MarketClock: React.FC<MarketClockProps> = ({ status }) => {
+const MarketClock: React.FC<MarketClockProps> = ({ status, marketData }) => {
   const [timeRemaining, setTimeRemaining] = useState(status.timeUntilChange);
   const marketHoursService = MarketHoursService.getInstance();
 
@@ -21,6 +23,13 @@ const MarketClock: React.FC<MarketClockProps> = ({ status }) => {
 
   const formattedTime = marketHoursService.formatTimeRemaining(timeRemaining);
   const progressPercent = status.isOpen ? calculateProgressPercent(status) : 0;
+
+  const formatNumber = (num: number, decimals: number = 2) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    }).format(num);
+  };
 
   return (
     <div className={`rounded-lg p-4 border transition-all ${
@@ -74,6 +83,33 @@ const MarketClock: React.FC<MarketClockProps> = ({ status }) => {
           hour12: true
         })}
       </div>
+
+      {marketData && (
+        <div className="mt-3 pt-3 border-t border-slate-600/50">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-slate-400">{marketData.symbol}</span>
+            <div className={`flex items-center space-x-1 ${
+              marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+            }`}>
+              {marketData.change >= 0 ?
+                <TrendingUp className="h-3 w-3" /> :
+                <TrendingDown className="h-3 w-3" />
+              }
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-bold text-white">
+              {formatNumber(marketData.price)}
+            </div>
+            <div className={`text-sm font-medium ${
+              marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+            }`}>
+              {marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.change)}
+              ({marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.changePercent)}%)
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

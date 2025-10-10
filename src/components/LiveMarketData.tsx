@@ -136,11 +136,11 @@ const LiveMarketData: React.FC = () => {
           </div>
         </div>
 
-        {/* Market Status Clocks */}
+        {/* Market Status Clocks with Indices */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center space-x-2 mb-6">
             <Clock className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Trading Hours</h2>
+            <h2 className="text-lg font-semibold text-white">Trading Hours & Market Indices</h2>
             <div className="ml-auto flex items-center space-x-2">
               <span className="text-xs text-slate-400">
                 {marketStatuses.filter(s => s.isOpen).length} of {marketStatuses.length} markets open
@@ -149,9 +149,25 @@ const LiveMarketData: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {marketStatuses.map((status) => (
-              <MarketClock key={status.exchange} status={status} />
-            ))}
+            {marketStatuses.map((status) => {
+              const marketDataForExchange = marketData.find(stock => {
+                if (status.exchange.includes('SET')) return stock.symbol === 'SET.BK';
+                if (status.exchange.includes('SGX')) return stock.symbol === 'STI.SI';
+                if (status.exchange.includes('Bursa')) return stock.symbol === 'KLCI.KL';
+                if (status.exchange.includes('IDX')) return stock.symbol === 'JKSE.JK';
+                if (status.exchange.includes('PSE')) return stock.symbol === 'PSEI.PS';
+                if (status.exchange.includes('HOSE')) return stock.symbol === 'VN-INDEX.HM';
+                return false;
+              });
+
+              return (
+                <MarketClock
+                  key={status.exchange}
+                  status={status}
+                  marketData={marketDataForExchange}
+                />
+              );
+            })}
           </div>
         </div>
 

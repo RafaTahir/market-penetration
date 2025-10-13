@@ -11,11 +11,14 @@ import ExportTools from './components/ExportTools';
 import DataVisualization from './components/DataVisualization';
 import InstitutionalReports from './components/InstitutionalReports';
 import ReportGenerator from './components/ReportGenerator';
+import AIRecommendations from './components/AIRecommendations';
+import CompetitorIntelligence from './components/CompetitorIntelligence';
+import InvestmentOpportunities from './components/InvestmentOpportunities';
 
 function App() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['singapore', 'thailand']);
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
-  const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data' | 'ai' | 'competitors' | 'investments'>('overview');
   const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator'>('main');
   const [activeInsightTab, setActiveInsightTab] = useState<string>('overview');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
@@ -130,6 +133,9 @@ function App() {
   }
   const tabs = [
     { id: 'overview', name: 'Market Overview', icon: '🌏' },
+    { id: 'ai', name: 'AI Recommendations', icon: '🤖' },
+    { id: 'competitors', name: 'Competitor Intel', icon: '🎯' },
+    { id: 'investments', name: 'Investment Ops', icon: '💰' },
     { id: 'cities', name: 'City Analysis', icon: '🏙️' },
     { id: 'industries', name: 'Industry Deep Dive', icon: '🏭' },
     { id: 'insights', name: 'Market Intelligence', icon: '📊' },
@@ -389,8 +395,14 @@ function App() {
                   </div>
                 )}
                 
+                {activeTab === 'ai' && <AIRecommendations />}
+
+                {activeTab === 'competitors' && <CompetitorIntelligence />}
+
+                {activeTab === 'investments' && <InvestmentOpportunities />}
+
                 {activeTab === 'cities' && (
-                  <CityAnalysis 
+                  <CityAnalysis
                     selectedCountries={selectedCountries}
                     selectedCities={selectedCities}
                     onCityToggle={handleCityToggle}

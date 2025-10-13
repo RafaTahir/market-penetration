@@ -1,9 +1,17 @@
 import React from 'react';
-import { BarChart3, TrendingUp, Activity } from 'lucide-react';
+import { TrendingUp, Activity, Moon, Sun, Search, ArrowLeftRight } from 'lucide-react';
+import NotificationCenter, { Notification } from './NotificationCenter';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface HeaderProps {
   onLiveDataClick?: () => void;
   onAnalyticsClick?: () => void;
+  onSearchClick?: () => void;
+  onComparisonClick?: () => void;
+  notifications?: Notification[];
+  onMarkNotificationAsRead?: (id: string) => void;
+  onClearAllNotifications?: () => void;
+  onDismissNotification?: (id: string) => void;
 }
 
 const FlowLogo: React.FC<{ className?: string }> = ({ className = "h-8 w-8" }) => (
@@ -24,7 +32,17 @@ const FlowLogo: React.FC<{ className?: string }> = ({ className = "h-8 w-8" }) =
   </svg>
 );
 
-const Header: React.FC<HeaderProps> = ({ onLiveDataClick, onAnalyticsClick }) => {
+const Header: React.FC<HeaderProps> = ({
+  onLiveDataClick,
+  onAnalyticsClick,
+  onSearchClick,
+  onComparisonClick,
+  notifications = [],
+  onMarkNotificationAsRead = () => {},
+  onClearAllNotifications = () => {},
+  onDismissNotification = () => {}
+}) => {
+  const { theme, toggleTheme } = useTheme();
   return (
     <header className="bg-slate-900 border-b border-slate-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,21 +54,54 @@ const Header: React.FC<HeaderProps> = ({ onLiveDataClick, onAnalyticsClick }) =>
               <p className="text-xs text-slate-400">Your guide to Penetrating Markets</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <button 
+          <div className="flex items-center space-x-2">
+            {onSearchClick && (
+              <button
+                onClick={onSearchClick}
+                className="flex items-center space-x-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all"
+                title="Search (Ctrl+K)"
+              >
+                <Search className="h-4 w-4" />
+                <span className="text-sm hidden lg:inline">Search</span>
+              </button>
+            )}
+            {onComparisonClick && (
+              <button
+                onClick={onComparisonClick}
+                className="flex items-center space-x-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all"
+                title="Comparison (Ctrl+C)"
+              >
+                <ArrowLeftRight className="h-4 w-4" />
+                <span className="text-sm hidden lg:inline">Compare</span>
+              </button>
+            )}
+            <button
               onClick={onLiveDataClick}
-              className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              className="flex items-center space-x-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all"
             >
               <TrendingUp className="h-4 w-4" />
-              <span className="text-sm">Live Market Data</span>
+              <span className="text-sm hidden md:inline">Live Data</span>
             </button>
-            <button 
+            <button
               onClick={onAnalyticsClick}
-              className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              className="flex items-center space-x-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all"
             >
               <Activity className="h-4 w-4" />
-              <span className="text-sm">Analytics Dashboard</span>
+              <span className="text-sm hidden md:inline">Analytics</span>
             </button>
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all"
+              title="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <NotificationCenter
+              notifications={notifications}
+              onMarkAsRead={onMarkNotificationAsRead}
+              onClearAll={onClearAllNotifications}
+              onDismiss={onDismissNotification}
+            />
           </div>
         </div>
       </div>

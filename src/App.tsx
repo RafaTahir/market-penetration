@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import LiveMarketData from './components/LiveMarketData';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
@@ -11,6 +11,12 @@ import ExportTools from './components/ExportTools';
 import DataVisualization from './components/DataVisualization';
 import InstitutionalReports from './components/InstitutionalReports';
 import ReportGenerator from './components/ReportGenerator';
+import NotificationCenter, { Notification } from './components/NotificationCenter';
+import AdvancedSearch from './components/AdvancedSearch';
+import ComparisonMode from './components/ComparisonMode';
+import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 function App() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['singapore', 'thailand']);
@@ -20,6 +26,10 @@ function App() {
   const [activeInsightTab, setActiveInsightTab] = useState<string>('overview');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
   const [selectedCaseStudy, setSelectedCaseStudy] = useState<string>('grab-success');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
 
   const handleCountryToggle = (countryId: string) => {
     setSelectedCountries(prev => 
@@ -30,19 +40,92 @@ function App() {
   };
 
   const handleCityToggle = (cityId: string) => {
-    setSelectedCities(prev => 
-      prev.includes(cityId) 
+    setSelectedCities(prev =>
+      prev.includes(cityId)
         ? prev.filter(id => id !== cityId)
         : [...prev, cityId]
     );
   };
 
+  useEffect(() => {
+    const welcomeNotification: Notification = {
+      id: '1',
+      type: 'info',
+      title: 'Welcome to Flow',
+      message: 'Your comprehensive Southeast Asian market intelligence platform',
+      timestamp: new Date(),
+      read: false
+    };
+    setNotifications([welcomeNotification]);
+  }, []);
+
+  useKeyboardShortcuts([
+    {
+      key: 'k',
+      ctrl: true,
+      action: () => setShowSearch(prev => !prev),
+      description: 'Toggle search'
+    },
+    {
+      key: 'c',
+      ctrl: true,
+      action: () => setShowComparison(prev => !prev),
+      description: 'Toggle comparison mode'
+    },
+    {
+      key: 'l',
+      ctrl: true,
+      action: () => setCurrentView('live-data'),
+      description: 'Go to live data'
+    },
+    {
+      key: 'h',
+      ctrl: true,
+      action: () => setCurrentView('main'),
+      description: 'Go to home'
+    },
+    {
+      key: '?',
+      action: () => setShowKeyboardHelp(true),
+      description: 'Show keyboard shortcuts'
+    }
+  ]);
+
+  const handleMarkNotificationAsRead = (id: string) => {
+    setNotifications(prev =>
+      prev.map(n => n.id === id ? { ...n, read: true } : n)
+    );
+  };
+
+  const handleClearAllNotifications = () => {
+    setNotifications([]);
+  };
+
+  const handleDismissNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const countryComparisonData = [
+    { name: 'Indonesia', gdp: 1320, population: 273.5, growth: 5.2, digitalAdoption: 73.4, marketSize: 287.2 },
+    { name: 'Thailand', gdp: 543, population: 69.8, growth: 2.8, digitalAdoption: 85.2, marketSize: 127.4 },
+    { name: 'Singapore', gdp: 397, population: 5.9, growth: 2.6, digitalAdoption: 92.3, marketSize: 89.6 },
+    { name: 'Malaysia', gdp: 432, population: 32.7, growth: 4.5, digitalAdoption: 78.9, marketSize: 98.3 },
+    { name: 'Philippines', gdp: 394, population: 109.6, growth: 6.2, digitalAdoption: 68.7, marketSize: 156.8 },
+    { name: 'Vietnam', gdp: 409, population: 97.3, growth: 6.8, digitalAdoption: 75.3, marketSize: 142.1 }
+  ];
+
   if (currentView === 'live-data') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header 
+        <Header
           onLiveDataClick={() => setCurrentView('main')}
           onAnalyticsClick={() => setCurrentView('analytics')}
+          onSearchClick={() => setShowSearch(true)}
+          onComparisonClick={() => setShowComparison(true)}
+          notifications={notifications}
+          onMarkNotificationAsRead={handleMarkNotificationAsRead}
+          onClearAllNotifications={handleClearAllNotifications}
+          onDismissNotification={handleDismissNotification}
         />
         <LiveMarketData />
         <div className="fixed bottom-6 right-6">
@@ -63,6 +146,12 @@ function App() {
         <Header
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('main')}
+          onSearchClick={() => setShowSearch(true)}
+          onComparisonClick={() => setShowComparison(true)}
+          notifications={notifications}
+          onMarkNotificationAsRead={handleMarkNotificationAsRead}
+          onClearAllNotifications={handleClearAllNotifications}
+          onDismissNotification={handleDismissNotification}
         />
         <AnalyticsDashboard />
         <div className="fixed bottom-6 right-6 space-x-2 flex">
@@ -89,6 +178,12 @@ function App() {
         <Header
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
+          onSearchClick={() => setShowSearch(true)}
+          onComparisonClick={() => setShowComparison(true)}
+          notifications={notifications}
+          onMarkNotificationAsRead={handleMarkNotificationAsRead}
+          onClearAllNotifications={handleClearAllNotifications}
+          onDismissNotification={handleDismissNotification}
         />
         <InstitutionalReports />
         <div className="fixed bottom-6 right-6 space-x-2 flex">
@@ -115,6 +210,12 @@ function App() {
         <Header
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
+          onSearchClick={() => setShowSearch(true)}
+          onComparisonClick={() => setShowComparison(true)}
+          notifications={notifications}
+          onMarkNotificationAsRead={handleMarkNotificationAsRead}
+          onClearAllNotifications={handleClearAllNotifications}
+          onDismissNotification={handleDismissNotification}
         />
         <ReportGenerator />
         <div className="fixed bottom-6 right-6">
@@ -139,13 +240,43 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <Header 
+      <Header
         onLiveDataClick={() => setCurrentView('live-data')}
         onAnalyticsClick={() => setCurrentView('analytics')}
+        onSearchClick={() => setShowSearch(true)}
+        onComparisonClick={() => setShowComparison(true)}
+        notifications={notifications}
+        onMarkNotificationAsRead={handleMarkNotificationAsRead}
+        onClearAllNotifications={handleClearAllNotifications}
+        onDismissNotification={handleDismissNotification}
       />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
+          {showSearch && (
+            <div className="animate-in fade-in">
+              <AdvancedSearch
+                onSearch={(filters) => {
+                  console.log('Search filters:', filters);
+                  setShowSearch(false);
+                }}
+                onSave={(name, filters) => {
+                  console.log('Save search:', name, filters);
+                }}
+              />
+            </div>
+          )}
+
+          {showComparison && (
+            <div className="animate-in fade-in">
+              <ComparisonMode availableCountries={countryComparisonData} />
+            </div>
+          )}
+
+          <KeyboardShortcutsHelp
+            isOpen={showKeyboardHelp}
+            onClose={() => setShowKeyboardHelp(false)}
+          />
           {/* Welcome Section */}
           <div className="text-center py-8 relative">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
@@ -460,8 +591,17 @@ function App() {
       <footer className="border-t border-slate-700/50 mt-16 bg-slate-900/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-slate-400">
+            <div className="flex items-center justify-center space-x-4 mb-2">
+              <button
+                onClick={() => setShowKeyboardHelp(true)}
+                className="text-sm text-slate-400 hover:text-white transition-colors flex items-center space-x-1"
+              >
+                <span>Keyboard Shortcuts</span>
+                <kbd className="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-xs font-mono">?</kbd>
+              </button>
+            </div>
             <p className="text-sm">
-              © 2025 SEA Market Intel. Professional market research platform for Southeast Asian markets.
+              © 2025 Flow. Professional market research platform for Southeast Asian markets.
             </p>
             <p className="text-xs mt-2 opacity-75">
               Data updated in real-time • Powered by advanced analytics • Trusted by leading enterprises

@@ -1,3 +1,131 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --transition-speed: 200ms;
+  }
+
+  .light {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+  .animate-in {
+    animation: slideIn var(--transition-speed) ease-out;
+  }
+
+  .slide-in-from-top-2 {
+    animation: slideInFromTop 300ms ease-out;
+  }
+
+  .fade-in {
+    animation: fadeIn 300ms ease-out;
+  }
+
+  .scale-in {
+    animation: scaleIn 200ms ease-out;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.light {
+  background: linear-gradient(to bottom right, #f8fafc, #e2e8f0);
+}
+
+.light .bg-gradient-to-br {
+  background: linear-gradient(to bottom right, #f8fafc, #e2e8f0, #f1f5f9);
+}
+
+.light .bg-slate-900 {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.light .bg-slate-800\/50 {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.light .bg-slate-800 {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.light .bg-slate-700\/50 {
+  background-color: #f1f5f9;
+}
+
+.light .text-slate-300,
+.light .text-slate-400 {
+  color: #475569;
+}
+
+.light .text-white {
+  color: #0f172a;
+}
+
+.light .text-slate-500 {
+  color: #64748b;
+}
+
+.light .border-slate-700 {
+  border-color: #cbd5e1;
+}
+
+.light .border-slate-600 {
+  border-color: #cbd5e1;
+}
+
+* {
+  transition: background-color var(--transition-speed) ease-in-out,
+              border-color var(--transition-speed) ease-in-out,
+              color var(--transition-speed) ease-in-out;
+}

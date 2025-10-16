@@ -15,14 +15,18 @@ import NotificationCenter, { Notification } from './components/NotificationCente
 import AdvancedSearch from './components/AdvancedSearch';
 import ComparisonMode from './components/ComparisonMode';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
+import UserDashboard from './components/UserDashboard';
+import ExportScheduler from './components/ExportScheduler';
+import DataPlayground from './components/DataPlayground';
+import CollaborationPanel from './components/CollaborationPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { useAuth } from './contexts/AuthContext';
 
 function App() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['singapore', 'thailand']);
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data'>('overview');
-  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator'>('main');
+  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler'>('main');
   const [activeInsightTab, setActiveInsightTab] = useState<string>('overview');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
   const [selectedCaseStudy, setSelectedCaseStudy] = useState<string>('grab-success');
@@ -30,6 +34,9 @@ function App() {
   const [showComparison, setShowComparison] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [showCollaboration, setShowCollaboration] = useState(false);
+  const [collaborationTarget, setCollaborationTarget] = useState({ type: '', id: '' });
+  const { user } = useAuth();
 
   const handleCountryToggle = (countryId: string) => {
     setSelectedCountries(prev => 
@@ -229,6 +236,90 @@ function App() {
       </div>
     );
   }
+
+  if (currentView === 'dashboard') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Header
+          onLiveDataClick={() => setCurrentView('live-data')}
+          onAnalyticsClick={() => setCurrentView('analytics')}
+          onSearchClick={() => setShowSearch(true)}
+          onComparisonClick={() => setShowComparison(true)}
+          notifications={notifications}
+          onMarkNotificationAsRead={handleMarkNotificationAsRead}
+          onClearAllNotifications={handleClearAllNotifications}
+          onDismissNotification={handleDismissNotification}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <UserDashboard />
+        </div>
+        <div className="fixed bottom-6 right-6">
+          <button
+            onClick={() => setCurrentView('main')}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            ← Back to Research
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'playground') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Header
+          onLiveDataClick={() => setCurrentView('live-data')}
+          onAnalyticsClick={() => setCurrentView('analytics')}
+          onSearchClick={() => setShowSearch(true)}
+          onComparisonClick={() => setShowComparison(true)}
+          notifications={notifications}
+          onMarkNotificationAsRead={handleMarkNotificationAsRead}
+          onClearAllNotifications={handleClearAllNotifications}
+          onDismissNotification={handleDismissNotification}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <DataPlayground />
+        </div>
+        <div className="fixed bottom-6 right-6">
+          <button
+            onClick={() => setCurrentView('main')}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            ← Back to Research
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'scheduler') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Header
+          onLiveDataClick={() => setCurrentView('live-data')}
+          onAnalyticsClick={() => setCurrentView('analytics')}
+          onSearchClick={() => setShowSearch(true)}
+          onComparisonClick={() => setShowComparison(true)}
+          notifications={notifications}
+          onMarkNotificationAsRead={handleMarkNotificationAsRead}
+          onClearAllNotifications={handleClearAllNotifications}
+          onDismissNotification={handleDismissNotification}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ExportScheduler />
+        </div>
+        <div className="fixed bottom-6 right-6">
+          <button
+            onClick={() => setCurrentView('main')}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            ← Back to Research
+          </button>
+        </div>
+      </div>
+    );
+  }
   const tabs = [
     { id: 'overview', name: 'Market Overview', icon: '🌏' },
     { id: 'cities', name: 'City Analysis', icon: '🏙️' },
@@ -277,17 +368,48 @@ function App() {
             isOpen={showKeyboardHelp}
             onClose={() => setShowKeyboardHelp(false)}
           />
+
+          <CollaborationPanel
+            targetType={collaborationTarget.type}
+            targetId={collaborationTarget.id}
+            isOpen={showCollaboration}
+            onClose={() => setShowCollaboration(false)}
+          />
           {/* Welcome Section */}
           <div className="text-center py-8 relative">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
             <div className="relative">
               <div className="flex items-center justify-center mb-6">
-                <button
-                  onClick={() => setCurrentView('reports')}
-                  className="absolute top-4 right-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
-                >
-                  View Institutional Reports →
-                </button>
+                <div className="absolute top-4 right-4 flex flex-wrap gap-2 justify-end">
+                  {user && (
+                    <button
+                      onClick={() => setCurrentView('dashboard')}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
+                    >
+                      My Dashboard
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setCurrentView('playground')}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
+                  >
+                    Data Playground
+                  </button>
+                  {user && (
+                    <button
+                      onClick={() => setCurrentView('scheduler')}
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
+                    >
+                      Export Scheduler
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setCurrentView('reports')}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
+                  >
+                    Institutional Reports
+                  </button>
+                </div>
                 <svg className="h-16 w-16 mr-4" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <defs>
                     <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="100%">

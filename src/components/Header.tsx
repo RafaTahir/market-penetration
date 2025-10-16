@@ -1,7 +1,9 @@
-import React from 'react';
-import { TrendingUp, Activity, Moon, Sun, Search, ArrowLeftRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, Activity, Moon, Sun, Search, ArrowLeftRight, User, LogIn } from 'lucide-react';
 import NotificationCenter, { Notification } from './NotificationCenter';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import AuthModal from './AuthModal';
 
 interface HeaderProps {
   onLiveDataClick?: () => void;
@@ -43,6 +45,8 @@ const Header: React.FC<HeaderProps> = ({
   onDismissNotification = () => {}
 }) => {
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   return (
     <header className="bg-slate-900 border-b border-slate-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -102,9 +106,33 @@ const Header: React.FC<HeaderProps> = ({
               onClearAll={onClearAllNotifications}
               onDismiss={onDismissNotification}
             />
+            {user ? (
+              <div className="flex items-center space-x-2 px-3 py-2 bg-slate-800/50 rounded-lg">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">
+                    {user.email?.[0].toUpperCase()}
+                  </span>
+                </div>
+                <span className="text-sm text-white hidden md:inline">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+              >
+                <LogIn className="h-4 w-4" />
+                <span className="hidden md:inline">Sign In</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </header>
   );
 };

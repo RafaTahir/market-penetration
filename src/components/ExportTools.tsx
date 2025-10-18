@@ -94,9 +94,14 @@ const ExportTools: React.FC<ExportToolsProps> = ({
       }, 5000);
     } catch (error) {
       console.error('Error generating export:', error);
-      // Create error notification
       const errorNotification = document.createElement('div');
       errorNotification.className = 'fixed top-4 right-4 bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const detailedMessage = errorMessage.includes('Failed to generate')
+        ? errorMessage
+        : 'An unexpected error occurred. Please check your internet connection and try again.';
+
       errorNotification.innerHTML = `
         <div class="flex items-center space-x-3">
           <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,16 +109,20 @@ const ExportTools: React.FC<ExportToolsProps> = ({
           </svg>
           <div>
             <div class="font-semibold">Generation Failed</div>
-            <div class="text-sm opacity-90">Please try again or contact support</div>
+            <div class="text-sm opacity-90">${detailedMessage}</div>
           </div>
         </div>
       `;
       document.body.appendChild(errorNotification);
-      
+
       setTimeout(() => {
         errorNotification.style.transform = 'translateX(100%)';
-        setTimeout(() => document.body.removeChild(errorNotification), 300);
-      }, 5000);
+        setTimeout(() => {
+          if (document.body.contains(errorNotification)) {
+            document.body.removeChild(errorNotification);
+          }
+        }, 300);
+      }, 7000);
     } finally {
       setIsExporting(false);
     }

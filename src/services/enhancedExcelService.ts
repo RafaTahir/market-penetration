@@ -55,9 +55,7 @@ export class EnhancedExcelService {
       }
 
       try {
-        currencies = await this.marketDataService.getCurrencyRates([
-          'USD/IDR', 'USD/THB', 'USD/MYR', 'USD/PHP', 'USD/VND', 'USD/SGD'
-        ]);
+        currencies = await this.marketDataService.getCurrencyRates();
         if (!currencies || currencies.length === 0) {
           throw new Error('No currency data available');
         }

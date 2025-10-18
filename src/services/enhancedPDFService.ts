@@ -73,9 +73,7 @@ export class EnhancedPDFService {
       }
 
       try {
-        currencies = await this.marketDataService.getCurrencyRates([
-          'USD/IDR', 'USD/THB', 'USD/MYR', 'USD/PHP', 'USD/VND', 'USD/SGD'
-        ]);
+        currencies = await this.marketDataService.getCurrencyRates();
         if (!currencies || currencies.length === 0) {
           throw new Error('No currency data available');
         }
@@ -304,32 +302,32 @@ export class EnhancedPDFService {
       doc.setLineWidth(0.5);
       doc.line(boxX, yPos, boxX, yPos + 28);
 
-      doc.setFontSize(8);
-      doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
-      doc.setFont('helvetica', 'normal');
-      doc.text(metric.label, boxX + 2, yPos + 6);
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      doc.setFont('helvetica', 'bold');
+      doc.text(metric.label, boxX + 2, yPos + 7);
 
-      doc.setFontSize(16);
+      doc.setFontSize(18);
       doc.setTextColor(metric.color[0], metric.color[1], metric.color[2]);
       doc.setFont('helvetica', 'bold');
-      doc.text(metric.value, boxX + 2, yPos + 16);
+      doc.text(metric.value, boxX + 2, yPos + 17);
 
-      doc.setFontSize(9);
+      doc.setFontSize(11);
       doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
-      doc.setFont('helvetica', 'normal');
-      doc.text(metric.change, boxX + 2, yPos + 24);
+      doc.setFont('helvetica', 'bold');
+      doc.text(metric.change, boxX + 2, yPos + 25);
 
       boxX += boxWidth + 5;
     });
 
     yPos += 38;
 
-    doc.setFontSize(14);
+    doc.setFontSize(16);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.setFont('helvetica', 'bold');
     doc.text('Key Strategic Insights', margin, yPos);
 
-    yPos += 8;
+    yPos += 10;
 
     const insights = [
       'Southeast Asia represents a $3.7T combined economy with 680M+ consumers, offering unprecedented market entry opportunities across multiple high-growth sectors.',
@@ -338,55 +336,55 @@ export class EnhancedPDFService {
       'Regional trade integration through ASEAN creates simplified market access and reduced barriers for cross-border expansion strategies.'
     ];
 
-    doc.setFontSize(10);
-    doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
+    doc.setFontSize(11);
+    doc.setTextColor(40, 40, 40);
     doc.setFont('helvetica', 'normal');
 
     insights.forEach((insight, index) => {
       doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
       doc.text(`${index + 1}.`, margin, yPos);
 
-      doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
+      doc.setTextColor(40, 40, 40);
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
       const lines = doc.splitTextToSize(insight, contentWidth - 10);
       lines.forEach((line: string) => {
         doc.text(line, margin + 6, yPos);
-        yPos += 5;
+        yPos += 6;
       });
-      yPos += 3;
+      yPos += 4;
     });
 
     yPos += 5;
 
-    doc.setFillColor(colors.secondary[0], colors.secondary[1], colors.secondary[2], 0.1);
-    doc.roundedRect(margin, yPos, contentWidth, 20, 2, 2, 'F');
-
+    doc.setFillColor(colors.secondary[0], colors.secondary[1], colors.secondary[2], 0.15);
     doc.setDrawColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
-    doc.setLineWidth(2);
-    doc.line(margin, yPos, margin, yPos + 20);
+    doc.setLineWidth(1);
+    doc.roundedRect(margin, yPos, contentWidth, 24, 2, 2, 'FD');
 
-    doc.setFontSize(11);
+    doc.setFontSize(13);
     doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text('RECOMMENDATION: PROCEED', margin + 3, yPos + 8);
+    doc.text('STRATEGIC RECOMMENDATION: PROCEED WITH MARKET ENTRY', margin + 4, yPos + 8);
 
-    doc.setFontSize(9);
-    doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
+    doc.setFontSize(11);
+    doc.setTextColor(40, 40, 40);
     doc.setFont('helvetica', 'normal');
-    const recText = 'Strategic market entry with phased approach: Indonesia first (scale), Vietnam/Philippines (growth), Singapore (premium hub).';
-    const recLines = doc.splitTextToSize(recText, contentWidth - 10);
-    let recY = yPos + 14;
+    const recText = 'Strategic phased market entry approach: Indonesia first (scale), Vietnam/Philippines (growth), Singapore (premium hub).';
+    const recLines = doc.splitTextToSize(recText, contentWidth - 12);
+    let recY = yPos + 16;
     recLines.forEach((line: string) => {
-      doc.text(line, margin + 3, recY);
-      recY += 4;
+      doc.text(line, margin + 4, recY);
+      recY += 5;
     });
 
     return yPos + 25;
   }
 
   private async addMarketOverview(doc: jsPDF, yPos: number, economicData: any[], colors: any, margin: number, contentWidth: number, pageHeight: number, pageWidth: number): Promise<number> {
-    doc.setFontSize(14);
+    doc.setFontSize(16);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.setFont('helvetica', 'bold');
     doc.text('Country Comparison Matrix', margin, yPos);
@@ -399,7 +397,7 @@ export class EnhancedPDFService {
     const headers = ['Country', 'GDP (B)', 'Pop (M)', 'Growth %', 'Inflation', 'Unemployment'];
     const colWidth = contentWidth / headers.length;
 
-    doc.setFontSize(9);
+    doc.setFontSize(11);
     doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
     doc.setFont('helvetica', 'bold');
 
@@ -410,7 +408,7 @@ export class EnhancedPDFService {
     yPos += 8;
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(10);
 
     economicData.slice(0, 6).forEach((country, index) => {
       if (index % 2 === 0) {
@@ -438,7 +436,7 @@ export class EnhancedPDFService {
 
     const topCountries = [...economicData].sort((a, b) => (b.gdp || 0) - (a.gdp || 0)).slice(0, 3);
 
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.setFont('helvetica', 'bold');
     doc.text('Top Markets by GDP', margin, yPos);

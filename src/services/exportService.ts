@@ -1,6 +1,6 @@
-import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
-import { ProfessionalDeckService } from './professionalDeckService';
+import { EnhancedPDFService } from './enhancedPDFService';
+import { EnhancedExcelService } from './enhancedExcelService';
+import { EnhancedPPTXService } from './enhancedPPTXService';
 
 export interface ExportData {
   selectedCountries: string[];
@@ -13,6 +13,15 @@ export interface ExportData {
 
 export class ExportService {
   private static instance: ExportService;
+  private pdfService: EnhancedPDFService;
+  private excelService: EnhancedExcelService;
+  private pptxService: EnhancedPPTXService;
+
+  private constructor() {
+    this.pdfService = EnhancedPDFService.getInstance();
+    this.excelService = EnhancedExcelService.getInstance();
+    this.pptxService = EnhancedPPTXService.getInstance();
+  }
 
   public static getInstance(): ExportService {
     if (!ExportService.instance) {
@@ -22,6 +31,15 @@ export class ExportService {
   }
 
   async generatePDFReport(data: ExportData): Promise<void> {
+    await this.pdfService.generateEnhancedPDF({
+      selectedCountries: data.selectedCountries,
+      selectedCities: data.selectedCities,
+      includeCharts: true,
+      includeLiveData: true
+    });
+  }
+
+  async generatePDFReportOld(data: ExportData): Promise<void> {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -378,6 +396,14 @@ export class ExportService {
   }
 
   async generateExcelReport(data: ExportData): Promise<void> {
+    await this.excelService.generateEnhancedExcel({
+      selectedCountries: data.selectedCountries,
+      selectedCities: data.selectedCities
+    });
+  }
+
+  async generateExcelReportOld(data: ExportData): Promise<void> {
+    const XLSX = await import('xlsx');
     const workbook = XLSX.utils.book_new();
     
     // Market Overview Sheet
@@ -454,12 +480,9 @@ export class ExportService {
   }
 
   async generatePowerPointOutline(data: ExportData): Promise<void> {
-    // Use the professional deck service instead of generating text
-    const deckService = ProfessionalDeckService.getInstance();
-    await deckService.generateProfessionalDeck({
+    await this.pptxService.generateEnhancedPPTX({
       selectedCountries: data.selectedCountries,
-      selectedCities: data.selectedCities,
-      marketData: data
+      selectedCities: data.selectedCities
     });
     return;
 

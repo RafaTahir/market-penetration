@@ -173,10 +173,10 @@ export class EnhancedExcelService {
     data.push(['Rank', 'Country', 'GDP (Billions)', 'GDP per Capita', 'Growth Rate']);
     topMarkets.forEach((country, index) => {
       data.push([
-        index + 1,
+        (index + 1).toString(),
         country.country || 'N/A',
         ((country.gdp || 0) / 1e9).toFixed(2),
-        (country.gdpPerCapita || 0).toLocaleString(),
+        `$${(country.gdpPerCapita || 0).toFixed(0)}`,
         `${(country.gdpGrowth || 0).toFixed(1)}%`
       ]);
     });

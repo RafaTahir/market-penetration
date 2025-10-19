@@ -419,7 +419,7 @@ export class EnhancedPPTXService {
       w: 12,
       h: 0.9,
       fill: { color: '10B981', transparency: 85 },
-      line: { color: '10B981', width: 3, pt: pres.LineType.solid }
+      line: { color: '10B981', width: 3 }
     });
 
     slide.addText('RECOMMENDATION: PROCEED WITH MARKET ENTRY', {

@@ -182,8 +182,8 @@ export class EnhancedPDFService {
     });
 
     doc.setFontSize(16);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(230, 230, 230);
     doc.text('Comprehensive Market Analysis & Real-Time Intelligence', 20, titleY + 10);
 
     const selectedMarketsText = data.selectedCountries.length > 0
@@ -199,7 +199,7 @@ export class EnhancedPDFService {
 
     const date = new Date();
     doc.setFontSize(11);
-    doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+    doc.setTextColor(220, 220, 220);
     doc.text(`Generated: ${date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 20, titleY + 45);
     doc.text(`Time: ${date.toLocaleTimeString('en-US')}`, 20, titleY + 52);
 
@@ -221,8 +221,9 @@ export class EnhancedPDFService {
       doc.setFontSize(14);
       doc.text(metric.icon, boxX + 3, boxY + 10);
 
-      doc.setFontSize(9);
-      doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+      doc.setFontSize(10);
+      doc.setTextColor(200, 200, 200);
+      doc.setFont('helvetica', 'bold');
       doc.text(metric.label, boxX + 3, boxY + 17);
 
       doc.setFontSize(14);
@@ -233,9 +234,9 @@ export class EnhancedPDFService {
       boxX += boxWidth;
     });
 
-    doc.setFontSize(9);
-    doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
-    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(180, 180, 180);
+    doc.setFont('helvetica', 'bold');
     doc.text('CONFIDENTIAL - For Internal Use Only', pageWidth / 2, pageHeight - 10, { align: 'center' });
   }
 
@@ -251,8 +252,8 @@ export class EnhancedPDFService {
     doc.setFont('helvetica', 'bold');
     doc.text('FLOW', margin, 10);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(200, 200, 200);
     doc.text(`Page ${pageNum}`, pageWidth - margin, 10, { align: 'right' });
 
     doc.setFontSize(20);
@@ -465,9 +466,9 @@ export class EnhancedPDFService {
 
     yPos += 5;
 
-    doc.setFontSize(7);
-    doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
-    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'normal');
     doc.text('Data sources: World Bank, IMF, National Statistical Offices | Last updated: ' + new Date().toLocaleDateString(), margin, yPos);
 
     return yPos + 5;

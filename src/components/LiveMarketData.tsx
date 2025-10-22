@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Globe, Activity, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, Globe, Activity, Clock, Loader2 } from 'lucide-react';
 import { MarketData, EconomicIndicator, CurrencyRate } from '../services/marketDataService';
 import { UnifiedDataService } from '../services/unifiedDataService';
 import { MarketHoursService, MarketStatus } from '../services/marketHoursService';
+import { BrowserCacheService } from '../services/browserCacheService';
 import MarketClock from './MarketClock';
 
 const LiveMarketData: React.FC = () => {
   const [marketData, setMarketData] = useState<MarketData[]>([]);
   const [economicData, setEconomicData] = useState<EconomicIndicator[]>([]);
   const [currencyData, setCurrencyData] = useState<CurrencyRate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState({ market: true, economic: true, currency: true });
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [dataAge, setDataAge] = useState<number>(0);
   const [marketStatuses, setMarketStatuses] = useState<MarketStatus[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const unifiedService = UnifiedDataService.getInstance();
   const marketHoursService = MarketHoursService.getInstance();
+  const browserCache = BrowserCacheService.getInstance();
 
   useEffect(() => {
+    loadCachedDataFirst();
     fetchMarketData();
     updateMarketStatuses();
 
@@ -43,19 +47,21 @@ const LiveMarketData: React.FC = () => {
     setMarketStatuses(statuses);
   };
 
-  const fetchMarketData = async () => {
-    try {
-      const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
+  const loadCachedDataFirst = () => {
+    const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
+    const marketKey = `market_${symbols.sort().join('_')}`;
+    const economicKey = 'economic_';
+    const currencyKey = 'currency_rates';
 
-      // Fetch all data in parallel
-      const [stocks, economic, currency] = await Promise.all([
-        unifiedService.getMarketData(symbols),
-        unifiedService.getUnifiedEconomicData(),
-        unifiedService.getCurrencyRates()
-      ]);
+    const cachedMarket = browserCache.getStale<MarketData[]>(marketKey);
+    if (cachedMarket) {
+      setMarketData(cachedMarket.data);
+      setLoading(prev => ({ ...prev, market: false }));
+    }
 
-      setMarketData(stocks);
-      setEconomicData(economic.map(e => ({
+    const cachedEconomic = browserCache.getStale<any[]>(economicKey);
+    if (cachedEconomic) {
+      setEconomicData(cachedEconomic.data.map(e => ({
         country: e.country,
         gdp: e.gdp,
         inflation: e.inflation,
@@ -64,12 +70,50 @@ const LiveMarketData: React.FC = () => {
         exchangeRate: e.exchangeRate,
         lastUpdated: e.lastUpdated
       })));
-      setCurrencyData(currency);
-      setLastUpdated(new Date());
-      setLoading(false);
+      setLoading(prev => ({ ...prev, economic: false }));
+    }
+
+    const cachedCurrency = browserCache.getStale<CurrencyRate[]>(currencyKey);
+    if (cachedCurrency) {
+      setCurrencyData(cachedCurrency.data);
+      setLoading(prev => ({ ...prev, currency: false }));
+    }
+  };
+
+  const fetchMarketData = async () => {
+    setIsRefreshing(true);
+    try {
+      const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
+
+      Promise.all([
+        unifiedService.getMarketData(symbols).then(stocks => {
+          setMarketData(stocks);
+          setLoading(prev => ({ ...prev, market: false }));
+        }),
+        unifiedService.getUnifiedEconomicData().then(economic => {
+          setEconomicData(economic.map(e => ({
+            country: e.country,
+            gdp: e.gdp,
+            inflation: e.inflation,
+            unemployment: e.unemployment,
+            interestRate: e.interestRate,
+            exchangeRate: e.exchangeRate,
+            lastUpdated: e.lastUpdated
+          })));
+          setLoading(prev => ({ ...prev, economic: false }));
+        }),
+        unifiedService.getCurrencyRates().then(currency => {
+          setCurrencyData(currency);
+          setLoading(prev => ({ ...prev, currency: false }));
+        })
+      ]).then(() => {
+        setLastUpdated(new Date());
+        setIsRefreshing(false);
+      });
     } catch (error) {
       console.error('Error fetching market data:', error);
-      setLoading(false);
+      setLoading({ market: false, economic: false, currency: false });
+      setIsRefreshing(false);
     }
   };
 
@@ -124,6 +168,12 @@ const LiveMarketData: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center space-x-3">
+                {isRefreshing && (
+                  <div className="flex items-center space-x-2 text-blue-400">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-xs">Updating...</span>
+                  </div>
+                )}
                 <div className={`px-2 py-1 rounded text-xs font-medium ${getDataFreshnessStatus().bgColor} ${getDataFreshnessStatus().color}`}>
                   {getDataFreshnessStatus().label}
                 </div>
@@ -245,7 +295,25 @@ const LiveMarketData: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {marketData.map((stock, index) => (
+            {loading.market && marketData.length === 0 ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600/50 animate-pulse">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-slate-600 rounded w-20"></div>
+                      <div className="h-3 bg-slate-600 rounded w-32"></div>
+                    </div>
+                    <div className="h-3 w-3 bg-slate-600 rounded"></div>
+                  </div>
+                  <div className="space-y-2 mt-3">
+                    <div className="h-6 bg-slate-600 rounded w-24"></div>
+                    <div className="h-4 bg-slate-600 rounded w-20"></div>
+                    <div className="h-3 bg-slate-600 rounded w-16"></div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              marketData.map((stock, index) => (
               <div key={index} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600/50 hover:border-slate-500/50 transition-all duration-200">
                 <div className="flex items-center justify-between mb-2">
                   <div>
@@ -277,7 +345,8 @@ const LiveMarketData: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -294,7 +363,16 @@ const LiveMarketData: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {currencyData.map((currency, index) => (
+            {loading.currency && currencyData.length === 0 ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="bg-slate-700/50 rounded-lg p-3 border border-slate-600/50 animate-pulse">
+                  <div className="h-3 bg-slate-600 rounded w-16 mb-2"></div>
+                  <div className="h-5 bg-slate-600 rounded w-20 mb-1"></div>
+                  <div className="h-3 bg-slate-600 rounded w-12"></div>
+                </div>
+              ))
+            ) : (
+              currencyData.map((currency, index) => (
               <div key={index} className="bg-slate-700/50 rounded-lg p-3 border border-slate-600/50">
                 <div className="text-sm font-medium text-white mb-1">{currency.pair}</div>
                 <div className="text-lg font-bold text-white">{formatNumber(currency.rate, currency.pair.includes('IDR') || currency.pair.includes('VND') ? 0 : 4)}</div>
@@ -305,7 +383,8 @@ const LiveMarketData: React.FC = () => {
                   ({currency.change >= 0 ? '+' : ''}{formatNumber(currency.changePercent, 2)}%)
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -333,16 +412,29 @@ const LiveMarketData: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700">
-                {economicData.map((country, index) => (
-                  <tr key={index} className="hover:bg-slate-700/30 transition-colors">
-                    <td className="py-4 px-4 font-medium text-white">{country.country}</td>
-                    <td className="py-4 px-4 text-right text-slate-300">${formatNumber(country.gdp, 1)}</td>
-                    <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.inflation, 1)}%</td>
-                    <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.unemployment, 1)}%</td>
-                    <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.interestRate, 2)}%</td>
-                    <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.exchangeRate, country.exchangeRate > 1000 ? 0 : 4)}</td>
-                  </tr>
-                ))}
+                {loading.economic && economicData.length === 0 ? (
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <tr key={index} className="animate-pulse">
+                      <td className="py-4 px-4"><div className="h-4 bg-slate-600 rounded w-24"></div></td>
+                      <td className="py-4 px-4"><div className="h-4 bg-slate-600 rounded w-16 ml-auto"></div></td>
+                      <td className="py-4 px-4"><div className="h-4 bg-slate-600 rounded w-12 ml-auto"></div></td>
+                      <td className="py-4 px-4"><div className="h-4 bg-slate-600 rounded w-12 ml-auto"></div></td>
+                      <td className="py-4 px-4"><div className="h-4 bg-slate-600 rounded w-12 ml-auto"></div></td>
+                      <td className="py-4 px-4"><div className="h-4 bg-slate-600 rounded w-16 ml-auto"></div></td>
+                    </tr>
+                  ))
+                ) : (
+                  economicData.map((country, index) => (
+                    <tr key={index} className="hover:bg-slate-700/30 transition-colors">
+                      <td className="py-4 px-4 font-medium text-white">{country.country}</td>
+                      <td className="py-4 px-4 text-right text-slate-300">${formatNumber(country.gdp, 1)}</td>
+                      <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.inflation, 1)}%</td>
+                      <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.unemployment, 1)}%</td>
+                      <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.interestRate, 2)}%</td>
+                      <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.exchangeRate, country.exchangeRate > 1000 ? 0 : 4)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

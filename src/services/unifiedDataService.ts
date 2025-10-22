@@ -2,6 +2,7 @@ import { WorldBankService } from './worldBankService';
 import { IMFService } from './imfService';
 import { MarketDataService } from './marketDataService';
 import { MarketHoursService } from './marketHoursService';
+import { BrowserCacheService } from './browserCacheService';
 
 export interface UnifiedEconomicData {
   country: string;
@@ -33,9 +34,11 @@ export class UnifiedDataService {
   private marketHoursService: MarketHoursService;
 
   private dataCache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
+  private browserCache: BrowserCacheService;
   private readonly DEFAULT_TTL = 300000;
   private readonly FAST_TTL = 60000;
   private readonly MARKET_UPDATE_INTERVAL = 300000;
+  private readonly BROWSER_CACHE_TTL = 600000;
 
   private updateCallbacks: Map<string, Array<(data: any) => void>> = new Map();
   private updateIntervalId: NodeJS.Timeout | null = null;
@@ -52,6 +55,7 @@ export class UnifiedDataService {
     this.imfService = IMFService.getInstance();
     this.marketDataService = MarketDataService.getInstance();
     this.marketHoursService = MarketHoursService.getInstance();
+    this.browserCache = BrowserCacheService.getInstance();
   }
 
   private getCachedData<T>(key: string): T | null {
@@ -59,6 +63,17 @@ export class UnifiedDataService {
     if (cached && Date.now() - cached.timestamp < cached.ttl) {
       return cached.data as T;
     }
+
+    const browserCached = this.browserCache.get<T>(key);
+    if (browserCached) {
+      this.dataCache.set(key, {
+        data: browserCached,
+        timestamp: Date.now(),
+        ttl: this.DEFAULT_TTL
+      });
+      return browserCached;
+    }
+
     return null;
   }
 
@@ -68,6 +83,8 @@ export class UnifiedDataService {
       timestamp: Date.now(),
       ttl
     });
+
+    this.browserCache.set(key, data, this.BROWSER_CACHE_TTL);
   }
 
   async getUnifiedEconomicData(countries: string[] = []): Promise<UnifiedEconomicData[]> {
@@ -78,6 +95,16 @@ export class UnifiedDataService {
       return cached;
     }
 
+    const stale = this.browserCache.getStale<UnifiedEconomicData[]>(cacheKey);
+    if (stale && stale.age < 3600000) {
+      this.fetchAndCacheEconomicData(countries, cacheKey);
+      return stale.data;
+    }
+
+    return this.fetchAndCacheEconomicData(countries, cacheKey);
+  }
+
+  private async fetchAndCacheEconomicData(countries: string[], cacheKey: string): Promise<UnifiedEconomicData[]> {
     try {
       const [worldBankData, imfData, economicIndicators] = await Promise.all([
         this.worldBankService.getAllEconomicIndicators(countries).catch(() => ({})),

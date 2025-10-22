@@ -182,16 +182,29 @@ export class FinnhubService {
 
   async getAllCachedStockData(symbols: string[]): Promise<MarketStockRow[]> {
     try {
-      const results: MarketStockRow[] = [];
+      const { data, error } = await supabase
+        .from('market_stocks')
+        .select('*')
+        .in('symbol', symbols)
+        .order('timestamp', { ascending: false });
 
-      for (const symbol of symbols) {
-        const cached = await this.getCachedStockData(symbol);
-        if (cached) {
-          results.push(cached);
-        }
+      if (error) {
+        console.error('Error fetching cached stock data:', error);
+        return [];
       }
 
-      return results;
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      const latestBySymbol = new Map<string, MarketStockRow>();
+      data.forEach((row: MarketStockRow) => {
+        if (!latestBySymbol.has(row.symbol)) {
+          latestBySymbol.set(row.symbol, row);
+        }
+      });
+
+      return Array.from(latestBySymbol.values());
     } catch (error) {
       console.error('Error fetching all cached stock data:', error);
       return [];

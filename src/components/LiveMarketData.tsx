@@ -33,14 +33,19 @@ const LiveMarketData: React.FC = () => {
 
     const statusInterval = setInterval(() => {
       updateMarketStatuses();
-    }, 1000);
+    }, 60000);
+
+    const refreshInterval = setInterval(() => {
+      fetchMarketData();
+    }, 300000);
 
     return () => {
       stopRealTimeUpdates();
       clearInterval(ageInterval);
       clearInterval(statusInterval);
+      clearInterval(refreshInterval);
     };
-  }, [lastUpdated]);
+  }, []);
 
   const updateMarketStatuses = () => {
     const statuses = marketHoursService.getAllMarketStatuses();
@@ -81,38 +86,54 @@ const LiveMarketData: React.FC = () => {
   };
 
   const fetchMarketData = async () => {
+    if (isRefreshing) return;
+
     setIsRefreshing(true);
     try {
       const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
 
-      Promise.all([
-        unifiedService.getMarketData(symbols).then(stocks => {
-          setMarketData(stocks);
-          setLoading(prev => ({ ...prev, market: false }));
-        }),
-        unifiedService.getUnifiedEconomicData().then(economic => {
-          setEconomicData(economic.map(e => ({
-            country: e.country,
-            gdp: e.gdp,
-            inflation: e.inflation,
-            unemployment: e.unemployment,
-            interestRate: e.interestRate,
-            exchangeRate: e.exchangeRate,
-            lastUpdated: e.lastUpdated
-          })));
-          setLoading(prev => ({ ...prev, economic: false }));
-        }),
-        unifiedService.getCurrencyRates().then(currency => {
-          setCurrencyData(currency);
-          setLoading(prev => ({ ...prev, currency: false }));
-        })
-      ]).then(() => {
-        setLastUpdated(new Date());
-        setIsRefreshing(false);
-      });
+      await Promise.allSettled([
+        unifiedService.getMarketData(symbols)
+          .then(stocks => {
+            setMarketData(stocks);
+            setLoading(prev => ({ ...prev, market: false }));
+          })
+          .catch(err => {
+            console.error('Error fetching market data:', err);
+            setLoading(prev => ({ ...prev, market: false }));
+          }),
+        unifiedService.getUnifiedEconomicData()
+          .then(economic => {
+            setEconomicData(economic.map(e => ({
+              country: e.country,
+              gdp: e.gdp,
+              inflation: e.inflation,
+              unemployment: e.unemployment,
+              interestRate: e.interestRate,
+              exchangeRate: e.exchangeRate,
+              lastUpdated: e.lastUpdated
+            })));
+            setLoading(prev => ({ ...prev, economic: false }));
+          })
+          .catch(err => {
+            console.error('Error fetching economic data:', err);
+            setLoading(prev => ({ ...prev, economic: false }));
+          }),
+        unifiedService.getCurrencyRates()
+          .then(currency => {
+            setCurrencyData(currency);
+            setLoading(prev => ({ ...prev, currency: false }));
+          })
+          .catch(err => {
+            console.error('Error fetching currency data:', err);
+            setLoading(prev => ({ ...prev, currency: false }));
+          })
+      ]);
+
+      setLastUpdated(new Date());
     } catch (error) {
-      console.error('Error fetching market data:', error);
-      setLoading({ market: false, economic: false, currency: false });
+      console.error('Error in fetchMarketData:', error);
+    } finally {
       setIsRefreshing(false);
     }
   };

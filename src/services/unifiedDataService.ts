@@ -483,7 +483,7 @@ export class UnifiedDataService {
 
       if (isAnyMarketOpen) {
         try {
-          await Promise.all([
+          await Promise.allSettled([
             this.getMarketData(['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM']),
             this.getCurrencyRates()
           ]);
@@ -491,12 +491,8 @@ export class UnifiedDataService {
         } catch (error) {
           console.error('Error during real-time update:', error);
         }
-      } else {
-        console.log('All markets closed. Skipping update.');
       }
     };
-
-    updateIfMarketOpen();
 
     this.updateIntervalId = setInterval(updateIfMarketOpen, this.MARKET_UPDATE_INTERVAL);
 

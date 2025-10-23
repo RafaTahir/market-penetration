@@ -16,7 +16,7 @@ const MarketClock: React.FC<MarketClockProps> = ({ status, marketData }) => {
     const interval = setInterval(() => {
       const updatedStatus = marketHoursService.getMarketStatus(status.exchange);
       setTimeRemaining(updatedStatus.timeUntilChange);
-    }, 1000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [status.exchange, marketHoursService]);

@@ -135,6 +135,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Header
+          onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('main')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => setShowSearch(true)}
@@ -161,6 +162,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Header
+          onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('main')}
           onSearchClick={() => setShowSearch(true)}
@@ -193,6 +195,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Header
+          onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => setShowSearch(true)}
@@ -225,6 +228,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Header
+          onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => setShowSearch(true)}
@@ -251,6 +255,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Header
+          onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => setShowSearch(true)}
@@ -279,6 +284,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Header
+          onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => setShowSearch(true)}
@@ -307,6 +313,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Header
+          onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => setShowSearch(true)}
@@ -335,6 +342,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Header
+          onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => setShowSearch(true)}
@@ -370,6 +378,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <Header
+        onLogoClick={() => setCurrentView('main')}
         onLiveDataClick={() => setCurrentView('live-data')}
         onAnalyticsClick={() => setCurrentView('analytics')}
         onSearchClick={() => setShowSearch(true)}

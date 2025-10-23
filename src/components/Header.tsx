@@ -10,6 +10,7 @@ interface HeaderProps {
   onAnalyticsClick?: () => void;
   onSearchClick?: () => void;
   onComparisonClick?: () => void;
+  onLogoClick?: () => void;
   notifications?: Notification[];
   onMarkNotificationAsRead?: (id: string) => void;
   onClearAllNotifications?: () => void;
@@ -39,6 +40,7 @@ const Header: React.FC<HeaderProps> = ({
   onAnalyticsClick,
   onSearchClick,
   onComparisonClick,
+  onLogoClick,
   notifications = [],
   onMarkNotificationAsRead = () => {},
   onClearAllNotifications = () => {},
@@ -51,13 +53,17 @@ const Header: React.FC<HeaderProps> = ({
     <header className="bg-slate-900 border-b border-slate-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-3">
+          <button
+            onClick={onLogoClick}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
+            title="Back to Home"
+          >
             <FlowLogo className="h-10 w-10" />
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-emerald-400 to-purple-400 bg-clip-text text-transparent">Flow</h1>
               <p className="text-xs text-slate-400">Your guide to Penetrating Markets</p>
             </div>
-          </div>
+          </button>
           <div className="flex items-center space-x-2">
             {onSearchClick && (
               <button

@@ -171,7 +171,6 @@ const LiveMarketData: React.FC = () => {
                 {isRefreshing && (
                   <div className="flex items-center space-x-2 text-blue-400">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-xs">Updating...</span>
                   </div>
                 )}
                 <div className={`px-2 py-1 rounded text-xs font-medium ${getDataFreshnessStatus().bgColor} ${getDataFreshnessStatus().color}`}>

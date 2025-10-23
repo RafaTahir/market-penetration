@@ -5,6 +5,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CountrySelector from './components/CountrySelector';
 import CityAnalysis from './components/CityAnalysis';
 import IndustryAnalysis from './components/IndustryAnalysis';
+import EnhancedIndustryAnalysis from './components/EnhancedIndustryAnalysis';
 import MarketInsights from './components/MarketInsights';
 import CaseStudies from './components/CaseStudies';
 import ExportTools from './components/ExportTools';
@@ -19,14 +20,16 @@ import UserDashboard from './components/UserDashboard';
 import ExportScheduler from './components/ExportScheduler';
 import DataPlayground from './components/DataPlayground';
 import CollaborationPanel from './components/CollaborationPanel';
+import DataRefreshDashboard from './components/DataRefreshDashboard';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAuth } from './contexts/AuthContext';
+import { DataSyncService } from './services/dataSyncService';
 
 function App() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['singapore', 'thailand']);
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data'>('overview');
-  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler'>('main');
+  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler' | 'data-sync'>('main');
   const [activeInsightTab, setActiveInsightTab] = useState<string>('overview');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
   const [selectedCaseStudy, setSelectedCaseStudy] = useState<string>('grab-success');
@@ -59,11 +62,18 @@ function App() {
       id: '1',
       type: 'info',
       title: 'Welcome to Flow',
-      message: 'Your comprehensive Southeast Asian market intelligence platform',
+      message: 'Your comprehensive Southeast Asian market intelligence platform with real-time data from credible sources',
       timestamp: new Date(),
       read: false
     };
     setNotifications([welcomeNotification]);
+
+    const syncService = DataSyncService.getInstance();
+    syncService.startAutomaticSync();
+
+    return () => {
+      syncService.stopAutomaticSync();
+    };
   }, []);
 
   useKeyboardShortcuts([
@@ -320,6 +330,34 @@ function App() {
       </div>
     );
   }
+
+  if (currentView === 'data-sync') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Header
+          onLiveDataClick={() => setCurrentView('live-data')}
+          onAnalyticsClick={() => setCurrentView('analytics')}
+          onSearchClick={() => setShowSearch(true)}
+          onComparisonClick={() => setShowComparison(true)}
+          notifications={notifications}
+          onMarkNotificationAsRead={handleMarkNotificationAsRead}
+          onClearAllNotifications={handleClearAllNotifications}
+          onDismissNotification={handleDismissNotification}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <DataRefreshDashboard />
+        </div>
+        <div className="fixed bottom-6 right-6">
+          <button
+            onClick={() => setCurrentView('main')}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            ← Back to Research
+          </button>
+        </div>
+      </div>
+    );
+  }
   const tabs = [
     { id: 'overview', name: 'Market Overview', icon: '🌏' },
     { id: 'cities', name: 'City Analysis', icon: '🏙️' },
@@ -403,6 +441,12 @@ function App() {
                       Export Scheduler
                     </button>
                   )}
+                  <button
+                    onClick={() => setCurrentView('data-sync')}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
+                  >
+                    Data Status
+                  </button>
                   <button
                     onClick={() => setCurrentView('reports')}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
@@ -651,10 +695,15 @@ function App() {
                 )}
                 
                 {activeTab === 'industries' && (
-                  <IndustryAnalysis 
-                    selectedCountries={selectedCountries}
-                    onIndustrySelect={setSelectedIndustry}
-                  />
+                  <>
+                    <EnhancedIndustryAnalysis selectedCountries={selectedCountries} />
+                    <div className="mt-8">
+                      <IndustryAnalysis
+                        selectedCountries={selectedCountries}
+                        onIndustrySelect={setSelectedIndustry}
+                      />
+                    </div>
+                  </>
                 )}
                 
                 {activeTab === 'insights' && (

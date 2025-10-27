@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Activity, Moon, Sun, Search, ArrowLeftRight, User, LogIn } from 'lucide-react';
+import { TrendingUp, Activity, Moon, Sun, Search, ArrowLeftRight, User, LogIn, Building2 } from 'lucide-react';
 import NotificationCenter, { Notification } from './NotificationCenter';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +11,7 @@ interface HeaderProps {
   onSearchClick?: () => void;
   onComparisonClick?: () => void;
   onLogoClick?: () => void;
+  onEnterpriseIntelligenceClick?: () => void;
   notifications?: Notification[];
   onMarkNotificationAsRead?: (id: string) => void;
   onClearAllNotifications?: () => void;
@@ -41,6 +42,7 @@ const Header: React.FC<HeaderProps> = ({
   onSearchClick,
   onComparisonClick,
   onLogoClick,
+  onEnterpriseIntelligenceClick,
   notifications = [],
   onMarkNotificationAsRead = () => {},
   onClearAllNotifications = () => {},
@@ -99,6 +101,16 @@ const Header: React.FC<HeaderProps> = ({
               <Activity className="h-4 w-4" />
               <span className="text-sm hidden md:inline">Analytics</span>
             </button>
+            {onEnterpriseIntelligenceClick && (
+              <button
+                onClick={onEnterpriseIntelligenceClick}
+                className="flex items-center space-x-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all"
+                title="Enterprise Intelligence (Ctrl+E)"
+              >
+                <Building2 className="h-4 w-4" />
+                <span className="text-sm hidden lg:inline">Intelligence</span>
+              </button>
+            )}
             <button
               onClick={toggleTheme}
               className="p-2 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all"

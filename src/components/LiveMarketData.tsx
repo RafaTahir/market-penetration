@@ -225,7 +225,7 @@ const LiveMarketData: React.FC = () => {
                 matchingMarketData = marketData.find(stock => stock.symbol === 'SET.BK');
               } else if (status.exchange.includes('SGX')) {
                 matchingMarketData = marketData.find(stock => stock.symbol === 'STI.SI');
-              } else if (status.exchange.includes('Bursa')) {
+              } else if (status.exchange.includes('MYX') || status.exchange.includes('Bursa')) {
                 matchingMarketData = marketData.find(stock => stock.symbol === 'KLCI.KL');
               } else if (status.exchange.includes('IDX')) {
                 matchingMarketData = marketData.find(stock => stock.symbol === 'JKSE.JK');

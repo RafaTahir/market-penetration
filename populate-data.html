@@ -134,6 +134,9 @@
     </div>
 
     <div class="button-group">
+      <button class="btn-primary" onclick="testConnection()" id="testBtn" style="flex: 0.5;">
+        🔌 Test Connection
+      </button>
       <button class="btn-primary" onclick="populateData(false)" id="populateBtn">
         📊 Populate Data
       </button>
@@ -147,6 +150,32 @@
 
   <script type="module">
     import { runDataPopulation } from './src/services/populateIntelligenceData.ts';
+    import { supabase } from './src/services/supabaseClient.ts';
+
+    window.testConnection = async function() {
+      const output = document.getElementById('output');
+      const testBtn = document.getElementById('testBtn');
+
+      testBtn.disabled = true;
+      output.innerHTML = '<span class="log-info">🔌 Testing Supabase connection...</span>\n\n';
+
+      try {
+        const { data, error } = await supabase.from('competitor_profiles').select('count', { count: 'exact', head: true });
+
+        if (error) {
+          output.innerHTML += `<span class="log-error">❌ Connection failed: ${error.message}</span>\n`;
+          output.innerHTML += `<span class="log-warning">⚠️ Please check your .env configuration</span>\n`;
+        } else {
+          output.innerHTML += `<span class="log-success">✅ Supabase connection successful!</span>\n`;
+          output.innerHTML += `<span class="log-info">📊 Database is ready for data population</span>\n`;
+          output.innerHTML += `<span class="log-success">✨ You can now populate the intelligence data</span>\n`;
+        }
+      } catch (err) {
+        output.innerHTML += `<span class="log-error">❌ Connection test failed: ${err.message}</span>\n`;
+      } finally {
+        testBtn.disabled = false;
+      }
+    };
 
     window.populateData = async function(clearFirst) {
       const output = document.getElementById('output');

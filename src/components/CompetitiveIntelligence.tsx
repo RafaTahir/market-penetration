@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Building, DollarSign, AlertCircle, Search, Filter } from 'lucide-react';
+import { TrendingUp, Building, DollarSign, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   competitiveIntelligenceService,
@@ -8,6 +8,7 @@ import {
   MarketShare,
   PricingIntelligence
 } from '../services/competitiveIntelligenceService';
+import { TableSkeleton, CardSkeleton } from './SkeletonLoader';
 
 export default function CompetitiveIntelligence() {
   const { theme } = useTheme();
@@ -19,6 +20,7 @@ export default function CompetitiveIntelligence() {
   const [activities, setActivities] = useState<CompetitorActivity[]>([]);
   const [marketShare, setMarketShare] = useState<MarketShare[]>([]);
   const [pricing, setPricing] = useState<PricingIntelligence[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const countries = ['Thailand', 'Singapore', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam'];
   const industries = ['Technology', 'Finance', 'Healthcare', 'Retail', 'Manufacturing', 'Real Estate'];
@@ -56,11 +58,28 @@ export default function CompetitiveIntelligence() {
           setPricing(pricingData);
           break;
       }
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading competitive intelligence data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = () => {
+    if (selectedCountry || selectedIndustry) {
+      loadData();
+    }
+  };
+
+  const getTimeSinceUpdate = () => {
+    if (!lastUpdated) return null;
+    const seconds = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
   };
 
   const tabs = [
@@ -73,7 +92,31 @@ export default function CompetitiveIntelligence() {
   return (
     <div className="space-y-6">
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <h2 className="text-2xl font-bold mb-4">Competitive Intelligence</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Competitive Intelligence</h2>
+          <div className="flex items-center gap-4">
+            {lastUpdated && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Clock className="h-4 w-4" />
+                <span>Updated {getTimeSinceUpdate()}</span>
+              </div>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={loading || (!selectedCountry && !selectedIndustry)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                loading
+                  ? 'bg-gray-600 cursor-not-allowed'
+                  : theme === 'dark'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
@@ -146,9 +189,16 @@ export default function CompetitiveIntelligence() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className={`mt-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Loading data...</p>
+          <div className="space-y-4">
+            {activeTab === 'market-share' ? (
+              <TableSkeleton rows={5} />
+            ) : (
+              <>
+                <CardSkeleton />
+                <CardSkeleton />
+                <CardSkeleton />
+              </>
+            )}
           </div>
         ) : (
           <div>

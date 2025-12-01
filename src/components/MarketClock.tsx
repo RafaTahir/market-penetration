@@ -31,6 +31,39 @@ const MarketClock: React.FC<MarketClockProps> = ({ status, marketData }) => {
     }).format(num);
   };
 
+  const CircularProgress = ({ percent, isOpen }: { percent: number; isOpen: boolean }) => {
+    const radius = 20;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (percent / 100) * circumference;
+
+    return (
+      <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+        <circle
+          cx="24"
+          cy="24"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+          className="text-slate-700"
+        />
+        <circle
+          cx="24"
+          cy="24"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className={isOpen ? 'text-emerald-400' : 'text-slate-500'}
+          style={{ transition: 'stroke-dashoffset 1s ease' }}
+        />
+      </svg>
+    );
+  };
+
   return (
     <div className={`rounded-lg p-4 border transition-all ${
       status.isOpen
@@ -38,18 +71,23 @@ const MarketClock: React.FC<MarketClockProps> = ({ status, marketData }) => {
         : 'bg-slate-700/30 border-slate-600/50'
     }`}>
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <div className={`w-2 h-2 rounded-full ${
-            status.isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
-          }`}></div>
-          <span className="text-sm font-medium text-white">{status.country}</span>
-        </div>
-        <div className={`text-xs font-medium px-2 py-1 rounded ${
-          status.isOpen
-            ? 'bg-emerald-400/20 text-emerald-400'
-            : 'bg-slate-600/50 text-slate-400'
-        }`}>
-          {status.isOpen ? 'OPEN' : 'CLOSED'}
+        <div className="flex items-center space-x-3">
+          <CircularProgress percent={progressPercent} isOpen={status.isOpen} />
+          <div>
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${
+                status.isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
+              }`}></div>
+              <span className="text-sm font-medium text-white">{status.country}</span>
+            </div>
+            <div className={`text-xs font-medium px-2 py-0.5 rounded mt-1 inline-block ${
+              status.isOpen
+                ? 'bg-emerald-400/20 text-emerald-400'
+                : 'bg-slate-600/50 text-slate-400'
+            }`}>
+              {status.isOpen ? 'OPEN' : 'CLOSED'}
+            </div>
+          </div>
         </div>
       </div>
 

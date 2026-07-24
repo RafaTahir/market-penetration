@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/EmptyState.tsx","./src/components/HabitModal.tsx","./src/components/HabitRow.tsx","./src/components/Header.tsx","./src/components/StatsBar.tsx","./src/lib/date.ts","./src/lib/storage.ts","./src/lib/supabase.ts"],"errors":true,"version":"5.9.3"}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import LiveMarketData from './components/LiveMarketData';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
@@ -58,6 +58,8 @@ function App() {
     );
   };
 
+  const syncStartedRef = useRef(false);
+
   useEffect(() => {
     const welcomeNotification: Notification = {
       id: '1',
@@ -69,12 +71,15 @@ function App() {
     };
     setNotifications([welcomeNotification]);
 
-    const syncService = DataSyncService.getInstance();
-    syncService.startAutomaticSync();
+    if (!syncStartedRef.current) {
+      syncStartedRef.current = true;
+      const syncService = DataSyncService.getInstance();
+      syncService.startAutomaticSync();
 
-    return () => {
-      syncService.stopAutomaticSync();
-    };
+      return () => {
+        syncService.stopAutomaticSync();
+      };
+    }
   }, []);
 
   useKeyboardShortcuts([

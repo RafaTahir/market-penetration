@@ -21,6 +21,9 @@ export class DataSyncService {
   private static instance: DataSyncService;
   private syncInProgress = false;
   private syncIntervals: { [key: string]: NodeJS.Timeout | number } = {};
+  private pendingTimeouts: NodeJS.Timeout[] = [];
+  private lastSyncTimes: { [source: string]: number } = {};
+  private hasStarted = false;
 
   private readonly SYNC_SCHEDULES = {
     'market_data': { frequency: 'hourly' as const, intervalMs: 3600000 },
@@ -42,6 +45,12 @@ export class DataSyncService {
   }
 
   async startAutomaticSync(): Promise<void> {
+    // Guard against StrictMode double-mount and repeated calls
+    if (this.hasStarted) {
+      return;
+    }
+    this.hasStarted = true;
+
     console.log('Starting automatic data synchronization...');
 
     const sources = Object.entries(this.SYNC_SCHEDULES);
@@ -57,15 +66,24 @@ export class DataSyncService {
       ) as unknown as number;
     });
 
-    // Stagger initial syncs to avoid bursting 20+ external API calls at once
-    // which triggers HTTP 429 rate-limiting from World Bank, IMF, OECD, etc.
-    const STAGGER_MS = 5000; // 5s between each source's initial sync
-    sources.forEach(([source], index) => {
-      setTimeout(() => {
+    // Stagger initial syncs to avoid bursting 20+ external API calls at once.
+    // Skip a source entirely if it was synced recently (within 50% of its interval),
+    // so a page reload doesn't re-hit APIs that are already fresh.
+    const STAGGER_MS = 8000; // 8s between each source's initial sync
+    sources.forEach(([source, schedule], index) => {
+      const lastSync = this.lastSyncTimes[source];
+      const minAge = schedule.intervalMs * 0.5;
+      if (lastSync && Date.now() - lastSync < minAge) {
+        return; // data still fresh, skip initial sync
+      }
+
+      const timeoutId = setTimeout(() => {
         if (this.syncIntervals[source]) {
           this.syncDataSource(source);
         }
-      }, index * STAGGER_MS);
+      }, index * STAGGER_MS) as unknown as NodeJS.Timeout;
+
+      this.pendingTimeouts.push(timeoutId);
     });
   }
 
@@ -77,6 +95,10 @@ export class DataSyncService {
         delete this.syncIntervals[source];
       }
     });
+    // Clear any pending staggered initial-sync timeouts so they don't fire after unmount
+    this.pendingTimeouts.forEach(id => clearTimeout(id as NodeJS.Timeout));
+    this.pendingTimeouts = [];
+    this.hasStarted = false;
   }
 
   async syncDataSource(source: string): Promise<DataSyncStatus> {
@@ -159,6 +181,8 @@ export class DataSyncService {
         recordsUpdated,
         lastSync: new Date()
       };
+
+      this.lastSyncTimes[source] = Date.now();
 
       await this.updateRefreshLog(source, 'success', recordsUpdated);
     } catch (error) {

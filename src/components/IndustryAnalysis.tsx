@@ -1,3 +1,4 @@
+import SourceNotice from './SourceNotice';
 import React, { useState } from 'react';
 import { Factory, Smartphone, ShoppingCart, Building2, Car, Pill, TrendingUp, AlertTriangle } from 'lucide-react';
 
@@ -111,10 +112,9 @@ const IndustryAnalysis: React.FC<IndustryAnalysisProps> = ({ selectedCountries, 
         </div>
       </div>
       
-      <div role="note" className="mb-6 rounded-lg border source-warning p-4 text-sm">
-        <p className="font-semibold">Unverified static industry reference</p>
+      <SourceNotice title="Unverified static industry reference" className="mb-6">
         <p>Market sizes, growth, trends, and opportunity/risk scores are hardcoded examples with unavailable observation dates. They do not change with selected countries and are excluded from the entry planner. Scores are illustrative and are not calibrated probabilities or forecasts.</p>
-      </div>
+      </SourceNotice>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Industry Selection */}

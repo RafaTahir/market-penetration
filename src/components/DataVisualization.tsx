@@ -1,3 +1,4 @@
+import SourceNotice from './SourceNotice';
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, ScatterChart, Scatter } from 'recharts';
 import { BarChart3, TrendingUp, PieChart as PieChartIcon, Activity, Globe, Users, DollarSign, Target } from 'lucide-react';
@@ -375,11 +376,10 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
 
   return (
     <div className="space-y-6">
-      <div role="note" className="rounded-xl border source-warning p-4 text-sm">
-        <p className="font-semibold">Unverified static reference charts</p>
+      <SourceNotice title="Unverified static reference charts">
         <p className="mt-1">All figures are bundled reference material with unknown observation dates. Listed source names are unverified attributions, not checked citations. Historical years and projections do not establish current accuracy; scores are illustrative, not calibrated likelihoods. These figures are excluded from the entry planner.</p>
         <p className="mt-2">Country filters apply to country charts and tables. Industry, consumer, competition, investment, and regional summaries describe the full static sample.</p>
-      </div>
+      </SourceNotice>
       {/* Chart Selection */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex items-center space-x-2 mb-6">

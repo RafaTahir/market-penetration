@@ -86,6 +86,14 @@ def background_candidates(layers):
     colors = [(255, 255, 255, 1)]
     for layer in layers:
         assert layer['opacity'] == 1, f'Warning has an unresolved opacity/animation layer: {layer}'
+    # A nearest fully opaque solid surface hides every earlier background,
+    # including decorative atlas/radial gradients. Start there so we measure
+    # the actual notice surface rather than irrelevant, occluded ancestors.
+    opaque = [index for index, layer in enumerate(layers)
+              if layer['image'] == 'none' and rgba(layer['color'])[3] == 1]
+    if opaque:
+        layers = layers[opaque[-1]:]
+    for layer in layers:
         background = rgba(layer['color'])
         colors = [over(background, color) for color in colors]
         if layer['image'] != 'none':
@@ -113,6 +121,16 @@ def contrast(foreground, background):
 
 
 def check_warning(page, locator, label, theme, os_scheme, width, phrases):
+    # Source status stays visible; the complete unchanged limits are disclosed
+    # on demand. Open the real summary before checking or measuring any body.
+    disclosure = locator.locator('details.source-notice-disclosure').first
+    if not disclosure.count():
+        disclosure = locator.locator('xpath=ancestor::details[contains(@class, "source-notice-disclosure")][1]')
+    if disclosure.count():
+        if disclosure.get_attribute('open') is None:
+            disclosure.locator('summary').first.click()
+        expect(disclosure).to_have_attribute('open', '')
+        expect(disclosure.locator('.source-notice-body')).to_be_visible()
     expect(locator).to_be_visible(timeout=15000)
     for phrase in phrases:
         expect(locator).to_contain_text(phrase)
@@ -148,8 +166,13 @@ def fresh_route(page, suffix):
 
 def opt_in(page, suffix):
     fresh_route(page, suffix)
-    # A fresh route/reload must gate bundled examples until this explicit click.
-    expect(page.get_by_role('heading', name='Current research data is unavailable', exact=True)).to_be_visible()
+    # Normal exploration is available; bundled figures/analyses still require
+    # this explicit click after a fresh route/reload. Historical sourced
+    # snapshots are not legacy examples and need not be hidden.
+    heading = 'Understand the market.' if suffix.endswith('/analytics') else 'See the bigger picture.' if suffix.endswith('/enterprise-intelligence') else re.compile(r'Find your next market')
+    expect(page.get_by_role('heading', name=heading)).to_be_visible()
+    expect(page.locator('[data-content-status="unverified-reference"]')).to_have_count(0)
+    expect(page.locator('.market-reference-figures')).to_have_count(0)
     expect(page.get_by_role('note').filter(has_text='Unverified static')).to_have_count(0)
     page.get_by_role('button', name='View unverified reference examples', exact=True).click()
     expect(page.get_by_role('button', name='Data status: unverified reference examples enabled', exact=True)).to_be_visible()
@@ -197,7 +220,7 @@ with sync_playwright() as playwright:
                 def measure(locator, label, phrases):
                     check_warning(page, locator, label, theme, os_scheme, width, phrases)
 
-                measure(page.get_by_text(re.compile(r'^Quotes are stored observations when a connected source is available\.')), 'Live market source banner', [
+                measure(note(page, 'Source contents and freshness unverified'), 'Live market source banner', [
                     'missing records are not filled with reference estimates.',
                     'A successful check does not verify freshness; observation dates and source limitations are shown below.',
                 ])
@@ -236,7 +259,7 @@ with sync_playwright() as playwright:
                         'Country filters apply to country charts and tables.',
                     ]),
                 ]:
-                    page.get_by_role('button', name=re.compile(re.escape(tab) + '$')).click()
+                    page.get_by_role('navigation', name='Research modes').get_by_role('button', name=tab, exact=True).click()
                     # The industry pane contains two notices with the same
                     # heading; unchanged body copy identifies each one uniquely.
                     measure(note(page, title).filter(has_text=phrases[0]), tab + ' source banner', [title] + phrases)
@@ -256,7 +279,9 @@ with sync_playwright() as playwright:
                     'These figures are excluded from the entry planner.',
                 ])
                 page.reload(wait_until='networkidle')
-                expect(page.get_by_role('heading', name='Current research data is unavailable', exact=True)).to_be_visible()
+                expect(page.get_by_role('heading', name='Understand the market.', exact=True)).to_be_visible()
+                expect(page.get_by_role('note').filter(has_text='Unverified static reference data')).to_have_count(0)
+                expect(page.get_by_role('button', name='View unverified reference examples', exact=True)).to_be_visible()
 
                 opt_in(page, '/#/research/enterprise-intelligence')
                 for module, title, phrases in [

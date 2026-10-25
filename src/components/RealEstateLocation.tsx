@@ -1,3 +1,4 @@
+import SourceNotice from './SourceNotice';
 import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
@@ -65,10 +66,9 @@ export default function RealEstateLocation() {
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className="text-2xl font-bold mb-4">Real Estate & Location Intelligence</h2>
 
-        <div role="note" className="mb-6 rounded-lg border source-warning p-4 text-sm">
-          <p className="font-semibold">Unverified connected reference records</p>
+        <SourceNotice title="Unverified connected reference records" className="mb-6">
           <p>Connected property and location records are unverified and may include seeded reference content or database defaults. Observation dates and source attribution have not been verified. Rents and availability are not confirmed current; zero values may be defaults. Site scores are illustrative, not calibrated probabilities or a validated recommendation. Excluded from the entry planner.</p>
-        </div>
+        </SourceNotice>
 
         <div className="mb-6">
           <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>

@@ -4,12 +4,26 @@ Uses isolated browser contexts and blocked/mocked transport, never actual provid
 Run against the production preview with the cloud Chromium/Playwright installation.
 """
 import os
+import re
 from pathlib import Path
 from playwright.sync_api import expect, sync_playwright
 
 BASE = os.environ.get('FLOW_TEST_URL', 'http://127.0.0.1:4173')
 ARTIFACTS = Path(os.environ.get('FLOW_TEST_ARTIFACTS', '/tmp/flow-integrity-artifacts'))
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
+
+
+def expect_explorer_without_examples(page):
+    expect(page.get_by_role('heading', name=re.compile(r'Find your next market'))).to_be_visible()
+    expect(page.locator('.market-country-card')).to_have_count(6)
+    expect(page.get_by_role('navigation', name='Research modes').get_by_role('button')).to_have_count(6)
+    # Sourced historical snapshots are legitimate normal content. These checks
+    # target opt-in legacy sections/figures, rather than banning every number.
+    expect(page.locator('[data-content-status="unverified-reference"]')).to_have_count(0)
+    expect(page.locator('.market-reference-figures')).to_have_count(0)
+    expect(page.locator('.market-reference-digital')).to_have_count(0)
+    expect(page.get_by_role('heading', name='Market Overview', exact=True)).to_have_count(0)
+
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(executable_path='/usr/bin/chromium', headless=True, args=['--no-sandbox'])
@@ -19,9 +33,8 @@ with sync_playwright() as playwright:
     context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(BASE) else route.abort())
     page = context.new_page()
     page.goto(BASE + '/#/research', wait_until='networkidle')
-    expect(page.get_by_role('heading', name='Current research data is unavailable')).to_be_visible()
-    expect(page.get_by_role('heading', name='Market Overview', exact=True)).to_have_count(0)
-    page.screenshot(path=str(ARTIFACTS / 'research-unavailable-default.png'))
+    expect_explorer_without_examples(page)
+    page.screenshot(path=str(ARTIFACTS / 'research-explorer-default.png'))
     page.get_by_role('button', name='View unverified reference examples').click()
     # Integrity detail is disclosed from the persistent source-status badge.
     reference_status = page.get_by_role('button', name='Data status: unverified reference examples enabled', exact=True)
@@ -31,12 +44,15 @@ with sync_playwright() as playwright:
     expect(page.get_by_text('Unverified reference examples enabled.', exact=True)).to_be_visible()
     expect(page.get_by_role('heading', name='Market Overview', exact=True)).to_be_visible()
     page.get_by_role('button', name='Hide examples', exact=True).click()
-    expect(page.get_by_role('heading', name='Current research data is unavailable')).to_be_visible()
+    expect_explorer_without_examples(page)
 
     # Hash paths are same-document; reload verifies a fresh default state, too.
     page.goto(BASE + '/#/research/analytics', wait_until='networkidle')
     page.reload(wait_until='networkidle')
-    expect(page.get_by_role('heading', name='Current research data is unavailable')).to_be_visible()
+    expect(page.get_by_role('heading', name='Understand the market.', exact=True)).to_be_visible()
+    expect(page.get_by_role('heading', name='Analytics Dashboard', exact=True)).to_have_count(0)
+    expect(page.get_by_role('note').filter(has_text='Unverified static reference data')).to_have_count(0)
+    expect(page.get_by_role('button', name='View unverified reference examples', exact=True)).to_be_visible()
     page.goto(BASE + '/#/research/live-data', wait_until='networkidle')
     expect(page.get_by_text('No stored quotes are available.', exact=False)).to_be_visible(timeout=15000)
     expect(page.get_by_text('No estimated rate has been substituted.', exact=False)).to_be_visible(timeout=15000)
@@ -77,4 +93,4 @@ with sync_playwright() as playwright:
     expect(fixture_page.get_by_role('row').filter(has=fixture_page.get_by_role('cell', name='Indonesia', exact=False))).to_have_count(0)
     assert not errors, errors
     browser.close()
-    print('PASS: explicit/reversible reference mode, fresh default gate, failed-provider unavailable states, unknown publication dates, preserved real zero and source year, no invented countries/metrics; no uncaught errors or real provider requests.')
+    print('PASS: explicit/reversible reference mode, fresh explore-first default without implicit legacy examples, failed-provider unavailable states, unknown publication dates, preserved real zero and source year, no invented countries/metrics; no uncaught errors or real provider requests.')

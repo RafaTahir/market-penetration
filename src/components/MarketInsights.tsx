@@ -1,3 +1,4 @@
+import SourceNotice from './SourceNotice';
 import React, { useState } from 'react';
 import { Users, DollarSign, TrendingUp, Globe, Smartphone, Target, BarChart3, Activity } from 'lucide-react';
 
@@ -209,11 +210,10 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
 
   return (
     <div className="space-y-6">
-      <div role="note" className="rounded-xl border source-warning p-4 text-sm">
-        <p className="font-semibold">Unverified static market references</p>
+      <SourceNotice title="Unverified static market references">
         <p className="mt-1">Figures, narratives, and source attributions are bundled reference material with unknown observation dates and have not been verified. Scores are illustrative, not calibrated probabilities. These figures are excluded from the entry planner.</p>
         <p className="mt-2">Country selection filters only the regulatory cards. Overview totals, consumer figures, and competitive figures describe the fixed regional sample.</p>
-      </div>
+      </SourceNotice>
       {/* Insight Navigation */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex items-center space-x-2 mb-6">

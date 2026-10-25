@@ -1,3 +1,4 @@
+import SourceNotice from './SourceNotice';
 import React, { useState, useEffect } from 'react';
 import { BookOpen, TrendingUp, TrendingDown, Target, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import { CaseStudyService, EnhancedCaseStudy } from '../services/caseStudyService';
@@ -70,10 +71,9 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
 
   return (
     <div className="space-y-6">
-      <div role="note" className="rounded-xl border source-warning p-4 text-sm">
-        <p className="font-semibold">Unverified case-study references</p>
+      <SourceNotice title="Unverified case-study references">
         <p className="mt-1">{caseStudies.some(study => study.provenance === 'stored-record') ? 'This view contains stored database records, which may include seed material.' : 'This view contains bundled static fallback material.'} Company narratives, investment figures, ROI, and listed references have not been verified. Observation dates are unknown; listed reference dates do not establish when a claim was observed. These case studies are excluded from the entry planner.</p>
-      </div>
+      </SourceNotice>
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex items-center space-x-2 mb-6">
           <BookOpen className="h-5 w-5 text-amber-400" />

@@ -5,6 +5,7 @@ FLOW_TEST_URL overrides localhost:5173. Requires Playwright and Chromium.
 """
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,7 +31,7 @@ with sync_playwright() as playwright:
 
     context.route('**/*', restrict_network)
     page = context.new_page()
-    page.goto(BASE, wait_until='networkidle')
+    page.goto(BASE + '/#/plan', wait_until='networkidle')
     expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
     jakarta = page.get_by_role('article').filter(has=page.get_by_role('heading', name='Jakarta', exact=True))
     manila = page.get_by_role('article').filter(has=page.get_by_role('heading', name='Manila', exact=True))
@@ -38,9 +39,9 @@ with sync_playwright() as playwright:
     expect(manila).to_contain_text('0/5 documented')
     page.screenshot(path=str(ARTIFACTS / 'desktop-initial.png'), full_page=True)
 
-    # A first deep link and browser back retain the bare-URL workspace.
-    page.get_by_role('link', name='Research library', exact=True).click()
-    expect(page.get_by_role('heading', name='Current research data is unavailable')).to_be_visible()
+    # A first deep link and browser back retain the explicit plan workspace.
+    page.get_by_role('link', name='Explore markets', exact=True).click()
+    expect(page.get_by_role('heading', name=re.compile('Find your next market'))).to_be_visible()
     page.go_back()
     expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
 
@@ -114,6 +115,10 @@ with sync_playwright() as playwright:
     page.evaluate("window.location.hash = '/research/live-data'")
     expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
     expect(page.get_by_label('Evidence and reasoning', exact=False)).to_have_value(unsaved)
+    page.once('dialog', lambda dialog: dialog.dismiss())
+    page.evaluate("window.location.hash = ''")
+    page.wait_for_function("location.hash === '#/plan'")
+    expect(page.get_by_label('Evidence and reasoning', exact=False)).to_have_value(unsaved)
     page.get_by_role('button', name='Save evidence', exact=True).click()
     page.get_by_role('button', name='Close details').click()
 
@@ -121,12 +126,12 @@ with sync_playwright() as playwright:
     page.get_by_role('button', name='Sign in', exact=True).click()
     expect(page.get_by_role('dialog', name='Explore as a guest')).to_be_visible()
     page.get_by_role('button', name='Continue exploring').click()
-    page.get_by_role('link', name='Research library', exact=True).click()
-    expect(page.get_by_role('heading', name='Current research data is unavailable')).to_be_visible()
-    page.get_by_role('link', name='Entry planner', exact=True).click()
+    page.get_by_role('link', name='Explore markets', exact=True).click()
+    expect(page.get_by_role('heading', name=re.compile('Find your next market'))).to_be_visible()
+    page.locator('.flow-header').get_by_role('link', name='Your plan', exact=True).click()
     expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
     page.go_back()
-    expect(page.get_by_role('heading', name='Current research data is unavailable')).to_be_visible()
+    expect(page.get_by_role('heading', name=re.compile('Find your next market'))).to_be_visible()
     page.go_forward()
     expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
 
@@ -134,13 +139,13 @@ with sync_playwright() as playwright:
         page.set_viewport_size({'width': width, 'height': 844})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'overflow at {width}'
     page.set_viewport_size({'width': 390, 'height': 844})
-    expect(page.locator('html')).to_have_class('light')
-    page.screenshot(path=str(ARTIFACTS / 'mobile-light.png'), full_page=True)
+    expect(page.locator('html')).to_have_class('dark')
+    page.screenshot(path=str(ARTIFACTS / 'mobile-dark.png'), full_page=True)
     page.get_by_role('button', name='More options', exact=True).click()
     page.get_by_role('menuitem', name='Toggle theme').click()
     page.keyboard.press('Escape')
-    expect(page.locator('html')).to_have_class('dark')
-    page.screenshot(path=str(ARTIFACTS / 'mobile-dark.png'), full_page=True)
+    expect(page.locator('html')).to_have_class('light')
+    page.screenshot(path=str(ARTIFACTS / 'mobile-light.png'), full_page=True)
     assert not errors, f'uncaught browser errors: {errors}'
     assert not external_requests, f'unexpected external requests: {external_requests}'
 
@@ -148,7 +153,7 @@ with sync_playwright() as playwright:
     blocked.add_init_script("Object.defineProperty(window, 'localStorage', {get(){throw new DOMException('Blocked', 'SecurityError')}})")
     blocked_page = blocked.new_page()
     blocked_page.on('pageerror', lambda error: errors.append(str(error)))
-    blocked_page.goto(BASE, wait_until='networkidle')
+    blocked_page.goto(BASE + '/#/plan', wait_until='networkidle')
     expect(blocked_page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
     expect(blocked_page.get_by_text('Browser storage unavailable', exact=False)).to_be_visible()
     blocked_page.get_by_role('button', name='Edit business profile', exact=True).click()

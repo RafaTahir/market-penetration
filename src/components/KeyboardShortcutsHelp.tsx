@@ -14,9 +14,9 @@ interface KeyboardShortcutsHelpProps {
 
 const KeyboardShortcutsHelp: React.FC<KeyboardShortcutsHelpProps> = ({ isOpen, onClose }) => {
   const shortcuts: KeyboardShortcut[] = [
-    { keys: ['Ctrl', 'K'], description: 'Toggle advanced search', category: 'Navigation' },
-    { keys: ['Ctrl', 'C'], description: 'Toggle comparison mode', category: 'Navigation' },
-    { keys: ['Ctrl', 'L'], description: 'Go to live market data', category: 'Navigation' },
+    { keys: ['Ctrl', 'K'], description: 'Search markets or cities', category: 'Navigation' },
+    { keys: ['Ctrl', 'Shift', 'C'], description: 'Toggle comparison mode', category: 'Navigation' },
+    { keys: ['Ctrl', 'L'], description: 'Go to market data', category: 'Navigation' },
     { keys: ['Ctrl', 'H'], description: 'Go to home', category: 'Navigation' },
     { keys: ['?'], description: 'Show keyboard shortcuts', category: 'Help' },
     { keys: ['Esc'], description: 'Close modals/dialogs', category: 'General' }

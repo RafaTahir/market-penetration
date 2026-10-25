@@ -13,6 +13,12 @@ from playwright.sync_api import expect, sync_playwright
 BASE = os.environ.get('FLOW_TEST_URL', 'http://127.0.0.1:4173')
 ARTIFACTS = Path(os.environ.get('FLOW_TEST_ARTIFACTS', '/tmp/flow-quality-artifacts'))
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
+NORMAL_HEADINGS = {
+    'main': re.compile(r'Find your next market'),
+    'analytics': 'Understand the market.',
+    'report-generator': 'Turn research into a brief.',
+    'enterprise-intelligence': 'See the bigger picture.',
+}
 ROUTES = [
     'main', 'live-data', 'analytics', 'reports', 'report-generator',
     'dashboard', 'playground', 'scheduler', 'data-sync', 'enterprise-intelligence',
@@ -35,8 +41,13 @@ with sync_playwright() as playwright:
             response = page.reload(wait_until='networkidle')
         assert response.status == 200
         if route in ['main', 'analytics', 'report-generator', 'enterprise-intelligence']:
-            expect(page.get_by_role('heading', name='Current research data is unavailable')).to_be_visible()
-            page.get_by_role('button', name='View unverified reference examples').click()
+            expect(page.get_by_role('heading', name=NORMAL_HEADINGS[route])).to_be_visible()
+            expect(page.locator('[data-content-status="unverified-reference"]')).to_have_count(0)
+            expect(page.locator('.market-reference-figures')).to_have_count(0)
+            if route == 'main':
+                expect(page.locator('.market-country-card')).to_have_count(6)
+                expect(page.get_by_role('navigation', name='Research modes').get_by_role('button')).to_have_count(6)
+            page.get_by_role('button', name='View unverified reference examples', exact=True).click()
         expect(page.get_by_text('Something went wrong', exact=True)).to_have_count(0)
         if route in ['dashboard', 'scheduler']:
             expect(page.get_by_role('heading', name='An account is required for this workspace')).to_be_visible()
@@ -86,13 +97,16 @@ with sync_playwright() as playwright:
     # Fresh screenshots contain no test assumptions or completed research claims.
     fresh = context.new_page()
     fresh.set_viewport_size({'width': 1440, 'height': 1000})
-    fresh.goto(BASE + '/#/plan', wait_until='networkidle')
-    expect(fresh.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
+    fresh.goto(BASE, wait_until='networkidle')
+    expect(fresh.get_by_role('heading', name=re.compile(r'Find your next market'))).to_be_visible()
+    expect(fresh.locator('[data-content-status="unverified-reference"]')).to_have_count(0)
     fresh.screenshot(path=str(ARTIFACTS / 'flow-desktop.png'), full_page=True)
     fresh.screenshot(path=str(ARTIFACTS / 'flow-desktop-viewport.png'))
     fresh.set_viewport_size({'width': 390, 'height': 844})
     fresh.screenshot(path=str(ARTIFACTS / 'flow-mobile.png'), full_page=True)
     fresh.screenshot(path=str(ARTIFACTS / 'flow-mobile-viewport.png'))
+    fresh.goto(BASE + '/#/plan', wait_until='networkidle')
+    expect(fresh.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
     assert not errors, errors
     browser.close()
     print('PASS: 10 production library routes, 360px layouts, guest guards, unavailable sources, manifest assets, PDF/PPTX/XLSX UI downloads, screenshots; no uncaught browser errors.')

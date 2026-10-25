@@ -1,3 +1,4 @@
+import SourceNotice from './SourceNotice';
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, BarChart3, Globe, Activity, Clock } from 'lucide-react';
 import { MarketData, CurrencyRate } from '../services/marketDataService';
@@ -126,10 +127,10 @@ const LiveMarketData: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-lg border source-warning p-4 text-sm">
-          Quotes are stored observations when a connected source is available. Economic rows contain available provider-reported series or explicitly derived values; missing records are not filled with reference estimates. A successful check does not verify
-          freshness; observation dates and source limitations are shown below.
-        </div>
+        <SourceNotice title="Source contents and freshness unverified">
+          <p>Quotes are stored observations when a connected source is available. Economic rows contain available provider-reported series or explicitly derived values; missing records are not filled with reference estimates. A successful check does not verify
+          freshness; observation dates and source limitations are shown below.</p>
+        </SourceNotice>
 
         {/* Market Status Clocks with Indices */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">

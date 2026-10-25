@@ -1,21 +1,14 @@
-import { useState, useEffect } from 'react';
-import { ArrowRight, BarChart3, Database, ShieldCheck } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowRight, ArrowUpRight, ArrowLeftRight, BarChart3, BookOpen, Compass, Globe2, Layers3, MapPin, Search, Sparkles, X } from 'lucide-react';
 import EntryPlanner from './components/EntryPlanner';
 import Header from './components/Header';
 import LiveMarketData from './components/LiveMarketData';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CountrySelector from './components/CountrySelector';
-import CityAnalysis from './components/CityAnalysis';
-import IndustryAnalysis from './components/IndustryAnalysis';
-import EnhancedIndustryAnalysis from './components/EnhancedIndustryAnalysis';
-import MarketInsights from './components/MarketInsights';
-import CaseStudies from './components/CaseStudies';
 import ExportTools from './components/ExportTools';
-import DataVisualization from './components/DataVisualization';
 import InstitutionalReports from './components/InstitutionalReports';
 import ReportGenerator from './components/ReportGenerator';
 import { Notification } from './components/NotificationCenter';
-import AdvancedSearch from './components/AdvancedSearch';
 import ComparisonMode from './components/ComparisonMode';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
 import UserDashboard from './components/UserDashboard';
@@ -26,13 +19,36 @@ import DataRefreshDashboard from './components/DataRefreshDashboard';
 import EnterpriseIntelligenceDashboard from './components/EnterpriseIntelligenceDashboard';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAuth } from './contexts/AuthContext';
+import MarketResearch, { type ResearchMode } from './components/MarketResearch';
+import ReferenceResearch from './components/ReferenceResearch';
+import MarketComparison from './components/MarketComparison';
+import { MARKETS } from './data/marketCatalog';
+import { SEA_COUNTRIES } from './components/visual/seaGeography';
+import './components/MarketExplorer.css';
 
 type ResearchView = 'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler' | 'data-sync' | 'enterprise-intelligence';
 
-function ResearchWorkspace({ initialView = 'main' }: { initialView?: ResearchView }) {
-  const [selectedCountries, setSelectedCountries] = useState<string[]>(['singapore', 'thailand']);
+const SHORTLIST_KEY = 'flow-market-shortlist-v1';
+function loadShortlist(): string[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(SHORTLIST_KEY) || 'null');
+    if (stored && typeof stored === 'object' && 'version' in stored && stored.version === 1 && 'countries' in stored && Array.isArray(stored.countries)) {
+      const supported = new Set(MARKETS.map(market => market.id));
+      return [...new Set(stored.countries.filter((country): country is string => typeof country === 'string' && supported.has(country)))];
+    }
+  } catch { /* Browser storage is optional; the current selection remains usable. */ }
+  return ['singapore', 'thailand'];
+}
+
+function ResearchWorkspace({ initialView = 'main', initialAction }: { initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(loadShortlist);
+  const [shortlistSaved, setShortlistSaved] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem(SHORTLIST_KEY, JSON.stringify({ version: 1, countries: selectedCountries })); setShortlistSaved(true); }
+    catch { setShortlistSaved(false); }
+  }, [selectedCountries]);
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
-  const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data'>('overview');
+  const [activeTab, setActiveTab] = useState<ResearchMode>('overview');
   const [currentView, setView] = useState<ResearchView>(initialView);
   useEffect(() => { setView(initialView); }, [initialView]);
   const setCurrentView = (view: ResearchView) => {
@@ -46,15 +62,30 @@ function ResearchWorkspace({ initialView = 'main' }: { initialView?: ResearchVie
   const [showComparison, setShowComparison] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showReferenceExamples, setShowReferenceExamples] = useState(false);
-  const [searchNotice, setSearchNotice] = useState('Legacy advanced search and saved searches are not connected in this build. Country selections below remain available.');
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (initialAction === 'compare') setShowComparison(true);
+    if (initialAction === 'search') setShowSearch(true);
+  }, [initialAction]);
+  useEffect(() => {
+    if (showSearch && currentView === 'main') requestAnimationFrame(() => searchInput.current?.focus());
+  }, [showSearch, currentView]);
+  const focusSearch = () => { setCurrentView('main'); setShowSearch(true); requestAnimationFrame(() => searchInput.current?.focus()); };
+  const openComparison = () => { setCurrentView('main'); setShowComparison(true); };
+  useEffect(() => {
+    if (showComparison && currentView === 'main') requestAnimationFrame(() => document.getElementById('market-comparison')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }, [showComparison, currentView]);
+  const openPlan = () => { window.location.hash = '/plan'; };
+  const showMode = (mode: ResearchMode) => { setActiveTab(mode); requestAnimationFrame(() => document.getElementById('research-modes')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [showCollaboration, setShowCollaboration] = useState(false);
   const [collaborationTarget] = useState({ type: '', id: '' });
   const { user } = useAuth();
 
   const handleCountryToggle = (countryId: string) => {
-    setSelectedCountries(prev => 
-      prev.includes(countryId) 
+    setSelectedCountries(prev =>
+      prev.includes(countryId)
         ? prev.filter(id => id !== countryId)
         : [...prev, countryId]
     );
@@ -86,20 +117,21 @@ function ResearchWorkspace({ initialView = 'main' }: { initialView?: ResearchVie
     {
       key: 'k',
       ctrl: true,
-      action: () => { setCurrentView('main'); setShowSearch(prev => !prev); },
+      action: focusSearch,
       description: 'Toggle search'
     },
     {
       key: 'c',
       ctrl: true,
-      action: () => { setCurrentView('main'); setShowComparison(prev => !prev); },
+      shift: true,
+      action: openComparison,
       description: 'Toggle comparison mode'
     },
     {
       key: 'l',
       ctrl: true,
       action: () => setCurrentView('live-data'),
-      description: 'Go to live data'
+      description: 'Go to market data'
     },
     {
       key: 'h',
@@ -154,25 +186,16 @@ function ResearchWorkspace({ initialView = 'main' }: { initialView?: ResearchVie
     </div>;
   }
 
-  if (!showReferenceExamples && (currentView === 'main' || currentView === 'analytics' || currentView === 'report-generator' || currentView === 'enterprise-intelligence')) {
-    return <div className="min-h-screen research-gate-shell">
-      <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)} onLogoClick={() => setCurrentView('main')} onLiveDataClick={() => setCurrentView('live-data')} onAnalyticsClick={() => setCurrentView('analytics')} onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')} />
-      <main className="research-gate">
-        <div className="research-gate-heading"><span className="section-eyebrow">SOUTHEAST ASIA / RESEARCH LIBRARY</span><h1>Evidence before investment.</h1><p>Build a city comparison with research you can trace.</p></div>
-        <div className="research-gate-layout">
-          <section className="research-source-board" aria-label="Research availability">
-            <div className="source-board-title"><BarChart3 size={20} /><span>Market data coverage</span><span className="source-board-unavailable">Unavailable</span></div>
-            <div className="source-board-grid"><span>DATASET</span><span>SOURCE</span><span>OBSERVED</span>{['Market demand', 'Competition', 'Regulation', 'Operating costs', 'Talent & delivery'].map(label => <div key={label}><strong>{label}</strong><span>Unverified</span><span>—</span></div>)}</div>
-            <div className="source-board-note"><Database size={16} /><span>No verified current dataset connected</span></div>
-          </section>
-          <section className="research-gate-actions">
-            <span className="research-gate-icon"><ShieldCheck size={24} /></span><h2>Current research data is unavailable</h2>
-            <p>Use your own sources in the workspace, or explicitly inspect unverified reference examples.</p>
-            <a href="#/plan" className="workspace-primary">Use entry planner <ArrowRight size={16} /></a>
-            <button onClick={() => setShowReferenceExamples(true)} className="research-reference-button">View unverified reference examples <ArrowRight size={15} /></button>
-            <details className="research-gate-details"><summary>About the reference examples</summary><p>Fixed figures, example scenarios and unverified records have no established supporting citations or observation dates. They are not current market facts or business advice and never supply evidence or points to your entry assessment.</p></details>
-          </section>
-        </div>
+  if (!showReferenceExamples && (currentView === 'analytics' || currentView === 'report-generator' || currentView === 'enterprise-intelligence')) {
+    const title = currentView === 'analytics' ? 'Understand the market.' : currentView === 'enterprise-intelligence' ? 'See the bigger picture.' : 'Turn research into a brief.';
+    const description = currentView === 'analytics' ? 'Find the series, source and period behind a useful comparison.' : currentView === 'enterprise-intelligence' ? 'Explore the questions, sources and operating details behind an expansion.' : 'Use source directories, build your entry plan, or inspect the existing report templates.';
+    return <div className="flow-explore-shell">
+      <Header referenceMode={false} onLogoClick={() => setCurrentView('main')} onLiveDataClick={() => setCurrentView('live-data')} onAnalyticsClick={() => setCurrentView('analytics')} onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')} onSearchClick={focusSearch} onComparisonClick={openComparison} />
+      <main className="explorer-main explorer-module-page">
+        <a href="#/research" className="explorer-back">← Explore markets</a>
+        <header className="explorer-module-heading"><span className="explorer-eyebrow">{currentView === 'analytics' ? 'ANALYTICS & DATA' : currentView === 'enterprise-intelligence' ? 'MARKET INTELLIGENCE' : 'RESEARCH & REPORTS'}</span><h1>{title}</h1><p>{description}</p></header>
+        <MarketResearch mode={currentView === 'enterprise-intelligence' ? 'insights' : 'data'} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />
+        <section className="explorer-reference-callout"><div><BookOpen size={20} /><span><strong>{currentView === 'report-generator' ? 'Reference report templates' : 'Looking for the original examples?'}</strong><small>Existing examples have unverified sources and observation dates. They stay separate from your entry plan.</small></span></div><button onClick={() => setShowReferenceExamples(true)}>View unverified reference examples <ArrowRight size={15} /></button></section>
       </main>
     </div>;
   }
@@ -439,428 +462,64 @@ function ResearchWorkspace({ initialView = 'main' }: { initialView?: ResearchVie
       </div>
     );
   }
-  const tabs = [
-    { id: 'overview', name: 'Market Overview', icon: '🌏' },
-    { id: 'cities', name: 'City Analysis', icon: '🏙️' },
-    { id: 'industries', name: 'Industry Deep Dive', icon: '🏭' },
-    { id: 'insights', name: 'Market Intelligence', icon: '📊' },
-    { id: 'cases', name: 'Case Studies', icon: '📚' },
-    { id: 'data', name: 'Data Visualization', icon: '📈' }
+  const tabs: { id: ResearchMode; name: string; icon: typeof Globe2 }[] = [
+    { id: 'overview', name: 'Market Overview', icon: Globe2 },
+    { id: 'cities', name: 'City Analysis', icon: MapPin },
+    { id: 'industries', name: 'Industry Deep Dive', icon: Layers3 },
+    { id: 'insights', name: 'Market Intelligence', icon: Sparkles },
+    { id: 'cases', name: 'Case Studies', icon: BookOpen },
+    { id: 'data', name: 'Data Visualization', icon: BarChart3 },
   ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
-        onLogoClick={() => setCurrentView('main')}
-        onLiveDataClick={() => setCurrentView('live-data')}
-        onAnalyticsClick={() => setCurrentView('analytics')}
-        onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')}
-        onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-        onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
-        notifications={notifications}
-        onMarkNotificationAsRead={handleMarkNotificationAsRead}
-        onClearAllNotifications={handleClearAllNotifications}
-        onDismissNotification={handleDismissNotification}
-      />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
-          {showSearch && (
-            <div className="animate-in fade-in">
-              <p role="status" className="mb-3 rounded-lg border border-slate-600 p-3 text-sm text-slate-300">{searchNotice}</p>
-              <AdvancedSearch
-                onSearch={() => setSearchNotice('Advanced filters have not been applied: this legacy search is not connected. Use the country selections below or build a city assessment in the entry planner.')}
-                onSave={() => setSearchNotice('This search has not been saved. Saved-search storage is not connected in this build; the entry planner supports local research saving and export.')}
-              />
-            </div>
-          )}
-
-          {showComparison && (
-            <div className="animate-in fade-in">
-              <ComparisonMode availableCountries={countryComparisonData} />
-            </div>
-          )}
-
-          <KeyboardShortcutsHelp
-            isOpen={showKeyboardHelp}
-            onClose={() => setShowKeyboardHelp(false)}
-          />
-
-          <CollaborationPanel
-            targetType={collaborationTarget.type}
-            targetId={collaborationTarget.id}
-            isOpen={showCollaboration}
-            onClose={() => setShowCollaboration(false)}
-          />
-          {/* Welcome Section */}
-          <div className="text-center py-8 relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
-            <div className="relative">
-              <div className="flex items-center justify-center mb-6">
-                <div className="absolute top-4 right-4 flex flex-wrap gap-2 justify-end">
-                  {user && (
-                    <button
-                      onClick={() => setCurrentView('dashboard')}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
-                    >
-                      My Dashboard
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setCurrentView('playground')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
-                  >
-                    Data Playground
-                  </button>
-                  {user && (
-                    <button
-                      onClick={() => setCurrentView('scheduler')}
-                      className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
-                    >
-                      Export Scheduler
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setCurrentView('data-sync')}
-                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
-                  >
-                    Data Status
-                  </button>
-                  <button
-                    onClick={() => setCurrentView('reports')}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
-                  >
-                    Institutional Reports
-                  </button>
-                </div>
-                <svg className="h-16 w-16 mr-4" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#3B82F6" />
-                      <stop offset="50%" stopColor="#10B981" />
-                      <stop offset="100%" stopColor="#8B5CF6" />
-                    </linearGradient>
-                  </defs>
-                  <circle cx="50" cy="50" r="45" fill="url(#flowGradient)" opacity="0.1" />
-                  <path d="M25 35 Q50 15 75 35 Q50 55 25 35" fill="url(#flowGradient)" opacity="0.8" />
-                  <path d="M25 50 Q50 30 75 50 Q50 70 25 50" fill="url(#flowGradient)" opacity="0.6" />
-                  <path d="M25 65 Q50 45 75 65 Q50 85 25 65" fill="url(#flowGradient)" opacity="0.4" />
-                  <circle cx="25" cy="50" r="3" fill="#3B82F6" />
-                  <circle cx="75" cy="50" r="3" fill="#8B5CF6" />
-                </svg>
-                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-emerald-400 to-purple-400 bg-clip-text text-transparent">
-                  Flow
-                </h1>
-              </div>
-              <p className="text-xl text-slate-300 max-w-4xl mx-auto leading-relaxed">
-                Your guide to Penetrating Markets. Comprehensive market research and analysis for Southeast Asia. 
-                Make data-driven decisions with city-level insights, industry analysis, and real market entry case studies.
-              </p>
-            </div>
-          </div>
-          
-          {/* Country Selection */}
-          <CountrySelector 
-            selectedCountries={selectedCountries}
-            onCountryToggle={handleCountryToggle}
-          />
-          
-          {selectedCountries.length > 0 && (
-            <>
-              {/* Navigation Tabs */}
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-2 border border-slate-700/50">
-                <div className="flex flex-wrap gap-2">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                        activeTab === tab.id
-                          ? 'bg-gradient-to-r from-blue-600 to-emerald-600 text-white shadow-lg'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                      }`}
-                    >
-                      <span>{tab.icon}</span>
-                      <span className="text-sm">{tab.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tab Content */}
-              <div className="space-y-8">
-                {activeTab === 'overview' && (
-                  <div className="space-y-6">
-                    {/* Market Size Overview */}
-                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-                      <div className="flex items-center space-x-2 mb-6">
-                        <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        <h2 className="text-lg font-semibold text-white">Market Overview</h2>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                            <span className="text-sm font-medium text-blue-400">Total Market Size</span>
-                          </div>
-                          <div className="text-2xl font-bold text-white">$1.2T</div>
-                          <div className="text-xs text-slate-400">Combined addressable market</div>
-                          <div className="text-xs text-slate-500 mt-1">Unverified legacy attribution: World Bank, IMF 2024</div>
-                        </div>
-                        
-                        <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <svg className="h-4 w-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                            </svg>
-                            <span className="text-sm font-medium text-emerald-400">Average Growth</span>
-                          </div>
-                          <div className="text-2xl font-bold text-white">+4.7%</div>
-                          <div className="text-xs text-slate-400">Regional GDP growth 2024</div>
-                          <div className="text-xs text-slate-500 mt-1">Unverified legacy attribution: IMF Economic Outlook</div>
-                        </div>
-                        
-                        <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <svg className="h-4 w-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            <span className="text-sm font-medium text-purple-400">Total Population</span>
-                          </div>
-                          <div className="text-2xl font-bold text-white">688M</div>
-                          <div className="text-xs text-slate-400">Combined population</div>
-                          <div className="text-xs text-slate-500 mt-1">Unverified legacy attribution: UN Population Division</div>
-                        </div>
-                        
-                        <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <svg className="h-4 w-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
-                            <span className="text-sm font-medium text-orange-400">Digital Users</span>
-                          </div>
-                          <div className="text-2xl font-bold text-white">456M</div>
-                          <div className="text-xs text-slate-400">Active internet users</div>
-                          <div className="text-xs text-slate-500 mt-1">Unverified legacy attribution: We Are Social 2024</div>
-                        </div>
-                      </div>
-                      
-                      {/* Country Comparison Table */}
-                      <div className="bg-slate-700/50 rounded-lg p-4">
-                        <h3 className="text-sm font-medium text-white mb-4">Market Comparison by Country</h3>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-slate-600">
-                                <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Country</th>
-                                <th className="text-right py-2 px-3 text-xs font-medium text-slate-400">Population</th>
-                                <th className="text-right py-2 px-3 text-xs font-medium text-slate-400">GDP (USD)</th>
-                                <th className="text-right py-2 px-3 text-xs font-medium text-slate-400">Growth Rate</th>
-                                <th className="text-right py-2 px-3 text-xs font-medium text-slate-400">Market Size</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-600">
-                              {selectedCountries.length > 0 ? 
-                                selectedCountries.map((country) => {
-                                  const countryData = ({
-                                    indonesia: { pop: '273.5M', gdp: '$1.32T', growth: '+5.2%', market: '$287B' },
-                                    thailand: { pop: '69.8M', gdp: '$543B', growth: '+2.8%', market: '$127B' },
-                                    singapore: { pop: '5.9M', gdp: '$397B', growth: '+2.6%', market: '$89B' },
-                                    malaysia: { pop: '32.7M', gdp: '$432B', growth: '+4.5%', market: '$98B' },
-                                    philippines: { pop: '109.6M', gdp: '$394B', growth: '+6.2%', market: '$156B' },
-                                    vietnam: { pop: '97.3M', gdp: '$409B', growth: '+6.8%', market: '$142B' }
-                                  } as Record<string, { pop: string; gdp: string; growth: string; market: string }>)[country];
-                                  
-                                  return (
-                                    <tr key={country} className="hover:bg-slate-600/30">
-                                      <td className="py-2 px-3 text-sm text-white capitalize">{country}</td>
-                                      <td className="py-2 px-3 text-sm text-slate-300 text-right">{countryData?.pop}</td>
-                                      <td className="py-2 px-3 text-sm text-slate-300 text-right">{countryData?.gdp}</td>
-                                      <td className="py-2 px-3 text-sm text-emerald-400 text-right">{countryData?.growth}</td>
-                                      <td className="py-2 px-3 text-sm text-blue-400 text-right">{countryData?.market}</td>
-                                    </tr>
-                                  );
-                                }) :
-                                [
-                                  { name: 'Indonesia', pop: '273.5M', gdp: '$1.32T', growth: '+5.2%', market: '$287B' },
-                                  { name: 'Thailand', pop: '69.8M', gdp: '$543B', growth: '+2.8%', market: '$127B' },
-                                  { name: 'Singapore', pop: '5.9M', gdp: '$397B', growth: '+2.6%', market: '$89B' },
-                                  { name: 'Malaysia', pop: '32.7M', gdp: '$432B', growth: '+4.5%', market: '$98B' },
-                                  { name: 'Philippines', pop: '109.6M', gdp: '$394B', growth: '+6.2%', market: '$156B' },
-                                  { name: 'Vietnam', pop: '97.3M', gdp: '$409B', growth: '+6.8%', market: '$142B' }
-                                ].map((country, index) => (
-                                  <tr key={index} className="hover:bg-slate-600/30">
-                                    <td className="py-2 px-3 text-sm text-white">{country.name}</td>
-                                    <td className="py-2 px-3 text-sm text-slate-300 text-right">{country.pop}</td>
-                                    <td className="py-2 px-3 text-sm text-slate-300 text-right">{country.gdp}</td>
-                                    <td className="py-2 px-3 text-sm text-emerald-400 text-right">{country.growth}</td>
-                                    <td className="py-2 px-3 text-sm text-blue-400 text-right">{country.market}</td>
-                                  </tr>
-                                ))
-                              }
-                            </tbody>
-                          </table>
-                        </div>
-                        <div className="text-xs text-slate-500 mt-2">
-                          Unverified legacy attribution: World Bank, IMF Economic Outlook 2024, National Statistical Offices
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Market Entry Recommendations */}
-                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-                      <div className="flex items-center space-x-2 mb-6">
-                        <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <h3 className="text-lg font-semibold text-white">Strategic Market Entry Framework</h3>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-emerald-900/20 border border-emerald-700 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                            <h4 className="font-medium text-emerald-400">Phase 1: Foundation (0-6 months)</h4>
-                          </div>
-                          <ul className="space-y-2 text-sm text-slate-300">
-                            <li>• Market research and regulatory assessment</li>
-                            <li>• Local partnership identification</li>
-                            <li>• Digital presence establishment</li>
-                            <li>• Cultural localization strategy</li>
-                          </ul>
-                        </div>
-                        
-                        <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                            <h4 className="font-medium text-blue-400">Phase 2: Launch (6-18 months)</h4>
-                          </div>
-                          <ul className="space-y-2 text-sm text-slate-300">
-                            <li>• Pilot programs in tier-1 cities</li>
-                            <li>• Customer service infrastructure</li>
-                            <li>• Localized product offerings</li>
-                            <li>• Digital marketing campaigns</li>
-                          </ul>
-                        </div>
-                        
-                        <div className="bg-purple-900/20 border border-purple-700 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                            <h4 className="font-medium text-purple-400">Phase 3: Scale (18+ months)</h4>
-                          </div>
-                          <ul className="space-y-2 text-sm text-slate-300">
-                            <li>• Multi-market expansion</li>
-                            <li>• Regional operations setup</li>
-                            <li>• Supply chain optimization</li>
-                            <li>• Strategic acquisitions</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {activeTab === 'cities' && (
-                  <CityAnalysis 
-                    selectedCountries={selectedCountries}
-                    selectedCities={selectedCities}
-                    onCityToggle={handleCityToggle}
-                  />
-                )}
-                
-                {activeTab === 'industries' && (
-                  <>
-                    <EnhancedIndustryAnalysis selectedCountries={selectedCountries} />
-                    <div className="mt-8">
-                      <IndustryAnalysis
-                        selectedCountries={selectedCountries}
-                        onIndustrySelect={setSelectedIndustry}
-                      />
-                    </div>
-                  </>
-                )}
-                
-                {activeTab === 'insights' && (
-                  <MarketInsights 
-                    selectedCountries={selectedCountries}
-                    onInsightTabChange={setActiveInsightTab}
-                  />
-                )}
-                
-                {activeTab === 'cases' && (
-                  <CaseStudies 
-                    selectedCountries={selectedCountries}
-                    onCaseStudySelect={setSelectedCaseStudy}
-                  />
-                )}
-                
-                {activeTab === 'data' && (
-                  <DataVisualization selectedCountries={selectedCountries} />
-                )}
-              </div>
-              
-              {/* Export Tools */}
-              <ExportTools 
-                selectedCountries={selectedCountries}
-                selectedCities={selectedCities}
-                activeTab={activeTab}
-                activeInsightTab={activeInsightTab}
-                selectedIndustry={selectedIndustry}
-                selectedCaseStudy={selectedCaseStudy}
-              />
-            </>
-          )}
-          
-          {selectedCountries.length === 0 && (
-            <div className="text-center py-16">
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50 max-w-md mx-auto">
-                <div className="text-slate-400 mb-6">
-                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500/20 to-emerald-500/20 rounded-full flex items-center justify-center mb-4">
-                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-3">Select Markets to Begin</h3>
-                <p className="text-slate-400 leading-relaxed">
-                  Choose one or more Southeast Asian markets above to unlock detailed insights, 
-                  city-level analysis, and comprehensive market intelligence.
-                </p>
-              </div>
-            </div>
-          )}
+  const selectedMarkets = MARKETS.filter(market => selectedCountries.includes(market.id));
+  const matchingMarkets = MARKETS.filter(market => `${market.name} ${market.city}`.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+  const referenceCountries = selectedCountries.length ? selectedCountries : MARKETS.map(market => market.id);
+  const countryShapes: Record<string, string> = { tha: 'thailand', sgp: 'singapore', mys: 'malaysia', idn: 'indonesia', phl: 'philippines', vnm: 'vietnam' };
+  return <div className="flow-explore-shell">
+    <Header activeView="research" referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)} onLogoClick={() => setCurrentView('main')} onLiveDataClick={() => setCurrentView('live-data')} onAnalyticsClick={() => setCurrentView('analytics')} onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')} onSearchClick={focusSearch} onComparisonClick={openComparison} notifications={notifications} onMarkNotificationAsRead={handleMarkNotificationAsRead} onClearAllNotifications={handleClearAllNotifications} onDismissNotification={handleDismissNotification} />
+    <main className="explorer-main">
+      <section className="explorer-hero" aria-labelledby="explorer-title">
+        <div className="explorer-hero-copy">
+          <div className="explorer-eyebrow"><span /> SOUTHEAST ASIA · MARKET INTELLIGENCE</div>
+          <h1 id="explorer-title">Find your next market.<br /><em>Make your move.</em></h1>
+          <p>Explore countries, discover cities and understand what to research before you launch or expand.</p>
+          <form className={`explorer-search${showSearch ? ' is-active' : ''}`} role="search" onSubmit={event => { event.preventDefault(); document.getElementById('explore-markets')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
+            <Search size={18} aria-hidden="true" /><label className="sr-only" htmlFor="market-search">Search markets or cities</label><input id="market-search" ref={searchInput} value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Try Singapore, Bangkok or Vietnam…" autoComplete="off" />{searchQuery && <button type="button" aria-label="Clear search" onClick={() => setSearchQuery('')}><X size={15} /></button>}<button type="submit" className="explorer-search-submit" aria-label="Search markets"><ArrowRight size={18} /></button>
+          </form>
+          <div className="explorer-hero-actions"><a href="#/plan" className="explorer-plan-link">Plan my entry <ArrowUpRight size={15} /></a><span>For founders, growing businesses & enterprises</span></div>
         </div>
-      </main>
-      
-      {/* Footer */}
-      <footer className="border-t border-slate-700/50 mt-16 bg-slate-900/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-slate-400">
-            <div className="flex items-center justify-center space-x-4 mb-2">
-              <button
-                onClick={() => setShowKeyboardHelp(true)}
-                className="text-sm text-slate-400 hover:text-white transition-colors flex items-center space-x-1"
-              >
-                <span>Keyboard Shortcuts</span>
-                <kbd className="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-xs font-mono">?</kbd>
-              </button>
-            </div>
-            <p className="text-sm">
-              © 2025 Flow. Professional market research platform for Southeast Asian markets.
-            </p>
-            <p className="text-xs mt-2 opacity-75">
-              Research library contains static and seeded material. Observation dates and current applicability may be unknown.
-            </p>
-          </div>
+        <div className="explorer-atlas" aria-label="Geographic context for the six markets">
+          <div className="atlas-orbit atlas-orbit-one" /><div className="atlas-orbit atlas-orbit-two" />
+          <svg viewBox="0 0 740 630" aria-hidden="true" focusable="false"><defs><linearGradient id="explorer-land" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#3b82f6" /><stop offset="1" stopColor="#2dd4bf" /></linearGradient></defs>{SEA_COUNTRIES.map(country => <path key={country.id} d={country.path} data-market={countryShapes[country.id]} className={countryShapes[country.id] && selectedCountries.includes(countryShapes[country.id]) ? 'atlas-country is-selected' : 'atlas-country'} />)}</svg>
+          <div className="atlas-label atlas-label-north"><span>🇹🇭</span> Thailand <span>🇻🇳</span> Vietnam</div><div className="atlas-label atlas-label-east"><span>🇵🇭</span> Philippines</div><div className="atlas-label atlas-label-south"><span>🇸🇬</span> Singapore <span>🇲🇾</span> Malaysia</div><div className="atlas-label atlas-label-bottom"><span>🇮🇩</span> Indonesia</div>
+          <div className="atlas-caption"><Compass size={14} /><span>One region. More possibilities.</span><small>Geographic context · no market ranking</small></div>
         </div>
-      </footer>
-    </div>
-  );
+      </section>
+
+      <nav className="explorer-mode-tabs" aria-label="Research modes">{tabs.map(({ id, name, icon: Icon }) => <button key={id} aria-current={activeTab === id ? 'page' : undefined} onClick={() => showMode(id)}><Icon size={16} /><span>{name}</span></button>)}</nav>
+
+      <section className="explorer-markets" id="explore-markets" aria-labelledby="markets-title">
+        <div className="explorer-section-heading"><div><span className="explorer-eyebrow">EXPLORE THE REGION</span><h2 id="markets-title">Six markets. Your shortlist.</h2></div><div className="explorer-selection-actions"><span>{selectedCountries.length} selected</span><button onClick={openComparison}><ArrowLeftRight size={15} />Compare markets <span>{selectedCountries.length}</span></button></div></div>
+        {searchQuery && <p role="status" className="explorer-search-count">{matchingMarkets.length} {matchingMarkets.length === 1 ? 'market' : 'markets'} matching “{searchQuery}” <button onClick={() => setSearchQuery('')}>Clear</button></p>}
+        <CountrySelector selectedCountries={selectedCountries} onCountryToggle={handleCountryToggle} referenceMode={showReferenceExamples} showHeading={false} searchQuery={searchQuery} onExploreCountry={countryId => { setSelectedCountries(previous => previous.includes(countryId) ? previous : [...previous, countryId]); showMode('cities'); }} />
+        <div className="explorer-shortlist"><span title={shortlistSaved ? 'Saved on this browser' : 'Session only; export your shortlist to keep it'}>Your shortlist · {shortlistSaved ? 'saved here' : 'session only'}</span><div>{selectedMarkets.length ? selectedMarkets.map(market => <button key={market.id} onClick={() => handleCountryToggle(market.id)} aria-label={`Remove ${market.name} from shortlist`}>{market.flag} {market.name}<X size={11} /></button>) : <small>Select a market to tailor the research below. All six remain available to explore.</small>}</div><a href="#/research/reports">Source directory <ArrowUpRight size={13} /></a></div>
+      </section>
+
+      {showComparison && <MarketComparison selectedCountries={selectedCountries} onClose={() => setShowComparison(false)} onReference={() => setShowReferenceExamples(true)} referenceMode={showReferenceExamples}>{showReferenceExamples && <ComparisonMode availableCountries={countryComparisonData} />}</MarketComparison>}
+
+      <section className="explorer-research" id="research-modes" aria-labelledby="research-title">
+        <div className="explorer-research-heading"><div><span className="explorer-eyebrow">GO A LITTLE DEEPER</span><h2 id="research-title">From a place to a plan.</h2></div><span>{selectedMarkets.length ? selectedMarkets.map(market => market.name).join(' + ') : 'Explore all six markets'}</span></div>
+
+        {showReferenceExamples ? <><div className="explorer-reference-strip"><span><BookOpen size={14} />Unverified reference examples · observation dates unknown</span><button onClick={() => setShowReferenceExamples(false)}>Return to research guides <X size={13} /></button></div><ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={selectedCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} /></> : <MarketResearch mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
+      </section>
+
+      {showReferenceExamples ? <section className="explorer-export-section"><div className="explorer-section-heading"><div><span className="explorer-eyebrow">TAKE IT WITH YOU</span><h2>Reference report studio</h2></div><span className="explorer-data-note">Illustrative templates · not verified research</span></div><ExportTools selectedCountries={selectedCountries} selectedCities={selectedCities} activeTab={activeTab} activeInsightTab={activeInsightTab} selectedIndustry={selectedIndustry} selectedCaseStudy={selectedCaseStudy} /></section> : <section className="explorer-reference-callout"><div><BookOpen size={20} /><span><strong>The original research collection, still here.</strong><small>Inspect existing charts, case studies and PDF, slide and spreadsheet templates as explicitly unverified examples.</small></span></div><button onClick={() => setShowReferenceExamples(true)}>View unverified reference examples <ArrowRight size={15} /></button></section>}
+
+      <section className="explorer-next-step"><div><span className="explorer-eyebrow">YOUR BUSINESS. YOUR NEXT CHAPTER.</span><h2>Found a market worth exploring?</h2><p>Keep your assumptions, sources and city preparation together in your entry plan. Start whenever you're ready.</p></div><a href="#/plan">Plan my entry <ArrowUpRight size={18} /></a></section>
+      <KeyboardShortcutsHelp isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
+      <CollaborationPanel targetType={collaborationTarget.type} targetId={collaborationTarget.id} isOpen={showCollaboration} onClose={() => setShowCollaboration(false)} />
+    </main>
+    <footer className="explorer-footer"><span>Flow <i>·</i> Find your next market.</span><div><a href="#/research/reports">Sources</a><a href="#/plan">Your plan</a><button onClick={() => setShowKeyboardHelp(true)}>Keyboard shortcuts</button></div><small>Curated research guides & optional reference examples. AI consulting is not enabled.</small></footer>
+  </div>;
 }
 
 const researchViews = new Set<ResearchView>(['main', 'live-data', 'analytics', 'reports', 'report-generator', 'dashboard', 'playground', 'scheduler', 'data-sync', 'enterprise-intelligence']);
@@ -882,14 +541,15 @@ export default function App() {
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
-  if (route.startsWith('#/research')) {
+  if (!route.startsWith('#/plan')) {
     const requested = route.split('/')[2] as ResearchView;
     const initialView = researchViews.has(requested) ? requested : 'main';
-    return <ResearchWorkspace initialView={initialView} />;
+    const initialAction = requested === ('search' as string) || requested === ('compare' as string) ? requested as 'search' | 'compare' : undefined;
+    return <ResearchWorkspace initialView={initialView} initialAction={initialAction} />;
   }
   return <div className="min-h-screen flow-planner-shell">
     <Header
-      onLogoClick={() => { window.location.hash = '/plan'; }}
+      onLogoClick={() => { window.location.hash = '/research'; }}
       onLiveDataClick={() => { window.location.hash = '/research/live-data'; }}
       onAnalyticsClick={() => { window.location.hash = '/research/analytics'; }}
       onEnterpriseIntelligenceClick={() => { window.location.hash = '/research/enterprise-intelligence'; }}

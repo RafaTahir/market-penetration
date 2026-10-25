@@ -1,3 +1,4 @@
+import SourceNotice from './SourceNotice';
 import React, { useState } from 'react';
 import { TrendingUp, Factory, Zap, DollarSign, Users, Globe, BarChart3, AlertCircle } from 'lucide-react';
 
@@ -243,10 +244,9 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
       </div>
 
 
-      <div role="note" className="rounded-lg border source-warning p-4 text-sm">
-        <p className="font-semibold">Unverified static industry reference</p>
+      <SourceNotice title="Unverified static industry reference">
         <p>Figures, company examples, and narratives are hardcoded and have not been verified against the named publications. Observation dates are unavailable; year labels are unverified. These regional examples do not change with the {selectedCountries.length} selected markets and are excluded from the entry planner.</p>
-      </div>
+      </SourceNotice>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {industryData.map((industry) => (

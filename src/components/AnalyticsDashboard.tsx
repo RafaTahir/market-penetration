@@ -1,3 +1,4 @@
+import SourceNotice from './SourceNotice';
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, Area, AreaChart } from 'recharts';
 import { BarChart3, Users, TrendingUp, Smartphone, DollarSign, Target, Zap } from 'lucide-react';
@@ -213,10 +214,9 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
           </div>
           
-          <div role="note" className="mb-6 rounded-lg border source-warning p-4 text-sm">
-            <p className="font-semibold">Unverified static reference data</p>
+          <SourceNotice title="Unverified static reference data" className="mb-6">
             <p className="mt-1">These charts use bundled figures with unknown observation dates. Historical years and projections are labels from the reference material; their accuracy has not been verified. Opportunity scores are illustrative and are not calibrated probabilities. These figures are excluded from the entry planner.</p>
-          </div>
+          </SourceNotice>
 
           {/* Metric Selection */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

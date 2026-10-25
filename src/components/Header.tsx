@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Activity, ArrowLeftRight, ArrowUpRight, Bell, Building2, Check, CheckCheck, ChevronDown, Info, LogIn, Moon, MoreHorizontal, Search, ShieldAlert, Sun, TrendingUp, UserRound, X } from 'lucide-react';
+import { Activity, ArrowLeftRight, ArrowUpRight, Bell, Building2, Check, CheckCheck, ChevronDown, Compass, BookOpen, Info, LogIn, Moon, MoreHorizontal, Search, ShieldAlert, Sun, TrendingUp, UserRound, X } from 'lucide-react';
 import { Notification } from './NotificationCenter';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,7 +7,7 @@ import AuthModal from './AuthModal';
 import './Header.css';
 
 interface HeaderProps {
-  activeView?: 'workspace' | 'research';
+  activeView?: 'workspace' | 'research' | 'explore';
   referenceMode?: boolean;
   onExitReference?: () => void;
   onLiveDataClick?: () => void;
@@ -68,7 +68,9 @@ const Header: React.FC<HeaderProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const activeTrigger = useRef<HTMLButtonElement | null>(null);
   const panelId = useId();
-  const currentView = activeView || (window.location.hash.startsWith('#/research') ? 'research' : 'workspace');
+  const currentView = activeView || (window.location.hash.startsWith('#/plan') ? 'workspace' : 'explore');
+  const researchPath = window.location.hash.split('/')[2] || '';
+  const exploreActive = currentView !== 'workspace' && (!researchPath || researchPath === 'main');
   const unreadCount = notifications.filter(notification => !notification.read).length;
   const accountName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Account';
 
@@ -107,9 +109,10 @@ const Header: React.FC<HeaderProps> = ({
     setPanel(previous => previous === next ? null : next);
   };
 
-  const runAction = (action?: () => void) => {
+  const runAction = (action?: () => void, fallback?: string) => {
     setPanel(null);
-    action?.();
+    if (action) action();
+    else if (fallback) window.location.hash = fallback;
   };
 
   const handleMenuKeys = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -120,22 +123,48 @@ const Header: React.FC<HeaderProps> = ({
     event.preventDefault();
     const current = items.indexOf(document.activeElement as HTMLElement);
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 :
-      event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+      event.key === 'ArrowDown' ? (current + 1) % items.length : (current < 0 ? items.length - 1 : (current - 1 + items.length) % items.length);
     items[next].focus();
   };
 
   return (
     <header className="flow-header" ref={headerRef}>
       <div className="flow-header-bar">
-        <button onClick={onLogoClick} className="flow-brand" title="Back to Home" aria-label="Flow home">
+        <button
+          onClick={() => runAction(onLogoClick, '/research')}
+          className="flow-brand"
+          title="Explore Southeast Asian markets"
+          aria-label="Flow home"
+        >
           <FlowLogo className="flow-brand-mark" />
-          <span>Flow<span className="flow-brand-period">.</span></span>
+          <span className="flow-brand-copy">
+            <span className="flow-brand-name">Flow</span>
+            <span className="flow-brand-tagline">Market entry intelligence</span>
+          </span>
         </button>
 
         <nav className="flow-header-nav" aria-label="Main navigation">
-          <a href="#/plan" aria-label="Entry planner" aria-current={currentView === 'workspace' ? 'page' : undefined} onClick={() => setPanel(null)}>Workspace</a>
-          <a href="#/research" aria-label="Research library" aria-current={currentView === 'research' ? 'page' : undefined} onClick={() => setPanel(null)}>Research library</a>
-          <button onClick={() => runAction(onLiveDataClick)} aria-label="Market Data">Market Data</button>
+          <a href="#/research" aria-label="Explore markets" aria-current={exploreActive ? 'page' : undefined} onClick={() => setPanel(null)}>
+            <Compass size={15} aria-hidden="true" /><span>Explore</span>
+          </a>
+          <button onClick={() => runAction(onSearchClick, '/research/search')} aria-label="Search" aria-current={researchPath === 'search' ? 'page' : undefined}>
+            <Search size={15} aria-hidden="true" /><span>Search</span>
+          </button>
+          <button onClick={() => runAction(onComparisonClick, '/research/compare')} aria-label="Compare" aria-current={researchPath === 'compare' ? 'page' : undefined}>
+            <ArrowLeftRight size={15} aria-hidden="true" /><span>Compare</span>
+          </button>
+          <button onClick={() => runAction(onLiveDataClick, '/research/live-data')} aria-label="Market Data" aria-current={researchPath === 'live-data' ? 'page' : undefined}>
+            <TrendingUp size={15} aria-hidden="true" /><span>Market data</span>
+          </button>
+          <button onClick={() => runAction(onAnalyticsClick, '/research/analytics')} aria-label="Analytics" aria-current={researchPath === 'analytics' ? 'page' : undefined}>
+            <Activity size={15} aria-hidden="true" /><span>Analytics</span>
+          </button>
+          <button onClick={() => runAction(onEnterpriseIntelligenceClick, '/research/enterprise-intelligence')} aria-label="Enterprise Intelligence" aria-current={researchPath === 'enterprise-intelligence' ? 'page' : undefined}>
+            <Building2 size={15} aria-hidden="true" /><span>Intelligence</span>
+          </button>
+          <a className="flow-plan-link" href="#/plan" aria-label="Your plan" aria-current={currentView === 'workspace' ? 'page' : undefined} onClick={() => setPanel(null)}>
+            <BookOpen size={15} aria-hidden="true" /><span>Your plan</span>
+          </a>
         </nav>
 
         <div className="flow-header-tools">
@@ -147,8 +176,8 @@ const Header: React.FC<HeaderProps> = ({
             onClick={event => togglePanel('status', event.currentTarget)}
           >
             <span className="flow-status-dot" aria-hidden="true" />
-            <span className="flow-status-desktop">{referenceMode ? 'Examples enabled' : 'Unverified sources'}</span>
-            <span className="flow-status-mobile">{referenceMode ? 'Examples on' : 'Unverified'}</span>
+            <span className="flow-status-desktop">{referenceMode ? 'Examples enabled' : 'Sources & data'}</span>
+            <span className="flow-status-mobile">{referenceMode ? 'Examples on' : 'Sources'}</span>
             <ChevronDown size={12} aria-hidden="true" />
           </button>
           <button
@@ -185,23 +214,21 @@ const Header: React.FC<HeaderProps> = ({
 
       {panel === 'more' && (
         <div className="flow-header-popover flow-more-menu" id={`${panelId}-more`} ref={panelRef} role="menu" aria-label="More options" onKeyDown={handleMenuKeys}>
-          <div className="flow-mobile-navigation">
-            <p className="flow-menu-heading">Explore Flow</p>
-            <a href="#/plan" role="menuitem" aria-label="Entry planner" onClick={() => setPanel(null)}><span>Workspace</span><ArrowUpRight size={15} aria-hidden="true" /></a>
-            <a href="#/research" role="menuitem" aria-label="Research library" onClick={() => setPanel(null)}><span>Research library</span><ArrowUpRight size={15} aria-hidden="true" /></a>
-            <button role="menuitem" aria-label="Market Data" onClick={() => runAction(onLiveDataClick)}><TrendingUp size={17} aria-hidden="true" /><span>Market Data</span></button>
-            <div className="flow-menu-divider" />
-          </div>
+          <p className="flow-menu-heading">Explore Flow</p>
+          <a href="#/research" role="menuitem" aria-label="Explore markets" onClick={() => setPanel(null)}><Compass size={17} aria-hidden="true" /><span>Explore markets</span><ArrowUpRight size={15} aria-hidden="true" /></a>
+          <a href="#/plan" role="menuitem" aria-label="Your plan" onClick={() => setPanel(null)}><BookOpen size={17} aria-hidden="true" /><span>Your research notebook</span><ArrowUpRight size={15} aria-hidden="true" /></a>
+          <div className="flow-menu-divider" />
           <p className="flow-menu-heading">Research tools</p>
-          {onSearchClick && <button role="menuitem" aria-label="Search" onClick={() => runAction(onSearchClick)}><Search size={17} aria-hidden="true" /><span>Search</span><kbd>Ctrl K</kbd></button>}
-          {onComparisonClick && <button role="menuitem" aria-label="Compare" onClick={() => runAction(onComparisonClick)}><ArrowLeftRight size={17} aria-hidden="true" /><span>Compare markets</span><kbd>Ctrl C</kbd></button>}
-          <button role="menuitem" aria-label="Analytics" onClick={() => runAction(onAnalyticsClick)}><Activity size={17} aria-hidden="true" /><span>Analytics</span></button>
-          {onEnterpriseIntelligenceClick && <button role="menuitem" aria-label="Enterprise Intelligence" onClick={() => runAction(onEnterpriseIntelligenceClick)}><Building2 size={17} aria-hidden="true" /><span>Enterprise intelligence</span><kbd>Ctrl E</kbd></button>}
+          <button role="menuitem" aria-label="Search" onClick={() => runAction(onSearchClick, '/research/search')}><Search size={17} aria-hidden="true" /><span>Search markets</span><kbd>Ctrl K</kbd></button>
+          <button role="menuitem" aria-label="Compare" onClick={() => runAction(onComparisonClick, '/research/compare')}><ArrowLeftRight size={17} aria-hidden="true" /><span>Compare markets</span><kbd>Ctrl Shift C</kbd></button>
+          <button role="menuitem" aria-label="Market Data" onClick={() => runAction(onLiveDataClick, '/research/live-data')}><TrendingUp size={17} aria-hidden="true" /><span>Market data</span></button>
+          <button role="menuitem" aria-label="Analytics" onClick={() => runAction(onAnalyticsClick, '/research/analytics')}><Activity size={17} aria-hidden="true" /><span>Analytics</span></button>
+          <button role="menuitem" aria-label="Enterprise Intelligence" onClick={() => runAction(onEnterpriseIntelligenceClick, '/research/enterprise-intelligence')}><Building2 size={17} aria-hidden="true" /><span>Intelligence</span><kbd>Ctrl E</kbd></button>
           <div className="flow-menu-divider" />
           <button role="menuitem" aria-label="Toggle theme" onClick={toggleTheme}>{theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}<span>{theme === 'dark' ? 'Light appearance' : 'Dark appearance'}</span></button>
           <button role="menuitem" aria-label="Notifications" onClick={() => setPanel('notifications')}><Bell size={17} aria-hidden="true" /><span>Notifications</span><span className="flow-menu-count">{unreadCount || '0'}</span></button>
           {user && <div className="flow-menu-account"><UserRound size={17} aria-hidden="true" /><div><strong>{accountName}</strong><span>{user.email}</span></div></div>}
-          <div className="flow-menu-footer">Southeast Asia, in perspective.</div>
+          <div className="flow-menu-footer">Explore Southeast Asia. Plan your next move.</div>
         </div>
       )}
 
@@ -226,7 +253,7 @@ const Header: React.FC<HeaderProps> = ({
               <p>Your workspace uses the evidence you add. Source quality and observation dates need your review.</p>
             </>
           )}
-          <a href="#/plan" className="flow-status-link" onClick={() => setPanel(null)}>Build a sourced assessment <ArrowUpRight size={15} aria-hidden="true" /></a>
+          <a href="#/plan" className="flow-status-link" onClick={() => setPanel(null)}>Open your research notebook <ArrowUpRight size={15} aria-hidden="true" /></a>
         </div>
       )}
 

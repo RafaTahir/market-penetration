@@ -1,19 +1,21 @@
-# Flow release validation
+# Flow experience recovery — release validation
 
-Validated 2026-10-25 on the existing `market-penetration` base, retaining React 18, Vite 5, Tailwind 3 and the original Flow assets. This release introduces a visual business-profile/evidence workspace and repairs the existing library's reliability and data-integrity boundaries. It does not certify underlying market figures or launch an AI consultant.
+Prepared 2026-10-25 in the existing cloud `market-penetration` checkout, based on `1edf440156b2a89ab1d276f17a25108929e3b6a2`. **Prepared source release; deployment remains pending parent review/publication.** No Site or access changes. React 18/Vite 5/Tailwind 3 and existing assets/engine are retained; dependency versions and lockfile are unchanged.
 
-## Resulting behavior
+Read [the before/after explanation](FLOW_EXPERIENCE_REVIEW.md) for the product correction and [the snapshot provenance](FLOW_MARKET_SNAPSHOT.md) for the new historical data. This proposal restores country discovery as Flow's starting point, with research, comparison and reporting reachable before optional notebook work. It does not launch an AI consultant or certify current market/regulatory facts.
 
-- The workspace opens with a geographic city view, qualified-only preparation tracks, documentation coverage and focused next actions. Overview, Compare cities and Evidence views replace the long reading sequence. Profile, evidence and methodology are available in accessible native drawers. Fresh workspaces use a light palette; existing theme preferences remain.
-- Founders, SMEs and enterprises can record business phase, industry, offering and runway; compare documented preparation for Jakarta province and the City of Manila; preserve research locally; and export its exact saved evidence and methodology.
-- Missing sources and metrics remain unavailable. Genuine zero values survive. Observation periods, retrieval/storage time and report generation time stay separate. Provider failures cannot create substitute economic, quote or FX observations.
-- Legacy static/unverified views require explicit reference-mode opt-in and carry persistent source/date limitations. Examples never supply planner evidence or calibrated survival probabilities.
-- PDF, PPTX and XLSX downloads retain provenance and clearly labelled illustrative sections. Unsupported random spreadsheet metrics and misleading confidence/publication claims were removed.
-- Guest startup, hash navigation/history, account-route guards, mobile layout, source-directory metadata and service-worker freshness are repaired.
-- Account/bookmark/realtime effects ignore stale user/target results and release subscriptions. Failed saves retain drafts; missing/error states do not become false zero summaries.
-- Context values/hooks are separate from provider components, satisfying Fast Refresh rules. Database JSON and service boundaries have declared types. No lint/type-check rules were disabled.
+## Changes ready for review
 
-## Checks actually passed
+- Restored navy/blue/emerald identity, original Flow emblem/gradient wordmark, clear product promise and visible research tools.
+- Six original flag-led countries, functional country/city search, accessible shortlist selection, actual country/source comparison and JSON shortlist export.
+- Sourced **2023 historical** population/nominal GDP, actual **2014–2023** GDP sparklines, and shared-scale GDP/population charts with visible source years and full provenance.
+- Six research modes with city and industry switching, useful source paths and retained example analyses/report templates. Whole-page main exploration gate removed; unsupported legacy figures remain explicit opt-in.
+- Compact native source disclosures retain full warning text and prior readable contrast. Numeric examples never become verified facts or planner evidence.
+- Optional planner retains local version 1 research/export, scoring/missingness rules, profile invalidation and dirty guards. Leaving for bare home is protected too. Validated shortlist storage preserves selection across the planner round trip/reload without changing the notebook key.
+- Tailwind dark variants follow the app theme rather than the OS, including retained reference analysis surfaces.
+- Mobile research navigation sits above the swipeable cards; both themes, touch/keyboard controls and responsive chart/compare layouts are verified.
+
+## Required checks
 
 ```bash
 npm run typecheck
@@ -22,47 +24,40 @@ npm test
 npm run build
 ```
 
-Type checking covers application and Vite configuration. Lint has **zero errors and zero warnings**. All **63 tests pass**: 11 planner-domain, 17 provider, 10 aggregation/financial/case-study integrity, 12 export serialization, four account-component lifecycle and nine bookmark/realtime-hook lifecycle tests. Connected-service tests use isolated mocked boundaries; they do not validate deployed credentials or live backend policies.
+Application and Vite type checks pass. ESLint has **zero errors and zero warnings**. All **63 Node tests pass** across planner rules, provider parsing, missingness/zero/period integrity, export serialization and mocked account/bookmark/realtime lifecycles. Tests do not establish deployed backend policies or credential validity.
 
-The build now runs type checking before Vite. Existing nonfatal large-bundle and mixed XLSX import warnings remain; they are not hidden by relaxed budgets.
+Build includes full type checking. Existing nonfatal large-bundle, mixed XLSX import and outdated Browserslist warnings remain visible; no budgets, TLS checks, rules or assertions were disabled.
 
-All five production-preview browser suites pass:
+## Real production-preview browser checks
+
+With the production build served on 4173:
 
 ```bash
+npm run preview -- --host 0.0.0.0 --port 4173 --strictPort
 FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-browser.py
 python tests/flow-quality-browser.py
 python tests/flow-integrity-browser.py
 FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-visual-browser.py
 FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-contrast-browser.py
+FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-exploration-browser.py
 ```
 
-They check the real planner journey, local persistence/export, scope changes, unsaved edits, guest access, navigation/history, themes/storage denial, mobile layouts, ten retained library routes, explicit reference mode, absent-source behavior and actual PDF/PPTX/XLSX button downloads. External provider requests are blocked or explicitly mocked. Visual checks also cover geographic label bounds, qualified rating 1 versus Unknown, genuine aggregate zero, incomplete/stale/profile-invalid records, source traceability, keyboard drawers and four responsive widths in both themes. No uncaught browser errors occurred. The zero-valued/2023 provider response is a test fixture, not newly researched evidence.
+The six suites exercise the actual application rather than only mocked component functions:
 
-## Reproduce
+- Complete optional planner profile/evidence/save/reload/JSON export, profile invalidation, real-zero versus unknown, dirty navigation/close guards, native focus/scroll locks, guest auth and storage-denied recovery.
+- Ten retained research routes, missing-source states, original provider periods and genuine zero, unknown publication dates and explicit reversible reference opt-in. Actual PDF/PPTX/XLSX buttons produce readable files retaining limits/provenance.
+- New bare-URL discovery journey, six country cards, exact source totals, search/no-results, native country selection, comparison and exact raw historical-source shortlist JSON.
+- City/industry/source journeys, real GDP/population switch and shared scale, historical source/licence/hash disclosure, accessible source-warning expansion and optional notebook round trip.
+- A third shortlisted country and an intentionally empty shortlist both survive actual header navigation and reload, without changing notebook JSON.
+- Normal/reference layouts at 360/390/768/1440px in both themes, touch/keyboard controls, no document overflow, first-viewport research modes and no uncaught browser errors.
+- All **56 source-warning checks** retain the 4.5:1 small-text threshold after opening the full disclosures, with opposing OS/app themes. Opaque banners measure 8.75:1 light/13.45:1 dark; related notes remain at least 6.47:1. This is targeted contrast coverage, not a full accessibility certification.
 
-Tested cloud runtime: Node 24.19.0 and npm 11.9.0; Python Playwright and Chromium are supplied by the cloud image. No dependency versions or lockfile entries changed.
+External provider transport is blocked or explicitly mocked. Synthetic quote/evidence fixtures exist only in isolated test browsers; product preview screenshots use the actual historical snapshot. No real provider observations were invented or written.
 
-```bash
-npm ci --no-audit --no-fund
-npm run typecheck
-npm run lint -- --max-warnings=0
-npm test
-npm run build
-npm run preview -- --host 0.0.0.0 --port 4173 --strictPort
-```
+## Reproduce and limitations
 
-Run browser checks in separate sessions while preview is running. `FLOW_TEST_ARTIFACTS` selects a writable screenshot/download directory. Normal development uses `npm run dev -- --host 0.0.0.0 --port 5173 --strictPort`. Browser tests require the cloud image's Python Playwright and `/usr/bin/chromium`; Node tests require the documented Node 24 runtime.
+Tested cloud tooling: Node 24.19.0/npm 11.9.0, Python Playwright and `/usr/bin/chromium`. Install with `npm ci --no-audit --no-fund`; develop with `npm run dev -- --host 0.0.0.0 --port 5173 --strictPort`. `FLOW_TEST_ARTIFACTS` chooses screenshot/download output directories. Static output remains `dist/`, served at origin root with hash navigation and browser downloads; no application server or required environment variables.
 
-## Deployment and limitations
+Both hosted URLs were inaccessible in this worker (`net::ERR_TUNNEL_CONNECTION_FAILED`). Hosted visual comparison relies on the parent's independent observations plus historical source, and screenshots here are labelled local before/proposed after. Primary World Bank API cross-check was proxy-blocked 403; the dated DataHub mirror is separately pinned and attributed, not substituted into provider failures. Current legal applicability, source publication dates, live provider entitlements, deployed account/Supabase policies and scheduled delivery remain unverified.
 
-Build output is `dist/`, a static client application with no required environment variables or application server. The authorized destination is the existing owner-private ChatGPT Site. Its owner coordinates publication of the exact pushed revision; this code task does not create another Site, change sharing, or update the old Bolt site. A Git push is not proof of publishing. Verify the release in the authenticated private Site after publication. Guest research works without optional account or provider configuration; source availability and backend behavior remain subject to the limits below.
-
-No market/regulatory dataset was independently fact-checked. See [the dataset inventory](FLOW_INTEGRITY_AUDIT.md), [screen inventory](FLOW_INTEGRITY_SCREENS.md) and [export inventory](FLOW_INTEGRITY_EXPORTS.md). Live provider availability/entitlements, deployed Supabase schema/RLS, scheduled delivery, sharing and current legal applicability remain unverified. Legacy search/save remains explicitly unavailable; full product expansion is a separate stage.
-
-Private comparison notes are retained in the task workspace for review and are not part of the public source release. No credentials were created, rotated, copied from the README or supplied to live providers during validation.
-
-## Source-warning contrast patch
-
-The Market Data provenance banner and ten related reference notices now share explicit application-theme colors and opaque warning surfaces. The Market Data coverage badge and inline provider/observation limitations use readable theme colors too. Warning copy, data and provenance behavior are unchanged. Existing enterprise and competitive notices were also reviewed without code changes.
-
-Browser regression coverage measures rendered text contrast in light and dark app themes against the opposite operating-system preference, at phone and desktop widths, and retains the reference-content opt-in. The old Market Data banner measured 1.15:1 in light mode; the patched banners measure 8.75:1 in light and 13.45:1 in dark. This validates the targeted warning styles, not a full-site accessibility certification.
+Commit and push to the existing repository are authorized. Parent reviews the exact source/build and handles publication to the same existing Site. No independent deployment, replacement Site/task, credential creation, paid provider, sharing change or Bolt update is authorized by this release preparation. Historical private comparison notes remain locally ignored and are excluded from public source/artifacts.

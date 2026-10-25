@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Download, Trash2, Plus, Edit, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, Download, Trash2, Plus, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseClient';
 
@@ -7,7 +7,7 @@ interface ScheduledExport {
   id: string;
   name: string;
   export_type: string;
-  config: any;
+  config: Record<string, unknown>;
   schedule_cron: string;
   is_active: boolean;
   last_run: string | null;
@@ -25,23 +25,45 @@ const ExportScheduler: React.FC = () => {
     config: {}
   });
 
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const userId = user?.id;
+
   useEffect(() => {
-    if (user) {
-      fetchScheduledExports();
+    let active = true;
+    setExports([]);
+    setError(null);
+    if (!userId) {
+      setLoading(false);
+      return;
     }
-  }, [user]);
 
-  const fetchScheduledExports = async () => {
-    if (!user) return;
+    const fetchScheduledExports = async () => {
+      setLoading(true);
+      try {
+        const { data, error: queryError } = await supabase
+          .from('scheduled_exports')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .returns<ScheduledExport[]>();
 
-    const { data } = await supabase
-      .from('scheduled_exports')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+        if (queryError) throw queryError;
+        if (active) setExports(data ?? []);
+      } catch (cause) {
+        if (active) {
+          console.error('Error loading scheduled exports:', cause);
+          setError('Scheduled exports are unavailable. Please try again.');
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
 
-    if (data) setExports(data);
-  };
+    void fetchScheduledExports();
+    return () => { active = false; };
+  }, [userId, refreshVersion]);
 
   const scheduleMap: Record<string, string> = {
     daily: '0 9 * * *',
@@ -51,37 +73,58 @@ const ExportScheduler: React.FC = () => {
   };
 
   const handleCreate = async () => {
-    if (!user || !newExport.name) return;
+    if (!userId || !newExport.name.trim()) return;
 
-    await supabase.from('scheduled_exports').insert({
-      user_id: user.id,
-      name: newExport.name,
-      export_type: newExport.export_type,
-      schedule_cron: scheduleMap[newExport.schedule],
-      config: newExport.config,
-      is_active: true
-    });
+    setError(null);
+    try {
+      const { error: insertError } = await supabase.from('scheduled_exports').insert({
+        user_id: userId,
+        name: newExport.name,
+        export_type: newExport.export_type,
+        schedule_cron: scheduleMap[newExport.schedule],
+        config: newExport.config,
+        is_active: true
+      });
+      if (insertError) throw insertError;
 
-    setIsCreating(false);
-    setNewExport({ name: '', export_type: 'pdf', schedule: 'daily', config: {} });
-    fetchScheduledExports();
+      setIsCreating(false);
+      setNewExport({ name: '', export_type: 'pdf', schedule: 'daily', config: {} });
+      setRefreshVersion(version => version + 1);
+    } catch (cause) {
+      console.error('Error creating export schedule:', cause);
+      setError('The export schedule could not be created. Please try again.');
+    }
   };
 
   const handleToggle = async (id: string, isActive: boolean) => {
-    await supabase
-      .from('scheduled_exports')
-      .update({ is_active: !isActive })
-      .eq('id', id);
-    fetchScheduledExports();
+    setError(null);
+    try {
+      const { error: updateError } = await supabase
+        .from('scheduled_exports')
+        .update({ is_active: !isActive })
+        .eq('id', id);
+      if (updateError) throw updateError;
+      setRefreshVersion(version => version + 1);
+    } catch (cause) {
+      console.error('Error updating export schedule:', cause);
+      setError('The export schedule could not be updated. Please try again.');
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('scheduled_exports').delete().eq('id', id);
-    fetchScheduledExports();
+    setError(null);
+    try {
+      const { error: deleteError } = await supabase.from('scheduled_exports').delete().eq('id', id);
+      if (deleteError) throw deleteError;
+      setRefreshVersion(version => version + 1);
+    } catch (cause) {
+      console.error('Error deleting export schedule:', cause);
+      setError('The export schedule could not be deleted. Please try again.');
+    }
   };
 
   const getScheduleLabel = (cron: string) => {
-    const reverseMap = Object.entries(scheduleMap).find(([_, v]) => v === cron);
+    const reverseMap = Object.entries(scheduleMap).find(([, value]) => value === cron);
     return reverseMap ? reverseMap[0] : 'custom';
   };
 
@@ -104,7 +147,10 @@ const ExportScheduler: React.FC = () => {
           </button>
         </div>
 
-        {exports.length === 0 ? (
+        {error && <p role="alert" className="mb-4 text-sm text-red-300">{error}</p>}
+        {loading ? (
+          <p className="py-6 text-slate-400">Loading scheduled exports…</p>
+        ) : exports.length === 0 && !error ? (
           <div className="text-center py-12 text-slate-400">
             <Calendar className="h-16 w-16 mx-auto mb-4 opacity-30" />
             <p className="text-lg font-medium mb-2">No scheduled exports</p>

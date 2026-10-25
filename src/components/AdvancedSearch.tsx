@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, X, Save, Star } from 'lucide-react';
+import { Search, Filter, X, Save } from 'lucide-react';
 
 interface SearchFilters {
   countries: string[];

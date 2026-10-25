@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Scale, FileText, TrendingUp, Phone } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   regulatoryComplianceService,
@@ -11,6 +10,7 @@ import {
 export default function RegulatoryCompliance() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'requirements' | 'incentives' | 'policy-changes'>('requirements');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [requirements, setRequirements] = useState<RegulatoryRequirement[]>([]);
@@ -20,41 +20,55 @@ export default function RegulatoryCompliance() {
   const countries = ['Thailand', 'Singapore', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam'];
 
   useEffect(() => {
-    if (selectedCountry) {
-      loadData();
-    }
-  }, [selectedCountry, activeTab]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const filters = { country: selectedCountry, limit: 20 };
-
-      switch (activeTab) {
-        case 'requirements':
-          const reqData = await regulatoryComplianceService.getRegulatoryRequirements(filters);
-          setRequirements(reqData);
-          break;
-        case 'incentives':
-          const incentiveData = await regulatoryComplianceService.getTaxIncentives(filters);
-          setIncentives(incentiveData);
-          break;
-        case 'policy-changes':
-          const policyData = await regulatoryComplianceService.getPolicyChanges(filters);
-          setPolicyChanges(policyData);
-          break;
-      }
-    } catch (error) {
-      console.error('Error loading regulatory compliance data:', error);
-    } finally {
+    let active = true;
+    setLoadError(null);
+    setRequirements([]);
+    setIncentives([]);
+    setPolicyChanges([]);
+    if (!selectedCountry) {
       setLoading(false);
+      return;
     }
-  };
+    setLoading(true);
+    const loadData = async () => {
+      try {
+        const filters = { country: selectedCountry, limit: 20 };
+        switch (activeTab) {
+          case 'requirements': {
+            const reqData = await regulatoryComplianceService.getRegulatoryRequirements(filters);
+            if (active) setRequirements(reqData);
+            break;
+          }
+          case 'incentives': {
+            const incentiveData = await regulatoryComplianceService.getTaxIncentives(filters);
+            if (active) setIncentives(incentiveData);
+            break;
+          }
+          case 'policy-changes': {
+            const policyData = await regulatoryComplianceService.getPolicyChanges(filters);
+            if (active) setPolicyChanges(policyData);
+            break;
+          }
+        }
+      } catch {
+        if (active) setLoadError('Connected regulatory compliance records are unavailable.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadData();
+    return () => { active = false; };
+  }, [selectedCountry, activeTab]);
 
   return (
     <div className="space-y-6">
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className="text-2xl font-bold mb-4">Regulatory Compliance</h2>
+
+        <div role="note" className="mb-6 rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-900/20 dark:text-amber-200">
+          <p className="font-semibold">Unverified connected reference records</p>
+          <p>Connected regulatory records are unverified and may include seeded reference content or database defaults. Observation dates and source attribution have not been verified; effective dates are record claims. Excluded from the entry planner. Confirm current requirements with the relevant authority before use.</p>
+        </div>
 
         <div className="mb-6">
           <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -118,7 +132,7 @@ export default function RegulatoryCompliance() {
               <div className="space-y-4">
                 {requirements.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view regulatory requirements.
+                    {loadError ?? (selectedCountry ? 'No regulatory requirements available for this country.' : 'Select a country to view regulatory requirements.')}
                   </p>
                 ) : (
                   requirements.map((req) => (
@@ -150,7 +164,7 @@ export default function RegulatoryCompliance() {
               <div className="space-y-4">
                 {incentives.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view tax incentives.
+                    {loadError ?? (selectedCountry ? 'No tax incentives available for this country.' : 'Select a country to view tax incentives.')}
                   </p>
                 ) : (
                   incentives.map((incentive) => (
@@ -187,7 +201,7 @@ export default function RegulatoryCompliance() {
               <div className="space-y-4">
                 {policyChanges.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view policy changes.
+                    {loadError ?? (selectedCountry ? 'No policy changes available for this country.' : 'Select a country to view policy changes.')}
                   </p>
                 ) : (
                   policyChanges.map((change) => (

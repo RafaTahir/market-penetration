@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient';
 
+// JSONB fields may contain nested records, lists, or null.
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export interface RegulatoryRequirement {
   id: string;
   country: string;
@@ -10,13 +13,13 @@ export interface RegulatoryRequirement {
   issuing_authority: string;
   mandatory: boolean;
   application_process: string;
-  required_documents: any;
+  required_documents: JsonValue;
   processing_time_days: number;
   validity_period_months: number;
   renewal_required: boolean;
   cost_local_currency: number;
   cost_usd: number;
-  prerequisites: any;
+  prerequisites: JsonValue;
   penalties_for_non_compliance: string;
   exemptions: string;
   official_website: string;
@@ -44,7 +47,7 @@ export interface TaxIncentive {
   application_process: string;
   approval_authority: string;
   success_rate: number;
-  examples: any;
+  examples: JsonValue;
   official_website: string;
   last_updated: string;
   created_at: string;
@@ -58,14 +61,14 @@ export interface ComplianceTimeline {
   process_type: string;
   description: string;
   total_duration_days: number;
-  steps: any;
+  steps: JsonValue;
   parallel_possible: boolean;
   fast_track_available: boolean;
   fast_track_cost_usd: number;
   fast_track_duration_days: number;
   dependencies: string[];
-  common_delays: any;
-  tips_for_speed: any;
+  common_delays: JsonValue;
+  tips_for_speed: JsonValue;
   last_updated: string;
   created_at: string;
 }
@@ -82,13 +85,13 @@ export interface PolicyChange {
   effective_date: string;
   announcement_date: string;
   transition_period_days: number;
-  compliance_actions_required: any;
+  compliance_actions_required: JsonValue;
   penalties: string;
   opportunities: string;
   official_reference: string;
   official_document_url: string;
   analysis: string;
-  data_sources: any;
+  data_sources: JsonValue;
   created_at: string;
 }
 
@@ -106,7 +109,7 @@ export interface GovernmentContact {
   website: string;
   online_portal: string;
   business_hours: string;
-  key_officials: any;
+  key_officials: JsonValue;
   application_submission_methods: string[];
   average_response_time_days: number;
   notes: string;

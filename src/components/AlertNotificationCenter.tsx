@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, X, Check, Archive, AlertCircle, Info, TrendingDown, Users } from 'lucide-react';
+import { Bell, X, Check, AlertCircle, Info } from 'lucide-react';
 import alertService, { AlertTriggered } from '../services/alertService';
 import { SkeletonLoader } from './SkeletonLoader';
 

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { supabase } from './supabaseClient';
 
 export interface OECDIndicator {
   country: string;
@@ -11,388 +10,170 @@ export interface OECDIndicator {
   unit: string;
   source: string;
   lastUpdated: string;
+  observationPeriod?: string;
+  retrievedAt?: string;
+  sourceStatus?: 'reported';
 }
+
+interface SDMXValue { id: string; name?: string; }
+interface SDMXDimension { id: string; values?: SDMXValue[]; }
+interface SDMXStructure {
+  dimensions?: { series?: SDMXDimension[]; observation?: SDMXDimension[] };
+  attributes?: { dataSet?: SDMXDimension[]; series?: SDMXDimension[]; observation?: SDMXDimension[] };
+}
+interface SDMXSeries {
+  observations?: Record<string, unknown[]>;
+  attributes?: unknown[];
+}
+interface SDMXDataSet { series?: Record<string, SDMXSeries>; attributes?: unknown[]; }
+interface SDMXBody {
+  structure?: SDMXStructure;
+  structures?: SDMXStructure[];
+  dataSets?: SDMXDataSet[];
+}
+interface SDMXResponse extends SDMXBody { data?: SDMXBody; }
+type OECDAggregateIndicator = Pick<OECDIndicator,
+  'value' | 'year' | 'unit' | 'observationPeriod' | 'retrievedAt' | 'sourceStatus'>;
+type OECDField = 'gdp' | 'fdi_inflow' | 'trade_balance' | 'labour_productivity';
+type OECDAggregateData = {
+  country: string;
+  countryCode: string;
+  source: string;
+  sourceStatus: 'reported';
+  lastUpdated: string;
+} & Partial<Record<OECDField, OECDAggregateIndicator>>;
 
 export class OECDService {
   private static instance: OECDService;
   private readonly BASE_URL = 'https://sdmx.oecd.org/public/rest/data';
-
   private readonly COUNTRY_CODES = {
-    indonesia: 'IDN',
-    thailand: 'THA',
-    singapore: 'SGP',
-    malaysia: 'MYS',
-    philippines: 'PHL',
-    vietnam: 'VNM'
-  };
-
-  private readonly INDICATORS = {
-    GDP: 'GDP',
-    CPI: 'CPI',
-    UNEMP: 'UNEMP',
-    FDI: 'FDI_FLOW',
-    TRADE: 'TRADE_BALANCE',
-    PRODUCTIVITY: 'PRODUCTIVITY'
+    indonesia: 'IDN', thailand: 'THA', singapore: 'SGP',
+    malaysia: 'MYS', philippines: 'PHL', vietnam: 'VNM'
   };
 
   public static getInstance(): OECDService {
-    if (!OECDService.instance) {
-      OECDService.instance = new OECDService();
-    }
+    if (!OECDService.instance) OECDService.instance = new OECDService();
     return OECDService.instance;
   }
 
   async getGDPData(countries: string[] = []): Promise<OECDIndicator[]> {
-    try {
-      const targetCountries = this.getTargetCountries(countries);
-      const indicators: OECDIndicator[] = [];
-
-      for (const countryCode of targetCountries) {
-        const cachedData = await this.getCachedIndicator(countryCode, 'GDP');
-
-        if (cachedData && this.isDataFresh(cachedData.timestamp, 'daily')) {
-          indicators.push(...cachedData.data);
-          continue;
-        }
-
-        try {
-          const response = await axios.get(
-            `${this.BASE_URL}/OECD.SDD.NAD,DSD_NAMAIN1@DF_TABLE1,/A.${countryCode}.B1GQ.V.....`,
-            {
-              headers: { Accept: 'application/json' },
-              timeout: 15000
+    const targetCountries = this.getTargetCountries(countries);
+    const indicators: OECDIndicator[] = [];
+    for (const countryCode of new Set(targetCountries)) {
+      try {
+        const response = await axios.get<SDMXResponse>(
+          `${this.BASE_URL}/OECD.SDD.NAD,DSD_NAMAIN1@DF_TABLE1,/A.${countryCode}.B1GQ.V.....`,
+          { headers: { Accept: 'application/json' }, timeout: 15000 }
+        );
+        const body = response.data?.data || response.data;
+        const structure = body?.structure || body?.structures?.[0] || response.data?.structure;
+        if (!structure || !Array.isArray(body?.dataSets)) continue;
+        const retrievedAt = new Date().toISOString();
+        for (const dataSet of body.dataSets) {
+          for (const [seriesKey, series] of Object.entries(dataSet.series || {})) {
+            for (const [timeKey, values] of Object.entries(series.observations || {})) {
+              const metadata = (ids: string[]) => this.getMetadata(structure, dataSet, seriesKey, series, timeKey, values, ids);
+              const time = metadata(['TIME_PERIOD']);
+              const reportedCountry = metadata(['REF_AREA', 'LOCATION', 'COUNTRY']);
+              const measure = metadata(['UNIT_MEASURE', 'UNIT']);
+              const multiplier = metadata(['UNIT_MULT']);
+              const period = time?.id;
+              // A raw SDMX value cannot be called USD unless its supplied unit
+              // actually says so. Missing units or periods remain unavailable.
+              if (!/^\d{4}$/.test(period || '') || !measure ||
+                (reportedCountry && reportedCountry.id !== countryCode) ||
+                typeof values?.[0] !== 'number' || !Number.isFinite(values[0])) continue;
+              const unitName = measure.name || measure.id;
+              if (!unitName) continue;
+              const unit = multiplier && multiplier.id !== '0'
+                ? `${unitName} (10^${multiplier.id})` : unitName;
+              indicators.push({
+                country: this.getCountryName(countryCode), countryCode,
+                indicator: 'GDP', indicatorCode: 'B1GQ', value: values[0], year: Number(period), unit,
+                source: 'OECD', lastUpdated: '', observationPeriod: period,
+                retrievedAt, sourceStatus: 'reported'
+              });
             }
-          );
-
-          if (response.data?.data?.dataSets?.[0]?.series) {
-            const series = Object.values(response.data.data.dataSets[0].series)[0] as any;
-            const observations = series?.observations || {};
-
-            Object.entries(observations).forEach(([timeKey, value]: [string, any]) => {
-              const year = this.extractYear(response.data.data.structure.dimensions.observation, timeKey);
-              if (year && value?.[0]) {
-                indicators.push({
-                  country: this.getCountryName(countryCode),
-                  countryCode,
-                  indicator: 'GDP',
-                  indicatorCode: 'B1GQ',
-                  value: value[0],
-                  year,
-                  unit: 'Million USD',
-                  source: 'OECD',
-                  lastUpdated: new Date().toISOString()
-                });
-              }
-            });
           }
-
-          if (indicators.length > 0) {
-            await this.cacheIndicatorData(countryCode, 'GDP', indicators);
-          }
-        } catch (error) {
-          console.error(`Error fetching OECD GDP for ${countryCode}:`, error);
         }
+      } catch (error) {
+        console.error(`Error fetching OECD GDP for ${countryCode}:`, error);
       }
-
-      return indicators;
-    } catch (error) {
-      console.error('Error in getGDPData:', error);
-      return [];
     }
+    return indicators;
   }
 
-  async getFDIData(countries: string[] = []): Promise<OECDIndicator[]> {
-    try {
-      const targetCountries = this.getTargetCountries(countries);
-      const indicators: OECDIndicator[] = [];
+  // These endpoints have no implemented source parser. Previously returned
+  // constants were never retrieved from OECD and cannot serve as provider data.
+  async getFDIData(countries: string[] = []): Promise<OECDIndicator[]> { void countries; return []; }
+  async getTradeBalance(countries: string[] = []): Promise<OECDIndicator[]> { void countries; return []; }
+  async getProductivityData(countries: string[] = []): Promise<OECDIndicator[]> { void countries; return []; }
 
-      for (const countryCode of targetCountries) {
-        const cachedData = await this.getCachedIndicator(countryCode, 'FDI');
-
-        if (cachedData && this.isDataFresh(cachedData.timestamp, 'weekly')) {
-          indicators.push(...cachedData.data);
-          continue;
-        }
-
-        indicators.push({
-          country: this.getCountryName(countryCode),
-          countryCode,
-          indicator: 'FDI Inflow',
-          indicatorCode: 'FDI_FLOW',
-          value: this.getFallbackFDI(countryCode),
-          year: 2023,
-          unit: 'Billion USD',
-          source: 'OECD Statistics',
-          lastUpdated: new Date().toISOString()
-        });
-      }
-
-      return indicators;
-    } catch (error) {
-      console.error('Error fetching FDI data:', error);
-      return [];
-    }
-  }
-
-  async getTradeBalance(countries: string[] = []): Promise<OECDIndicator[]> {
-    try {
-      const targetCountries = this.getTargetCountries(countries);
-      const indicators: OECDIndicator[] = [];
-
-      for (const countryCode of targetCountries) {
-        indicators.push({
-          country: this.getCountryName(countryCode),
-          countryCode,
-          indicator: 'Trade Balance',
-          indicatorCode: 'TRADE_BALANCE',
-          value: this.getFallbackTradeBalance(countryCode),
-          year: 2023,
-          unit: 'Billion USD',
-          source: 'OECD Trade Statistics',
-          lastUpdated: new Date().toISOString()
-        });
-      }
-
-      return indicators;
-    } catch (error) {
-      console.error('Error fetching trade balance:', error);
-      return [];
-    }
-  }
-
-  async getProductivityData(countries: string[] = []): Promise<OECDIndicator[]> {
-    try {
-      const targetCountries = this.getTargetCountries(countries);
-      const indicators: OECDIndicator[] = [];
-
-      for (const countryCode of targetCountries) {
-        indicators.push({
-          country: this.getCountryName(countryCode),
-          countryCode,
-          indicator: 'Labour Productivity',
-          indicatorCode: 'PRODUCTIVITY',
-          value: this.getFallbackProductivity(countryCode),
-          year: 2023,
-          unit: 'Index (2015=100)',
-          source: 'OECD Productivity Statistics',
-          lastUpdated: new Date().toISOString()
-        });
-      }
-
-      return indicators;
-    } catch (error) {
-      console.error('Error fetching productivity data:', error);
-      return [];
-    }
-  }
-
-  async getAllIndicators(countries: string[] = []): Promise<{ [country: string]: any }> {
-    try {
-      const [gdp, fdi, trade, productivity] = await Promise.all([
-        this.getGDPData(countries),
-        this.getFDIData(countries),
-        this.getTradeBalance(countries),
-        this.getProductivityData(countries)
-      ]);
-
-      const countryMap: { [country: string]: any } = {};
-
-      const processData = (data: OECDIndicator[]) => {
-        data.forEach(item => {
-          if (!countryMap[item.country]) {
-            countryMap[item.country] = {
-              country: item.country,
-              countryCode: item.countryCode,
-              source: 'OECD',
-              lastUpdated: item.lastUpdated
-            };
-          }
-
-          const key = item.indicator.toLowerCase().replace(/\s+/g, '_');
-          countryMap[item.country][key] = {
-            value: item.value,
-            year: item.year,
-            unit: item.unit
-          };
-        });
+  async getAllIndicators(countries: string[] = []): Promise<Record<string, OECDAggregateData>> {
+    const series = await Promise.all([
+      this.getGDPData(countries), this.getFDIData(countries),
+      this.getTradeBalance(countries), this.getProductivityData(countries)
+    ]);
+    const countryMap: Record<string, OECDAggregateData> = {};
+    for (const item of series.flat()) {
+      const country = countryMap[item.country] ||= {
+        country: item.country, countryCode: item.countryCode, source: 'OECD',
+        sourceStatus: 'reported', lastUpdated: ''
       };
-
-      processData(gdp);
-      processData(fdi);
-      processData(trade);
-      processData(productivity);
-
-      await this.storeInDatabase(gdp, fdi, trade, productivity);
-
-      return countryMap;
-    } catch (error) {
-      console.error('Error fetching all OECD indicators:', error);
-      return {};
-    }
-  }
-
-  private async storeInDatabase(
-    gdp: OECDIndicator[],
-    fdi: OECDIndicator[],
-    trade: OECDIndicator[],
-    productivity: OECDIndicator[]
-  ): Promise<void> {
-    try {
-      const allIndicators = [...gdp, ...fdi, ...trade, ...productivity];
-
-      const records = allIndicators.map(ind => ({
-        country: ind.country,
-        indicator_name: ind.indicator,
-        indicator_code: ind.indicatorCode,
-        value: ind.value,
-        year: ind.year,
-        quarter: null,
-        unit: ind.unit,
-        data_source: ind.source,
-        timestamp: ind.lastUpdated
-      }));
-
-      if (records.length > 0) {
-        const { error } = await supabase
-          .from('economic_indicators_extended')
-          .upsert(records, { onConflict: 'country,indicator_code,year' });
-
-        if (error) {
-          console.error('Error storing OECD data in database:', error);
-        }
-      }
-    } catch (error) {
-      console.error('Error in storeInDatabase:', error);
-    }
-  }
-
-  private async getCachedIndicator(countryCode: string, indicator: string): Promise<any> {
-    try {
-      const { data, error } = await supabase
-        .from('economic_indicators_extended')
-        .select('*')
-        .eq('country', this.getCountryName(countryCode))
-        .ilike('indicator_name', `%${indicator}%`)
-        .order('timestamp', { ascending: false })
-        .limit(10);
-
-      if (error || !data || data.length === 0) {
-        return null;
-      }
-
-      return {
-        data: data.map(d => ({
-          country: d.country,
-          countryCode,
-          indicator: d.indicator_name,
-          indicatorCode: d.indicator_code,
-          value: d.value,
-          year: d.year,
-          unit: d.unit,
-          source: d.data_source,
-          lastUpdated: d.timestamp
-        })),
-        timestamp: data[0].timestamp
+      const fieldNames: Record<string, OECDField> = {
+        'GDP': 'gdp', 'FDI Inflow': 'fdi_inflow',
+        'Trade Balance': 'trade_balance', 'Labour Productivity': 'labour_productivity'
       };
-    } catch (error) {
-      console.error('Error fetching cached indicator:', error);
-      return null;
+      const key = fieldNames[item.indicator];
+      if (!key) continue;
+      if (country[key] && country[key].year >= item.year) continue;
+      country[key] = {
+        value: item.value, year: item.year, unit: item.unit,
+        observationPeriod: item.observationPeriod, retrievedAt: item.retrievedAt,
+        sourceStatus: item.sourceStatus
+      };
     }
+    return countryMap;
   }
 
-  private async cacheIndicatorData(countryCode: string, indicator: string, data: OECDIndicator[]): Promise<void> {
-    await this.storeInDatabase(
-      indicator === 'GDP' ? data : [],
-      indicator === 'FDI' ? data : [],
-      indicator === 'TRADE' ? data : [],
-      indicator === 'PRODUCTIVITY' ? data : []
-    );
-  }
-
-  private isDataFresh(timestamp: string, frequency: 'hourly' | 'daily' | 'weekly'): boolean {
-    const now = new Date();
-    const lastUpdate = new Date(timestamp);
-    const diffMs = now.getTime() - lastUpdate.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-
-    switch (frequency) {
-      case 'hourly':
-        return diffHours < 1;
-      case 'daily':
-        return diffHours < 24;
-      case 'weekly':
-        return diffHours < 168;
-      default:
-        return false;
+  private getMetadata(
+    structure: SDMXStructure, dataSet: SDMXDataSet, seriesKey: string, series: SDMXSeries,
+    timeKey: string, observation: unknown[], ids: string[]
+  ): SDMXValue | undefined {
+    const dimensionGroups: Array<[SDMXDimension[] | undefined, string[]]> = [
+      [structure.dimensions?.series, seriesKey.split(':')],
+      [structure.dimensions?.observation, timeKey.split(':')]
+    ];
+    for (const [dimensions, keys] of dimensionGroups) {
+      if (!Array.isArray(dimensions)) continue;
+      const index = dimensions.findIndex(dimension => ids.includes(dimension.id));
+      if (index >= 0) return dimensions[index].values?.[Number(keys[index])];
     }
-  }
-
-  private extractYear(dimensions: any, timeKey: string): number | null {
-    try {
-      const timeDimension = dimensions?.find((d: any) => d.id === 'TIME_PERIOD');
-      if (timeDimension?.values?.[parseInt(timeKey)]) {
-        return parseInt(timeDimension.values[parseInt(timeKey)].id);
+    const attributeGroups: Array<[SDMXDimension[] | undefined, unknown[] | undefined]> = [
+      [structure.attributes?.dataSet, dataSet.attributes],
+      [structure.attributes?.series, series.attributes],
+      [structure.attributes?.observation, observation?.slice(1)]
+    ];
+    for (const [attributes, values] of attributeGroups) {
+      if (!Array.isArray(attributes) || !Array.isArray(values)) continue;
+      const index = attributes.findIndex(attribute => ids.includes(attribute.id));
+      const valueIndex = values[index];
+      if (index >= 0 && typeof valueIndex === 'number' && Number.isInteger(valueIndex) && valueIndex >= 0) {
+        return attributes[index].values?.[valueIndex];
       }
-      return null;
-    } catch {
-      return null;
     }
+    return undefined;
   }
 
   private getTargetCountries(countries: string[]): string[] {
-    if (countries.length > 0) {
-      return countries
-        .map(c => this.COUNTRY_CODES[c.toLowerCase() as keyof typeof this.COUNTRY_CODES])
-        .filter(Boolean);
-    }
-    return Object.values(this.COUNTRY_CODES);
+    return countries.length > 0
+      ? countries.map(country => Object.entries(this.COUNTRY_CODES).find(([name]) => name === country.trim().toLowerCase())?.[1]).filter((code): code is string => typeof code === 'string')
+      : Object.values(this.COUNTRY_CODES);
   }
 
   private getCountryName(code: string): string {
-    const names: { [key: string]: string } = {
-      'IDN': 'Indonesia',
-      'THA': 'Thailand',
-      'SGP': 'Singapore',
-      'MYS': 'Malaysia',
-      'PHL': 'Philippines',
-      'VNM': 'Vietnam'
-    };
-    return names[code] || code;
-  }
-
-  private getFallbackFDI(countryCode: string): number {
-    const fdiData: { [key: string]: number } = {
-      'IDN': 21.4,
-      'THA': 15.8,
-      'SGP': 141.2,
-      'MYS': 9.7,
-      'PHL': 10.5,
-      'VNM': 18.9
-    };
-    return fdiData[countryCode] || 10;
-  }
-
-  private getFallbackTradeBalance(countryCode: string): number {
-    const tradeData: { [key: string]: number } = {
-      'IDN': 54.4,
-      'THA': 18.2,
-      'SGP': 95.7,
-      'MYS': 46.3,
-      'PHL': -42.8,
-      'VNM': 11.2
-    };
-    return tradeData[countryCode] || 0;
-  }
-
-  private getFallbackProductivity(countryCode: string): number {
-    const prodData: { [key: string]: number } = {
-      'IDN': 112.4,
-      'THA': 108.7,
-      'SGP': 125.3,
-      'MYS': 115.8,
-      'PHL': 109.2,
-      'VNM': 118.5
-    };
-    return prodData[countryCode] || 100;
+    return Object.keys(this.COUNTRY_CODES).find(country =>
+      this.COUNTRY_CODES[country as keyof typeof this.COUNTRY_CODES] === code
+    )?.replace(/^./, letter => letter.toUpperCase()) || code;
   }
 }

@@ -1,167 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Globe, Activity, Clock, Loader2 } from 'lucide-react';
-import { MarketData, EconomicIndicator, CurrencyRate } from '../services/marketDataService';
-import { UnifiedDataService } from '../services/unifiedDataService';
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, Globe, Activity, Clock } from 'lucide-react';
+import { MarketData, CurrencyRate } from '../services/marketDataService';
+import { UnifiedDataService, UnifiedEconomicData, EconomicMetric } from '../services/unifiedDataService';
 import { MarketHoursService, MarketStatus } from '../services/marketHoursService';
-import { BrowserCacheService } from '../services/browserCacheService';
 import MarketClock from './MarketClock';
 
 const LiveMarketData: React.FC = () => {
   const [marketData, setMarketData] = useState<MarketData[]>([]);
-  const [economicData, setEconomicData] = useState<EconomicIndicator[]>([]);
+  const [economicData, setEconomicData] = useState<UnifiedEconomicData[]>([]);
   const [currencyData, setCurrencyData] = useState<CurrencyRate[]>([]);
   const [loading, setLoading] = useState({ market: true, economic: true, currency: true });
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [dataAge, setDataAge] = useState<number>(0);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [marketStatuses, setMarketStatuses] = useState<MarketStatus[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const unifiedService = UnifiedDataService.getInstance();
   const marketHoursService = MarketHoursService.getInstance();
-  const browserCache = BrowserCacheService.getInstance();
 
   useEffect(() => {
-    loadCachedDataFirst();
-    fetchMarketData();
+    let cancelled = false;
+    let refreshing = false;
+    const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
+    const updateMarketStatuses = () => setMarketStatuses(marketHoursService.getAllMarketStatuses());
+    const fetchMarketData = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      await Promise.allSettled([
+        unifiedService.getMarketData(symbols).then(stocks => {
+          if (!cancelled) {
+            setMarketData(stocks);
+            setLoading(previous => ({ ...previous, market: false }));
+          }
+        }).catch(() => {
+          if (!cancelled) setLoading(previous => ({ ...previous, market: false }));
+        }),
+        unifiedService.getUnifiedEconomicData().then(economic => {
+          if (!cancelled) {
+            setEconomicData(economic);
+            setLoading(previous => ({ ...previous, economic: false }));
+          }
+        }).catch(() => {
+          if (!cancelled) setLoading(previous => ({ ...previous, economic: false }));
+        }),
+        unifiedService.getCurrencyRates().then(currency => {
+          if (!cancelled) {
+            setCurrencyData(currency);
+            setLoading(previous => ({ ...previous, currency: false }));
+          }
+        }).catch(() => {
+          if (!cancelled) setLoading(previous => ({ ...previous, currency: false }));
+        })
+      ]);
+      if (!cancelled) setLastChecked(new Date());
+      refreshing = false;
+    };
+
+    void fetchMarketData();
     updateMarketStatuses();
-
-    const stopRealTimeUpdates = unifiedService.startRealTimeUpdates();
-
-    const ageInterval = setInterval(() => {
-      setDataAge(Date.now() - lastUpdated.getTime());
-    }, 1000);
-
-    const statusInterval = setInterval(() => {
-      updateMarketStatuses();
-    }, 60000);
-
-    const refreshInterval = setInterval(() => {
-      fetchMarketData();
-    }, 300000);
-
+    const statusInterval = setInterval(updateMarketStatuses, 60000);
+    const refreshInterval = setInterval(() => void fetchMarketData(), 300000);
     return () => {
-      stopRealTimeUpdates();
-      clearInterval(ageInterval);
+      cancelled = true;
       clearInterval(statusInterval);
       clearInterval(refreshInterval);
     };
-  }, []);
+  }, [unifiedService, marketHoursService]);
 
-  const updateMarketStatuses = () => {
-    const statuses = marketHoursService.getAllMarketStatuses();
-    setMarketStatuses(statuses);
+  const formatObservationDate = (value?: string) => {
+    const timestamp = Date.parse(value || '');
+    return Number.isFinite(timestamp) ? new Date(timestamp).toLocaleDateString() : 'Date unavailable';
   };
 
-  const loadCachedDataFirst = () => {
-    const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
-    const marketKey = `market_${symbols.sort().join('_')}`;
-    const economicKey = 'economic_';
-    const currencyKey = 'currency_rates';
-
-    const cachedMarket = browserCache.getStale<MarketData[]>(marketKey);
-    if (cachedMarket) {
-      setMarketData(cachedMarket.data);
-      setLoading(prev => ({ ...prev, market: false }));
-    }
-
-    const cachedEconomic = browserCache.getStale<any[]>(economicKey);
-    if (cachedEconomic) {
-      setEconomicData(cachedEconomic.data.map(e => ({
-        country: e.country,
-        gdp: e.gdp,
-        inflation: e.inflation,
-        unemployment: e.unemployment,
-        interestRate: e.interestRate,
-        exchangeRate: e.exchangeRate,
-        lastUpdated: e.lastUpdated
-      })));
-      setLoading(prev => ({ ...prev, economic: false }));
-    }
-
-    const cachedCurrency = browserCache.getStale<CurrencyRate[]>(currencyKey);
-    if (cachedCurrency) {
-      setCurrencyData(cachedCurrency.data);
-      setLoading(prev => ({ ...prev, currency: false }));
-    }
-  };
-
-  const fetchMarketData = async () => {
-    if (isRefreshing) return;
-
-    setIsRefreshing(true);
-    try {
-      const symbols = ['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM'];
-
-      await Promise.allSettled([
-        unifiedService.getMarketData(symbols)
-          .then(stocks => {
-            setMarketData(stocks);
-            setLoading(prev => ({ ...prev, market: false }));
-          })
-          .catch(err => {
-            console.error('Error fetching market data:', err);
-            setLoading(prev => ({ ...prev, market: false }));
-          }),
-        unifiedService.getUnifiedEconomicData()
-          .then(economic => {
-            setEconomicData(economic.map(e => ({
-              country: e.country,
-              gdp: e.gdp,
-              inflation: e.inflation,
-              unemployment: e.unemployment,
-              interestRate: e.interestRate,
-              exchangeRate: e.exchangeRate,
-              lastUpdated: e.lastUpdated
-            })));
-            setLoading(prev => ({ ...prev, economic: false }));
-          })
-          .catch(err => {
-            console.error('Error fetching economic data:', err);
-            setLoading(prev => ({ ...prev, economic: false }));
-          }),
-        unifiedService.getCurrencyRates()
-          .then(currency => {
-            setCurrencyData(currency);
-            setLoading(prev => ({ ...prev, currency: false }));
-          })
-          .catch(err => {
-            console.error('Error fetching currency data:', err);
-            setLoading(prev => ({ ...prev, currency: false }));
-          })
-      ]);
-
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('Error in fetchMarketData:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const formatNumber = (num: number, decimals: number = 2) => {
+  const formatNumber = (num: number | null, decimals: number = 2) => {
+    if (num === null || !Number.isFinite(num)) return 'Unavailable';
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals
     }).format(num);
   };
 
-  const formatCurrency = (num: number) => {
-    if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
-    if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
-    if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
-    return `$${num.toFixed(2)}`;
-  };
-
-  const getDataFreshnessStatus = () => {
-    const ageInMinutes = dataAge / 60000;
-
-    if (ageInMinutes < 5) {
-      return { label: 'Fresh', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20' };
-    } else if (ageInMinutes < 15) {
-      return { label: 'Recent', color: 'text-blue-400', bgColor: 'bg-blue-400/20' };
-    } else {
-      return { label: 'Stale', color: 'text-amber-400', bgColor: 'bg-amber-400/20' };
-    }
+  const knownChanges = marketData.filter(stock => stock.change !== null);
+  const knownPercentChanges = marketData.map(stock => stock.changePercent).filter((value): value is number => value !== null);
+  const economicCell = (row: UnifiedEconomicData, metric: EconomicMetric, decimals = 1, prefix = '', suffix = '', scale = 1) => {
+    const value = row[metric];
+    const evidence = row.metricEvidence?.[metric];
+    return <><span>{value === null ? 'Unavailable' : `${prefix}${formatNumber(value / scale, decimals)}${suffix}`}</span><small className="block text-xs text-slate-400 mt-1">{evidence?.observationPeriod ? `Period: ${evidence.observationPeriod}` : 'Observation period unavailable'}</small></>;
   };
 
   return (
@@ -169,17 +91,17 @@ const LiveMarketData: React.FC = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-900/20 rounded-lg text-blue-400">
                 <BarChart3 className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">Live Market Data</h1>
-                <p className="text-sm text-slate-400">Southeast Asian Financial Markets</p>
+                <h1 className="text-2xl font-bold text-white">Market & Economic Reference</h1>
+                <p className="text-sm text-slate-400">Southeast Asian financial markets · coverage varies by source</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center space-x-2">
                 <div className={`w-2 h-2 rounded-full ${
                   marketHoursService.isAnyMarketOpen() ? 'bg-green-400 animate-pulse' : 'bg-slate-400'
@@ -188,16 +110,15 @@ const LiveMarketData: React.FC = () => {
                   {marketHoursService.isAnyMarketOpen() ? 'Markets Open' : 'Markets Closed'}
                 </span>
               </div>
-              <div className="flex items-center space-x-3">
-                <div className={`px-2 py-1 rounded text-xs font-medium ${getDataFreshnessStatus().bgColor} ${getDataFreshnessStatus().color}`}>
-                  {getDataFreshnessStatus().label}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="px-2 py-1 rounded text-xs font-medium bg-amber-400/20 text-amber-400">
+                  Reference coverage
                 </div>
-                <div className="text-right">
-                  <div className="text-sm text-slate-400">Last Updated</div>
+                <div className="text-left sm:text-right">
+                  <div className="text-sm text-slate-400">Last checked on this device</div>
                   <div className="text-sm text-white flex items-center space-x-2">
                     <Clock className="h-3 w-3" />
-                    <span>{lastUpdated.toLocaleTimeString()}</span>
-                    {dataAge > 0 && <span className="text-xs text-slate-500">({Math.floor(dataAge / 1000)}s ago)</span>}
+                    <span>{lastChecked ? lastChecked.toLocaleTimeString() : 'Checking…'}</span>
                   </div>
                 </div>
               </div>
@@ -205,9 +126,14 @@ const LiveMarketData: React.FC = () => {
           </div>
         </div>
 
+        <div className="rounded-lg border border-amber-700/50 bg-amber-900/10 p-4 text-sm text-amber-100">
+          Quotes are stored observations when a connected source is available. Economic rows contain available provider-reported series or explicitly derived values; missing records are not filled with reference estimates. A successful check does not verify
+          freshness; observation dates and source limitations are shown below.
+        </div>
+
         {/* Market Status Clocks with Indices */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center space-x-2 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-6">
             <Clock className="h-5 w-5 text-blue-400" />
             <h2 className="text-lg font-semibold text-white">Trading Hours & Market Indices</h2>
             <div className="ml-auto flex items-center space-x-2">
@@ -247,6 +173,8 @@ const LiveMarketData: React.FC = () => {
         </div>
 
         {/* Market Performance Summary */}
+        <p className="text-xs text-slate-400">Trading schedules are indicative and may omit exchange holidays or special sessions. Confirm with the relevant exchange.</p>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
             <div className="flex items-center space-x-2 mb-2">
@@ -254,9 +182,9 @@ const LiveMarketData: React.FC = () => {
               <span className="text-sm font-medium text-emerald-400">Markets Up</span>
             </div>
             <div className="text-2xl font-bold text-white">
-              {marketData.filter(stock => stock.change > 0).length}
+              {knownChanges.length ? knownChanges.filter(stock => stock.change !== null && stock.change > 0).length : 'Unavailable'}
             </div>
-            <div className="text-xs text-slate-400">out of {marketData.length} indices</div>
+            <div className="text-xs text-slate-400">out of {knownChanges.length} quotes with a reported change</div>
           </div>
           
           <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-4">
@@ -265,9 +193,9 @@ const LiveMarketData: React.FC = () => {
               <span className="text-sm font-medium text-red-400">Markets Down</span>
             </div>
             <div className="text-2xl font-bold text-white">
-              {marketData.filter(stock => stock.change < 0).length}
+              {knownChanges.length ? knownChanges.filter(stock => stock.change !== null && stock.change < 0).length : 'Unavailable'}
             </div>
-            <div className="text-xs text-slate-400">out of {marketData.length} indices</div>
+            <div className="text-xs text-slate-400">out of {knownChanges.length} quotes with a reported change</div>
           </div>
           
           <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
@@ -276,9 +204,9 @@ const LiveMarketData: React.FC = () => {
               <span className="text-sm font-medium text-blue-400">Avg Change</span>
             </div>
             <div className="text-2xl font-bold text-white">
-              {marketData.length > 0 ? formatNumber(marketData.reduce((acc, stock) => acc + stock.changePercent, 0) / marketData.length, 2) : '0.00'}%
+              {knownPercentChanges.length > 0 ? `${formatNumber(knownPercentChanges.reduce((total, value) => total + value, 0) / knownPercentChanges.length, 2)}%` : 'Unavailable'}
             </div>
-            <div className="text-xs text-slate-400">across all markets</div>
+            <div className="text-xs text-slate-400">across available stored quotes</div>
           </div>
 
           <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
@@ -287,15 +215,15 @@ const LiveMarketData: React.FC = () => {
               <span className="text-sm font-medium text-purple-400">Total Volume</span>
             </div>
             <div className="text-2xl font-bold text-white">
-              {formatCurrency(marketData.reduce((acc, stock) => acc + stock.volume, 0))}
+              {marketData.length > 0 && marketData.every(stock => stock.volume !== null) ? formatNumber(marketData.reduce((acc, stock) => acc + (stock.volume ?? 0), 0), 0) : 'Unavailable'}
             </div>
-            <div className="text-xs text-slate-400">combined trading volume</div>
+            <div className="text-xs text-slate-400">reported volume where available</div>
           </div>
         </div>
 
         {/* Stock Market Indices */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center space-x-2 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-6">
             <TrendingUp className="h-5 w-5 text-emerald-400" />
             <h2 className="text-lg font-semibold text-white">Stock Market Indices</h2>
             <div className="ml-auto flex items-center space-x-2">
@@ -303,9 +231,9 @@ const LiveMarketData: React.FC = () => {
                 marketHoursService.isAnyMarketOpen() ? 'bg-green-400 animate-pulse' : 'bg-slate-400'
               }`}></div>
               <span className="text-xs text-slate-400">
-                {marketHoursService.isAnyMarketOpen() ? 'Live from Finnhub' : 'Using Cached Data'}
+                {marketData.length ? 'Stored quotes · provenance requires review' : 'Quotes unavailable'}
               </span>
-              <span className="text-xs text-slate-500">• Updates every 5 min</span>
+              <span className="text-xs text-slate-500">• Checks every 5 min</span>
             </div>
           </div>
           
@@ -327,6 +255,8 @@ const LiveMarketData: React.FC = () => {
                   </div>
                 </div>
               ))
+            ) : marketData.length === 0 ? (
+              <p className="col-span-full text-sm text-slate-400">No stored quotes are available. Legacy rows without source and observation metadata are withheld. Live quotes need a separately configured provider integration.</p>
             ) : (
               marketData.map((stock, index) => (
               <div key={index} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600/50 hover:border-slate-500/50 transition-all duration-200">
@@ -336,9 +266,9 @@ const LiveMarketData: React.FC = () => {
                     <div className="text-xs text-slate-400 truncate">{stock.name}</div>
                   </div>
                   <div className={`flex items-center space-x-1 ${
-                    stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    stock.change === null ? 'text-slate-400' : stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'
                   }`}>
-                    {stock.change >= 0 ? 
+                    {stock.change === null ? <span>—</span> : stock.change >= 0 ?
                       <TrendingUp className="h-3 w-3" /> : 
                       <TrendingDown className="h-3 w-3" />
                     }
@@ -350,13 +280,19 @@ const LiveMarketData: React.FC = () => {
                     {formatNumber(stock.price)}
                   </div>
                   <div className={`text-sm font-medium ${
-                    stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    stock.change === null ? 'text-slate-400' : stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'
                   }`}>
-                    {stock.change >= 0 ? '+' : ''}{formatNumber(stock.change)} 
-                    ({stock.change >= 0 ? '+' : ''}{formatNumber(stock.changePercent)}%)
+                    {stock.change !== null && stock.change >= 0 ? '+' : ''}{formatNumber(stock.change)}
+                    ({stock.change !== null && stock.change >= 0 ? '+' : ''}{formatNumber(stock.changePercent)}%)
                   </div>
                   <div className="text-xs text-slate-400">
-                    Vol: {formatNumber(stock.volume, 0)}
+                    Volume: {formatNumber(stock.volume, 0)}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    Record timestamp: {formatObservationDate(stock.storedAt)}
+                  </div>
+                  <div className="text-xs text-amber-200">
+                    Provider and observation date unverified
                   </div>
                 </div>
               </div>
@@ -367,12 +303,12 @@ const LiveMarketData: React.FC = () => {
 
         {/* Currency Exchange Rates */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center space-x-2 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-6">
             <DollarSign className="h-5 w-5 text-orange-400" />
             <h2 className="text-lg font-semibold text-white">Currency Exchange Rates</h2>
             <div className="ml-auto flex items-center space-x-2">
-              <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-              <span className="text-xs text-slate-400">Real-time Rates</span>
+              <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+              <span className="text-xs text-slate-400">Provider reference rates</span>
               <span className="text-xs text-slate-500">• exchangerate-api.com</span>
             </div>
           </div>
@@ -386,16 +322,22 @@ const LiveMarketData: React.FC = () => {
                   <div className="h-3 bg-slate-600 rounded w-12"></div>
                 </div>
               ))
+            ) : currencyData.length === 0 ? (
+              <p className="col-span-full text-sm text-slate-400">Currency rates are unavailable from the public provider. No estimated rate has been substituted.</p>
             ) : (
               currencyData.map((currency, index) => (
               <div key={index} className="bg-slate-700/50 rounded-lg p-3 border border-slate-600/50">
                 <div className="text-sm font-medium text-white mb-1">{currency.pair}</div>
                 <div className="text-lg font-bold text-white">{formatNumber(currency.rate, currency.pair.includes('IDR') || currency.pair.includes('VND') ? 0 : 4)}</div>
                 <div className={`text-xs font-medium ${
-                  currency.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  currency.change === null ? 'text-slate-400' : currency.change >= 0 ? 'text-emerald-400' : 'text-red-400'
                 }`}>
-                  {currency.change >= 0 ? '+' : ''}{formatNumber(currency.change, 3)} 
-                  ({currency.change >= 0 ? '+' : ''}{formatNumber(currency.changePercent, 2)}%)
+                  {currency.hasPreviousRate
+                    ? `${currency.change !== null && currency.change >= 0 ? '+' : ''}${formatNumber(currency.change, 3)} (${formatNumber(currency.changePercent, 2)}%) since prior check`
+                    : 'No prior rate for comparison'}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Provider date: {formatObservationDate(currency.lastUpdated)}
                 </div>
               </div>
               ))
@@ -405,15 +347,18 @@ const LiveMarketData: React.FC = () => {
 
         {/* Economic Indicators */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center space-x-2 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-6">
             <Globe className="h-5 w-5 text-purple-400" />
             <h2 className="text-lg font-semibold text-white">Economic Indicators</h2>
             <div className="ml-auto flex items-center space-x-2">
               <span className="text-xs text-slate-400">Source:</span>
-              <span className="text-xs text-slate-500">World Bank • IMF</span>
+              <span className="text-xs text-slate-500">Provider-reported series; missing fields unavailable</span>
             </div>
           </div>
           
+          <p className="text-sm text-amber-200 mb-4">
+            Periods shown are source-reported annual periods, not retrieval dates or proof of current conditions. Missing metrics remain unavailable; no macroeconomic constants are substituted.
+          </p>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -438,15 +383,20 @@ const LiveMarketData: React.FC = () => {
                       <td className="py-4 px-4"><div className="h-4 bg-slate-600 rounded w-16 ml-auto"></div></td>
                     </tr>
                   ))
+                ) : economicData.length === 0 ? (
+                  <tr><td colSpan={6} className="py-4 px-4 text-slate-400">Economic reference data is unavailable.</td></tr>
                 ) : (
                   economicData.map((country, index) => (
                     <tr key={index} className="hover:bg-slate-700/30 transition-colors">
-                      <td className="py-4 px-4 font-medium text-white">{country.country}</td>
-                      <td className="py-4 px-4 text-right text-slate-300">${formatNumber(country.gdp, 1)}</td>
-                      <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.inflation, 1)}%</td>
-                      <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.unemployment, 1)}%</td>
-                      <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.interestRate, 2)}%</td>
-                      <td className="py-4 px-4 text-right text-slate-300">{formatNumber(country.exchangeRate, country.exchangeRate > 1000 ? 0 : 4)}</td>
+                      <td className="py-4 px-4 font-medium text-white">
+                        {country.country}
+                        <div className="mt-1 max-w-sm text-xs font-normal text-slate-400">{country.source}</div>
+                      </td>
+                      <td className="py-4 px-4 text-right text-slate-300">{economicCell(country, 'gdp', 1, '$', '', 1e9)}</td>
+                      <td className="py-4 px-4 text-right text-slate-300">{economicCell(country, 'inflation', 1, '', '%')}</td>
+                      <td className="py-4 px-4 text-right text-slate-300">{economicCell(country, 'unemployment', 1, '', '%')}</td>
+                      <td className="py-4 px-4 text-right text-slate-300">{economicCell(country, 'interestRate', 2, '', '%')}</td>
+                      <td className="py-4 px-4 text-right text-slate-300">{economicCell(country, 'exchangeRate', country.exchangeRate !== null && country.exchangeRate > 1000 ? 0 : 4)}</td>
                     </tr>
                   ))
                 )}

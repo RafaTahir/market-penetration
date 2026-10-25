@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient';
 
+// JSONB fields may contain nested records, lists, or null.
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export interface LaborMarketData {
   id: string;
   country: string;
@@ -22,9 +25,9 @@ export interface LaborMarketData {
   average_tenure_years: number;
   union_penetration_rate: number;
   strike_frequency: string;
-  talent_retention_challenges: any;
-  competitive_advantages: any;
-  data_sources: any;
+  talent_retention_challenges: JsonValue;
+  competitive_advantages: JsonValue;
+  data_sources: JsonValue;
   created_at: string;
 }
 
@@ -39,7 +42,7 @@ export interface TalentPool {
   total_students: number;
   annual_graduates: number;
   specializations: string[];
-  key_programs: any;
+  key_programs: JsonValue;
   research_focus_areas: string[];
   industry_partnerships: string[];
   graduate_employability_rate: number;
@@ -143,7 +146,7 @@ export interface RecruitmentPartner {
   phone: string;
   website: string;
   linkedin_profile: string;
-  client_testimonials: any;
+  client_testimonials: JsonValue;
   rating: number;
   last_updated: string;
   created_at: string;

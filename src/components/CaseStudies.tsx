@@ -3,6 +3,7 @@ import { BookOpen, TrendingUp, TrendingDown, Target, AlertCircle, CheckCircle, E
 import { CaseStudyService, EnhancedCaseStudy } from '../services/caseStudyService';
 
 const formatCurrency = (amount: number): string => {
+  if (!Number.isFinite(amount)) return 'Unavailable';
   if (amount >= 1000000000) {
     return `$${(amount / 1000000000).toFixed(1)}B`;
   } else if (amount >= 1000000) {
@@ -12,6 +13,7 @@ const formatCurrency = (amount: number): string => {
 };
 
 const formatROI = (roi: number): string => {
+  if (!Number.isFinite(roi)) return 'Unavailable';
   if (roi >= 0) {
     return `+${roi}%`;
   }
@@ -34,11 +36,9 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
     const loadCaseStudies = async () => {
       setLoading(true);
       const caseStudyService = CaseStudyService.getInstance();
-      const studies = await caseStudyService.getCaseStudies();
+      const studies = await caseStudyService.getCaseStudies(undefined, { includeReferenceExamples: true });
       setCaseStudies(studies);
-      if (studies.length > 0 && !selectedCase) {
-        setSelectedCase(studies[0].companyName);
-      }
+      setSelectedCase(current => current ?? studies[0]?.companyName);
       setLoading(false);
     };
     loadCaseStudies();
@@ -57,7 +57,7 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
     return countryMatch && typeMatch && industryMatch;
   });
 
-  const selectedCaseData = caseStudies.find(c => c.companyName === selectedCase);
+  const selectedCaseData = filteredCases.find(c => c.companyName === selectedCase) ?? filteredCases[0];
   const industries = [...new Set(caseStudies.map(c => c.industry))];
 
   if (loading) {
@@ -70,6 +70,10 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
 
   return (
     <div className="space-y-6">
+      <div role="note" className="rounded-xl border border-amber-700/60 bg-amber-900/20 p-4 text-sm text-amber-100">
+        <p className="font-semibold">Unverified case-study references</p>
+        <p className="mt-1">{caseStudies.some(study => study.provenance === 'stored-record') ? 'This view contains stored database records, which may include seed material.' : 'This view contains bundled static fallback material.'} Company narratives, investment figures, ROI, and listed references have not been verified. Observation dates are unknown; listed reference dates do not establish when a claim was observed. These case studies are excluded from the entry planner.</p>
+      </div>
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex items-center space-x-2 mb-6">
           <BookOpen className="h-5 w-5 text-amber-400" />
@@ -81,7 +85,7 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
             <label className="block text-sm font-medium text-slate-300 mb-2">Outcome Type</label>
             <select
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as any)}
+              onChange={(e) => setSelectedType(e.target.value as typeof selectedType)}
               className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
             >
               <option value="all">All Cases</option>
@@ -119,6 +123,7 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
             <h3 className="text-sm font-medium text-slate-300 mb-4">Select Case Study</h3>
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {filteredCases.length === 0 && <p className="text-sm text-slate-400">No case studies match these filters.</p>}
               {filteredCases.map((caseStudy) => {
                 const getTypeColor = (type: string) => {
                   if (type === 'success') return { bg: 'bg-emerald-900/20', text: 'text-emerald-400' };
@@ -132,7 +137,7 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
                     key={caseStudy.companyName}
                     onClick={() => handleCaseSelect(caseStudy.companyName)}
                     className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
-                      selectedCase === caseStudy.companyName
+                      selectedCaseData?.companyName === caseStudy.companyName
                         ? 'border-amber-500 bg-amber-900/20 text-white'
                         : 'border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500'
                     }`}
@@ -268,14 +273,14 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
                 <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
                   <div className="flex items-center space-x-2 mb-4">
                     <ExternalLink className="h-4 w-4 text-slate-400" />
-                    <h4 className="text-sm font-medium text-white">Data Sources</h4>
+                    <h4 className="text-sm font-medium text-white">Listed references (unverified)</h4>
                   </div>
                   <div className="space-y-2">
                     {selectedCaseData.dataSources.map((source, index) => (
                       <div key={index} className="flex items-start justify-between p-2 bg-slate-700/30 rounded">
                         <div className="flex-1">
                           <div className="text-sm text-slate-300">{source.source}</div>
-                          <div className="text-xs text-slate-500">{source.date}</div>
+                          <div className="text-xs text-slate-500">Listed reference date: {source.date || 'Unknown'}; observation date unknown</div>
                         </div>
                         <a
                           href={source.url}

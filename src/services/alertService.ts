@@ -1,12 +1,21 @@
 import { supabase } from './supabaseClient';
 
+export type AlertJsonValue = string | number | boolean | null | AlertJsonObject | AlertJsonValue[];
+
+export interface AlertJsonObject {
+  [key: string]: AlertJsonValue;
+}
+
+// Rules and templates can store additional JSON conditions beyond the form's fields.
+export type AlertConditions = AlertJsonObject;
+
 export interface AlertRule {
   id: string;
   user_id: string;
   name: string;
   description: string;
   rule_type: 'price_threshold' | 'competitor_activity' | 'regulatory_change' | 'labor_market' | 'market_entry';
-  conditions: Record<string, any>;
+  conditions: AlertConditions;
   priority: 'critical' | 'high' | 'medium' | 'low';
   is_active: boolean;
   notification_channels: string[];
@@ -19,7 +28,7 @@ export interface AlertTriggered {
   id: string;
   rule_id: string;
   user_id: string;
-  alert_data: Record<string, any>;
+  alert_data: AlertJsonObject;
   message: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
   is_read: boolean;
@@ -34,7 +43,7 @@ export interface AlertTemplate {
   name: string;
   description: string;
   rule_type: 'price_threshold' | 'competitor_activity' | 'regulatory_change' | 'labor_market' | 'market_entry';
-  default_conditions: Record<string, any>;
+  default_conditions: AlertConditions;
   icon: string;
   color: string;
   category: string;
@@ -48,7 +57,7 @@ class AlertService {
     name: string,
     description: string,
     rule_type: AlertRule['rule_type'],
-    conditions: Record<string, any>,
+    conditions: AlertConditions,
     priority: AlertRule['priority'] = 'medium',
     notification_channels: string[] = ['in_app']
   ): Promise<AlertRule | null> {
@@ -142,7 +151,7 @@ class AlertService {
     user_id: string,
     message: string,
     priority: AlertTriggered['priority'],
-    alert_data: Record<string, any> = {}
+    alert_data: AlertJsonObject = {}
   ): Promise<AlertTriggered | null> {
     const { data, error } = await supabase
       .from('alerts_triggered')
@@ -306,7 +315,7 @@ class AlertService {
   async createAlertFromTemplate(
     template_id: string,
     rule_name: string,
-    customConditions?: Record<string, any>
+    customConditions?: AlertConditions
   ): Promise<AlertRule | null> {
     const template = await this.getAlertTemplate(template_id);
     if (!template) return null;
@@ -389,7 +398,8 @@ class AlertService {
       .from('alerts_triggered')
       .select('priority')
       .eq('user_id', user.id)
-      .eq('is_read', false);
+      .eq('is_read', false)
+      .returns<Array<Pick<AlertTriggered, 'priority'>>>();
 
     const counts = {
       critical: 0,
@@ -398,8 +408,8 @@ class AlertService {
       low: 0
     };
 
-    (data || []).forEach((alert: any) => {
-      counts[alert.priority as keyof typeof counts]++;
+    (data || []).forEach(alert => {
+      counts[alert.priority]++;
     });
 
     return counts;

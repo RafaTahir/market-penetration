@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Building, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   realEstateLocationService,
@@ -11,6 +10,7 @@ import {
 export default function RealEstateLocation() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'properties' | 'zones' | 'site-selection'>('properties');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [properties, setProperties] = useState<CommercialRealEstate[]>([]);
@@ -20,41 +20,55 @@ export default function RealEstateLocation() {
   const countries = ['Thailand', 'Singapore', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam'];
 
   useEffect(() => {
-    if (selectedCountry) {
-      loadData();
-    }
-  }, [selectedCountry, activeTab]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const filters = { country: selectedCountry, limit: 20 };
-
-      switch (activeTab) {
-        case 'properties':
-          const propData = await realEstateLocationService.getCommercialRealEstate(filters);
-          setProperties(propData);
-          break;
-        case 'zones':
-          const zoneData = await realEstateLocationService.getEconomicZones(filters);
-          setZones(zoneData);
-          break;
-        case 'site-selection':
-          const siteData = await realEstateLocationService.getSiteSelectionMatrix(filters);
-          setSiteMatrix(siteData);
-          break;
-      }
-    } catch (error) {
-      console.error('Error loading real estate data:', error);
-    } finally {
+    let active = true;
+    setLoadError(null);
+    setProperties([]);
+    setZones([]);
+    setSiteMatrix([]);
+    if (!selectedCountry) {
       setLoading(false);
+      return;
     }
-  };
+    setLoading(true);
+    const loadData = async () => {
+      try {
+        const filters = { country: selectedCountry, limit: 20 };
+        switch (activeTab) {
+          case 'properties': {
+            const propData = await realEstateLocationService.getCommercialRealEstate(filters);
+            if (active) setProperties(propData);
+            break;
+          }
+          case 'zones': {
+            const zoneData = await realEstateLocationService.getEconomicZones(filters);
+            if (active) setZones(zoneData);
+            break;
+          }
+          case 'site-selection': {
+            const siteData = await realEstateLocationService.getSiteSelectionMatrix(filters);
+            if (active) setSiteMatrix(siteData);
+            break;
+          }
+        }
+      } catch {
+        if (active) setLoadError('Connected real estate records are unavailable.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadData();
+    return () => { active = false; };
+  }, [selectedCountry, activeTab]);
 
   return (
     <div className="space-y-6">
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className="text-2xl font-bold mb-4">Real Estate & Location Intelligence</h2>
+
+        <div role="note" className="mb-6 rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-900/20 dark:text-amber-200">
+          <p className="font-semibold">Unverified connected reference records</p>
+          <p>Connected property and location records are unverified and may include seeded reference content or database defaults. Observation dates and source attribution have not been verified. Rents and availability are not confirmed current; zero values may be defaults. Site scores are illustrative, not calibrated probabilities or a validated recommendation. Excluded from the entry planner.</p>
+        </div>
 
         <div className="mb-6">
           <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -118,7 +132,7 @@ export default function RealEstateLocation() {
               <div className="space-y-4">
                 {properties.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view commercial properties.
+                    {loadError ?? (selectedCountry ? 'No commercial properties available for this country.' : 'Select a country to view commercial properties.')}
                   </p>
                 ) : (
                   properties.map((prop) => (
@@ -153,7 +167,7 @@ export default function RealEstateLocation() {
               <div className="space-y-4">
                 {zones.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view economic zones.
+                    {loadError ?? (selectedCountry ? 'No economic zones available for this country.' : 'Select a country to view economic zones.')}
                   </p>
                 ) : (
                   zones.map((zone) => (
@@ -184,7 +198,7 @@ export default function RealEstateLocation() {
               <div className="space-y-4">
                 {siteMatrix.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view site selection data.
+                    {loadError ?? (selectedCountry ? 'No site selection data available for this country.' : 'Select a country to view site selection data.')}
                   </p>
                 ) : (
                   siteMatrix.map((site) => (

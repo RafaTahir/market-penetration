@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Users, DollarSign, TrendingUp, Globe, Smartphone, Target, Zap, BarChart3, Activity } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Globe, Smartphone, Target, BarChart3, Activity } from 'lucide-react';
 
 interface MarketInsightsProps {
   selectedCountries: string[];
@@ -21,7 +21,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
       value: '$1.2T',
       change: '+12.4%',
       icon: <DollarSign className="h-5 w-5" />,
-      description: 'Combined market size across all selected Southeast Asian markets',
+      description: 'Fixed regional reference value; not recalculated for selected countries',
       color: 'blue',
       source: 'World Bank, IMF Economic Outlook 2024'
     },
@@ -39,7 +39,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
       value: '456M',
       change: '+8.7%',
       icon: <Users className="h-5 w-5" />,
-      description: 'Active internet users across selected Southeast Asian markets',
+      description: 'Fixed regional reference value; not recalculated for selected countries',
       color: 'purple',
       source: 'We Are Social Digital 2024 Report'
     },
@@ -174,6 +174,12 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
     }
   ];
 
+  const filteredRegulatoryInsights = regulatoryInsights.filter(country =>
+    selectedCountries.length === 0 || selectedCountries.some(selected =>
+      selected.toLowerCase() === country.country.toLowerCase()
+    )
+  );
+
   const insightTabs = [
     { id: 'overview', name: 'Market Overview', icon: <BarChart3 className="h-4 w-4" /> },
     { id: 'consumer', name: 'Consumer Behavior', icon: <Users className="h-4 w-4" /> },
@@ -203,6 +209,11 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
 
   return (
     <div className="space-y-6">
+      <div role="note" className="rounded-xl border border-amber-700/60 bg-amber-900/20 p-4 text-sm text-amber-100">
+        <p className="font-semibold">Unverified static market references</p>
+        <p className="mt-1">Figures, narratives, and source attributions are bundled reference material with unknown observation dates and have not been verified. Scores are illustrative, not calibrated probabilities. These figures are excluded from the entry planner.</p>
+        <p className="mt-2">Country selection filters only the regulatory cards. Overview totals, consumer figures, and competitive figures describe the fixed regional sample.</p>
+      </div>
       {/* Insight Navigation */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex items-center space-x-2 mb-6">
@@ -217,7 +228,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
           {insightTabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => handleInsightChange(tab.id as any)}
+              onClick={() => handleInsightChange(tab.id as typeof activeInsight)}
               className={`flex items-center space-x-2 p-3 rounded-lg border transition-all duration-200 ${
                 activeInsight === tab.id
                   ? 'border-blue-500 bg-blue-900/20 text-white'
@@ -249,7 +260,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
                   <div className="text-2xl font-bold text-white">{insight.value}</div>
                   <div className="text-sm font-medium text-slate-300">{insight.title}</div>
                   <div className="text-xs text-slate-400">{insight.description}</div>
-                  <div className="text-xs text-slate-500 mt-2">Source: {insight.source}</div>
+                  <div className="text-xs text-slate-500 mt-2">Unverified attribution: {insight.source}</div>
                 </div>
               </div>
             ))}
@@ -313,7 +324,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white">Consumer Behavior Analysis</h3>
               <div className="text-xs text-slate-400">
-                Source: Nielsen, Meta Business, Visa, Deloitte
+                Unverified attribution: Nielsen, Meta Business, Visa, Deloitte
               </div>
             </div>
             
@@ -350,7 +361,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
                     </div>
                     
                     <div className="text-xs text-slate-500">
-                      Source: {insight.source}
+                      Unverified attribution: {insight.source}
                     </div>
                   </div>
                 </div>
@@ -367,7 +378,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white">Competitive Landscape Analysis</h3>
               <div className="text-xs text-slate-400">
-                Source: Momentum Works, PwC, Euromonitor, Frost & Sullivan
+                Unverified attribution: Momentum Works, PwC, Euromonitor, Frost & Sullivan
               </div>
             </div>
             
@@ -418,7 +429,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
                         <p className="text-emerald-300 mt-1">{sector.opportunity}</p>
                       </div>
                       <div className="text-xs text-slate-500 mt-2">
-                        Source: {sector.source}
+                        Unverified attribution: {sector.source}
                       </div>
                     </div>
                   </div>
@@ -436,16 +447,13 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white">Regulatory Environment Assessment</h3>
               <div className="text-xs text-slate-400">
-                Source: World Bank, Government Agencies, Investment Boards
+                Unverified attribution: World Bank, Government Agencies, Investment Boards
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {regulatoryInsights.filter(country => 
-                selectedCountries.length === 0 || selectedCountries.some(selected => 
-                  country.country.toLowerCase().includes(selected) || selected.includes(country.country.toLowerCase())
-                )
-              ).map((country, index) => (
+              {filteredRegulatoryInsights.length === 0 && <p className="text-sm text-slate-400">No regulatory reference cards are available for the selected countries.</p>}
+              {filteredRegulatoryInsights.map((country, index) => (
                 <div key={index} className="bg-slate-700/50 rounded-lg p-4">
                   <h4 className="font-medium text-white mb-4">{country.country}</h4>
                   
@@ -487,7 +495,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
                     </div>
                     
                     <div className="text-xs text-slate-500">
-                      Source: {country.source}
+                      Unverified attribution: {country.source}
                     </div>
                   </div>
                 </div>

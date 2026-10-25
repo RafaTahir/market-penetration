@@ -6,8 +6,25 @@ export interface WorldBankIndicator {
   indicator: string;
   value: number;
   year: number;
+  /** Annual observations have a year, not a known publication/update day. */
   lastUpdated: string;
+  observationPeriod?: string;
+  retrievedAt?: string;
+  source?: string;
+  sourceStatus?: 'reported';
 }
+
+type WorldBankField = 'gdp' | 'inflation' | 'unemployment' | 'population' | 'internetUsers';
+export type WorldBankEconomicData = {
+  country: string;
+  countryCode: string;
+  source: string;
+  sourceStatus: 'reported';
+  lastUpdated: string;
+} & Partial<Record<WorldBankField, number>>
+  & Partial<Record<`${WorldBankField}Year`, number>>
+  & Partial<Record<`${WorldBankField}ObservationPeriod` | `${WorldBankField}RetrievedAt`, string>>
+  & Partial<Record<`${WorldBankField}SourceStatus`, 'reported'>>;
 
 export interface WorldBankReport {
   id: string;
@@ -24,249 +41,98 @@ export class WorldBankService {
   private static instance: WorldBankService;
   private readonly BASE_URL = 'https://api.worldbank.org/v2';
   private readonly COUNTRIES = {
-    indonesia: 'IDN',
-    thailand: 'THA',
-    singapore: 'SGP',
-    malaysia: 'MYS',
-    philippines: 'PHL',
-    vietnam: 'VNM'
+    indonesia: 'IDN', thailand: 'THA', singapore: 'SGP',
+    malaysia: 'MYS', philippines: 'PHL', vietnam: 'VNM'
   };
 
   public static getInstance(): WorldBankService {
-    if (!WorldBankService.instance) {
-      WorldBankService.instance = new WorldBankService();
-    }
+    if (!WorldBankService.instance) WorldBankService.instance = new WorldBankService();
     return WorldBankService.instance;
   }
 
-  async getGDPData(countries: string[] = []): Promise<WorldBankIndicator[]> {
+  private async getIndicator(
+    countries: string[], code: string, indicator: string, scale = 1, years = 5
+  ): Promise<WorldBankIndicator[]> {
+    const targetCountries = countries.length > 0
+      ? countries.map(country => Object.entries(this.COUNTRIES).find(([name]) => name === country.trim().toLowerCase())?.[1]).filter((code): code is string => typeof code === 'string')
+      : Object.values(this.COUNTRIES);
+    if (targetCountries.length === 0) return [];
+
     try {
-      const targetCountries = countries.length > 0
-        ? countries.map(c => this.COUNTRIES[c.toLowerCase() as keyof typeof this.COUNTRIES]).filter(Boolean)
-        : Object.values(this.COUNTRIES);
-
-      const countryString = targetCountries.join(';');
-      const response = await axios.get(
-        `${this.BASE_URL}/country/${countryString}/indicator/NY.GDP.MKTP.CD`,
-        {
-          params: {
-            format: 'json',
-            per_page: 100,
-            date: '2020:2024'
-          },
-          timeout: 10000
-        }
+      const currentYear = new Date().getUTCFullYear();
+      const response = await axios.get<unknown>(
+        `${this.BASE_URL}/country/${[...new Set(targetCountries)].join(';')}/indicator/${code}`,
+        { params: { format: 'json', per_page: 100, date: `${currentYear - years}:${currentYear}` }, timeout: 10000 }
       );
-
-      if (response.data && response.data[1]) {
-        return response.data[1]
-          .filter((item: any) => item.value !== null)
-          .map((item: any) => ({
-            country: item.country.value,
-            countryCode: item.countryiso3code,
-            indicator: 'GDP',
-            value: item.value / 1e9,
-            year: parseInt(item.date),
-            lastUpdated: new Date().toISOString()
-          }));
-      }
-      return [];
+      const retrievedAt = new Date().toISOString();
+      if (!Array.isArray(response.data) || !Array.isArray(response.data[1])) return [];
+      const records: unknown[] = response.data[1];
+      return records.flatMap(record => {
+        if (!record || typeof record !== 'object') return [];
+        const item = record as Record<string, unknown>;
+        const country = item.country && typeof item.country === 'object'
+          ? item.country as Record<string, unknown> : {};
+        if (typeof item.value !== 'number' || !Number.isFinite(item.value) ||
+          !/^\d{4}$/.test(String(item.date)) || typeof item.countryiso3code !== 'string' ||
+          !targetCountries.includes(item.countryiso3code) ||
+          typeof country.value !== 'string' || !country.value.trim()) return [];
+        return [{
+          country: country.value, countryCode: item.countryiso3code, indicator,
+          value: item.value / scale, year: Number(item.date),
+          lastUpdated: '', observationPeriod: String(item.date), retrievedAt,
+          source: 'World Bank', sourceStatus: 'reported' as const
+        }];
+      });
     } catch (error) {
-      console.error('Error fetching World Bank GDP data:', error);
+      console.error(`Error fetching World Bank ${indicator} data:`, error);
       return [];
     }
+  }
+
+  async getGDPData(countries: string[] = []): Promise<WorldBankIndicator[]> {
+    return this.getIndicator(countries, 'NY.GDP.MKTP.CD', 'GDP', 1e9);
   }
 
   async getInflationData(countries: string[] = []): Promise<WorldBankIndicator[]> {
-    try {
-      const targetCountries = countries.length > 0
-        ? countries.map(c => this.COUNTRIES[c.toLowerCase() as keyof typeof this.COUNTRIES]).filter(Boolean)
-        : Object.values(this.COUNTRIES);
-
-      const countryString = targetCountries.join(';');
-      const response = await axios.get(
-        `${this.BASE_URL}/country/${countryString}/indicator/FP.CPI.TOTL.ZG`,
-        {
-          params: {
-            format: 'json',
-            per_page: 100,
-            date: '2020:2024'
-          },
-          timeout: 10000
-        }
-      );
-
-      if (response.data && response.data[1]) {
-        return response.data[1]
-          .filter((item: any) => item.value !== null)
-          .map((item: any) => ({
-            country: item.country.value,
-            countryCode: item.countryiso3code,
-            indicator: 'Inflation',
-            value: item.value,
-            year: parseInt(item.date),
-            lastUpdated: new Date().toISOString()
-          }));
-      }
-      return [];
-    } catch (error) {
-      console.error('Error fetching World Bank inflation data:', error);
-      return [];
-    }
+    return this.getIndicator(countries, 'FP.CPI.TOTL.ZG', 'Inflation');
   }
 
   async getUnemploymentData(countries: string[] = []): Promise<WorldBankIndicator[]> {
-    try {
-      const targetCountries = countries.length > 0
-        ? countries.map(c => this.COUNTRIES[c.toLowerCase() as keyof typeof this.COUNTRIES]).filter(Boolean)
-        : Object.values(this.COUNTRIES);
-
-      const countryString = targetCountries.join(';');
-      const response = await axios.get(
-        `${this.BASE_URL}/country/${countryString}/indicator/SL.UEM.TOTL.ZS`,
-        {
-          params: {
-            format: 'json',
-            per_page: 100,
-            date: '2020:2024'
-          },
-          timeout: 10000
-        }
-      );
-
-      if (response.data && response.data[1]) {
-        return response.data[1]
-          .filter((item: any) => item.value !== null)
-          .map((item: any) => ({
-            country: item.country.value,
-            countryCode: item.countryiso3code,
-            indicator: 'Unemployment',
-            value: item.value,
-            year: parseInt(item.date),
-            lastUpdated: new Date().toISOString()
-          }));
-      }
-      return [];
-    } catch (error) {
-      console.error('Error fetching World Bank unemployment data:', error);
-      return [];
-    }
+    return this.getIndicator(countries, 'SL.UEM.TOTL.ZS', 'Unemployment');
   }
 
   async getPopulationData(countries: string[] = []): Promise<WorldBankIndicator[]> {
-    try {
-      const targetCountries = countries.length > 0
-        ? countries.map(c => this.COUNTRIES[c.toLowerCase() as keyof typeof this.COUNTRIES]).filter(Boolean)
-        : Object.values(this.COUNTRIES);
-
-      const countryString = targetCountries.join(';');
-      const response = await axios.get(
-        `${this.BASE_URL}/country/${countryString}/indicator/SP.POP.TOTL`,
-        {
-          params: {
-            format: 'json',
-            per_page: 100,
-            date: '2020:2024'
-          },
-          timeout: 10000
-        }
-      );
-
-      if (response.data && response.data[1]) {
-        return response.data[1]
-          .filter((item: any) => item.value !== null)
-          .map((item: any) => ({
-            country: item.country.value,
-            countryCode: item.countryiso3code,
-            indicator: 'Population',
-            value: item.value / 1e6,
-            year: parseInt(item.date),
-            lastUpdated: new Date().toISOString()
-          }));
-      }
-      return [];
-    } catch (error) {
-      console.error('Error fetching World Bank population data:', error);
-      return [];
-    }
+    return this.getIndicator(countries, 'SP.POP.TOTL', 'Population', 1e6);
   }
 
   async getInternetUsersData(countries: string[] = []): Promise<WorldBankIndicator[]> {
-    try {
-      const targetCountries = countries.length > 0
-        ? countries.map(c => this.COUNTRIES[c.toLowerCase() as keyof typeof this.COUNTRIES]).filter(Boolean)
-        : Object.values(this.COUNTRIES);
-
-      const countryString = targetCountries.join(';');
-      const response = await axios.get(
-        `${this.BASE_URL}/country/${countryString}/indicator/IT.NET.USER.ZS`,
-        {
-          params: {
-            format: 'json',
-            per_page: 100,
-            date: '2015:2024'
-          },
-          timeout: 10000
-        }
-      );
-
-      if (response.data && response.data[1]) {
-        return response.data[1]
-          .filter((item: any) => item.value !== null)
-          .map((item: any) => ({
-            country: item.country.value,
-            countryCode: item.countryiso3code,
-            indicator: 'Internet Users',
-            value: item.value,
-            year: parseInt(item.date),
-            lastUpdated: new Date().toISOString()
-          }));
-      }
-      return [];
-    } catch (error) {
-      console.error('Error fetching World Bank internet users data:', error);
-      return [];
-    }
+    return this.getIndicator(countries, 'IT.NET.USER.ZS', 'Internet Users', 1, 10);
   }
 
-  async getAllEconomicIndicators(countries: string[] = []): Promise<{ [country: string]: any }> {
-    try {
-      const [gdpData, inflationData, unemploymentData, populationData, internetData] = await Promise.all([
-        this.getGDPData(countries),
-        this.getInflationData(countries),
-        this.getUnemploymentData(countries),
-        this.getPopulationData(countries),
-        this.getInternetUsersData(countries)
-      ]);
-
-      const countryMap: { [country: string]: any } = {};
-
-      const processData = (data: WorldBankIndicator[], field: string) => {
-        data.forEach(item => {
-          if (!countryMap[item.country]) {
-            countryMap[item.country] = {
-              country: item.country,
-              countryCode: item.countryCode,
-              lastUpdated: item.lastUpdated
-            };
-          }
-          const latestYear = Math.max(...data.filter(d => d.country === item.country).map(d => d.year));
-          if (item.year === latestYear) {
-            countryMap[item.country][field] = item.value;
-          }
-        });
-      };
-
-      processData(gdpData, 'gdp');
-      processData(inflationData, 'inflation');
-      processData(unemploymentData, 'unemployment');
-      processData(populationData, 'population');
-      processData(internetData, 'internetUsers');
-
-      return countryMap;
-    } catch (error) {
-      console.error('Error fetching all economic indicators:', error);
-      return {};
-    }
+  async getAllEconomicIndicators(countries: string[] = []): Promise<Record<string, WorldBankEconomicData>> {
+    const series = await Promise.all([
+      this.getGDPData(countries), this.getInflationData(countries),
+      this.getUnemploymentData(countries), this.getPopulationData(countries),
+      this.getInternetUsersData(countries)
+    ]);
+    const fields: WorldBankField[] = ['gdp', 'inflation', 'unemployment', 'population', 'internetUsers'];
+    const countryMap: Record<string, WorldBankEconomicData> = {};
+    series.forEach((data, index) => {
+      const field = fields[index];
+      data.forEach(item => {
+        const country = countryMap[item.country] ||= {
+          country: item.country, countryCode: item.countryCode,
+          source: 'World Bank', sourceStatus: 'reported', lastUpdated: ''
+        };
+        const previousYear = country[`${field}Year`];
+        if (previousYear !== undefined && previousYear >= item.year) return;
+        country[field] = item.value;
+        country[`${field}Year`] = item.year;
+        country[`${field}ObservationPeriod`] = item.observationPeriod;
+        country[`${field}RetrievedAt`] = item.retrievedAt;
+        country[`${field}SourceStatus`] = item.sourceStatus;
+      });
+    });
+    return countryMap;
   }
 }

@@ -1,22 +1,33 @@
 import { WorldBankService } from './worldBankService';
-import { IMFService } from './imfService';
-import { MarketDataService } from './marketDataService';
+import { IMFService, IMFReport } from './imfService';
+import { MarketDataService, MarketData, CurrencyRate } from './marketDataService';
 import { MarketHoursService } from './marketHoursService';
 import { BrowserCacheService } from './browserCacheService';
 
+export type EconomicMetric = 'gdp' | 'gdpGrowth' | 'inflation' | 'unemployment' | 'population' | 'gdpPerCapita' | 'internetUsers' | 'exchangeRate' | 'interestRate';
+
+export interface MetricEvidence {
+  source: string;
+  observationPeriod: string | null;
+  retrievedAt: string | null;
+  status: 'reported' | 'cached-unverified' | 'derived' | 'unavailable';
+  limitation: string;
+}
+
 export interface UnifiedEconomicData {
   country: string;
-  gdp: number;
-  gdpGrowth: number;
-  inflation: number;
-  unemployment: number;
-  population: number;
-  gdpPerCapita: number;
-  internetUsers: number;
-  exchangeRate: number;
-  interestRate: number;
+  gdp: number | null;
+  gdpGrowth: number | null;
+  inflation: number | null;
+  unemployment: number | null;
+  population: number | null;
+  gdpPerCapita: number | null;
+  internetUsers: number | null;
+  exchangeRate: number | null;
+  interestRate: number | null;
   source: string;
   lastUpdated: string;
+  metricEvidence?: Partial<Record<EconomicMetric, MetricEvidence>>;
 }
 
 export interface DataFreshness {
@@ -26,6 +37,21 @@ export interface DataFreshness {
   lastUpdated: string;
 }
 
+interface ProviderEconomicData extends Record<string, unknown> {
+  gdp?: number;
+  inflation?: number;
+  unemployment?: number;
+  population?: number;
+  internetUsers?: number;
+  gdpPerCapita?: number;
+  gdpGrowthHistory?: Array<{ year: number; value: number; observationPeriod?: string; retrievedAt?: string; dataStatus?: string }>;
+}
+
+interface GDPGrowthTrend {
+  year: string;
+  [country: string]: number | string;
+}
+
 export class UnifiedDataService {
   private static instance: UnifiedDataService;
   private worldBankService: WorldBankService;
@@ -33,15 +59,15 @@ export class UnifiedDataService {
   private marketDataService: MarketDataService;
   private marketHoursService: MarketHoursService;
 
-  private dataCache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
+  private dataCache: Map<string, { data: unknown; timestamp: number; ttl: number }> = new Map();
   private browserCache: BrowserCacheService;
   private readonly DEFAULT_TTL = 300000;
   private readonly FAST_TTL = 60000;
   private readonly MARKET_UPDATE_INTERVAL = 300000;
   private readonly BROWSER_CACHE_TTL = 600000;
 
-  private updateCallbacks: Map<string, Array<(data: any) => void>> = new Map();
-  private updateIntervalId: NodeJS.Timeout | null = null;
+  private updateCallbacks: Map<string, Array<(data: unknown) => void>> = new Map();
+  private updateIntervalId: ReturnType<typeof setInterval> | null = null;
 
   public static getInstance(): UnifiedDataService {
     if (!UnifiedDataService.instance) {
@@ -77,7 +103,7 @@ export class UnifiedDataService {
     return null;
   }
 
-  private setCachedData(key: string, data: any, ttl: number = this.DEFAULT_TTL): void {
+  private setCachedData(key: string, data: unknown, ttl: number = this.DEFAULT_TTL): void {
     this.dataCache.set(key, {
       data,
       timestamp: Date.now(),
@@ -88,7 +114,7 @@ export class UnifiedDataService {
   }
 
   async getUnifiedEconomicData(countries: string[] = []): Promise<UnifiedEconomicData[]> {
-    const cacheKey = `economic_${countries.sort().join('_')}`;
+    const cacheKey = `economic_integrity_v1_${[...countries].sort().join('_')}`;
     const cached = this.getCachedData<UnifiedEconomicData[]>(cacheKey);
 
     if (cached) {
@@ -97,7 +123,7 @@ export class UnifiedDataService {
 
     const stale = this.browserCache.getStale<UnifiedEconomicData[]>(cacheKey);
     if (stale && stale.age < 3600000) {
-      this.fetchAndCacheEconomicData(countries, cacheKey);
+      void this.fetchAndCacheEconomicData(countries, cacheKey);
       return stale.data;
     }
 
@@ -105,173 +131,86 @@ export class UnifiedDataService {
   }
 
   private async fetchAndCacheEconomicData(countries: string[], cacheKey: string): Promise<UnifiedEconomicData[]> {
-    try {
-      const [worldBankData, imfData, economicIndicators] = await Promise.all([
-        this.worldBankService.getAllEconomicIndicators(countries).catch(() => ({})),
-        this.imfService.getAllEconomicData(countries).catch(() => ({})),
-        Promise.resolve(this.marketDataService.getEconomicIndicators())
-      ]);
-
-      const unifiedData: UnifiedEconomicData[] = [];
-
-      const allCountries = new Set([
-        ...Object.keys(worldBankData),
-        ...Object.keys(imfData),
-        ...economicIndicators.map(e => e.country)
-      ]);
-
-      if (allCountries.size === 0) {
-        return this.getFallbackEconomicData();
+    const supported = ['Indonesia', 'Thailand', 'Singapore', 'Malaysia', 'Vietnam', 'Philippines'];
+    const selected = supported.filter(country => countries.length === 0 || countries.some(requested => requested.trim().toLowerCase() === country.toLowerCase()));
+    if (selected.length === 0) return [];
+    const [wbResult, imfResult] = await Promise.allSettled([
+      this.worldBankService.getAllEconomicIndicators(selected),
+      this.imfService.getAllEconomicData(selected)
+    ]);
+    const worldBank: Record<string, ProviderEconomicData> = wbResult.status === 'fulfilled' ? wbResult.value : {};
+    const imfData: Record<string, ProviderEconomicData> = imfResult.status === 'fulfilled' ? imfResult.value : {};
+    const metrics: EconomicMetric[] = ['gdp', 'gdpGrowth', 'inflation', 'unemployment', 'population', 'gdpPerCapita', 'internetUsers', 'exchangeRate', 'interestRate'];
+    const rows: UnifiedEconomicData[] = [];
+    const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+    const period = (record: ProviderEconomicData, field: string): string | null => {
+      const explicit = record[field + 'ObservationPeriod'];
+      if (typeof explicit === 'string' && /^\d{4}(?:-\d{2}(?:-\d{2})?)?$/.test(explicit)) return explicit;
+      const year = record[field + 'Year'];
+      return typeof year === 'number' && Number.isInteger(year) ? String(year) : null;
+    };
+    const retrieved = (record: ProviderEconomicData, field: string): string | null => {
+      const value = record[field + 'RetrievedAt'] ?? record.retrievedAt;
+      return typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null;
+    };
+    for (const country of selected) {
+      const wb = worldBank[country] || (country === 'Vietnam' ? worldBank['Viet Nam'] : undefined) || {};
+      const imf = imfData[country] || {};
+      const evidence = Object.fromEntries(metrics.map(metric => [metric, {
+        source: 'Unavailable', observationPeriod: null, retrievedAt: null, status: 'unavailable',
+        limitation: 'No source record is available. No estimate or zero was substituted.'
+      }])) as Record<EconomicMetric, MetricEvidence>;
+      const data: UnifiedEconomicData = {
+        country, gdp: null, gdpGrowth: null, inflation: null, unemployment: null, population: null,
+        gdpPerCapita: null, internetUsers: null, exchangeRate: null, interestRate: null,
+        source: '', lastUpdated: '', metricEvidence: evidence
+      };
+      const put = (metric: EconomicMetric, record: ProviderEconomicData, key: string, source: string, scale = 1) => {
+        const value = record[key];
+        if (!finite(value)) return;
+        const scaled = value * scale;
+        if (!Number.isFinite(scaled)) return;
+        data[metric] = scaled;
+        evidence[metric] = {
+          source, observationPeriod: period(record, key), retrievedAt: retrieved(record, key), status: 'reported',
+          limitation: 'Provider-reported series; source contents and actual/estimate classification have not been independently verified. Retrieval time is not an observation date.'
+        };
+      };
+      put('gdp', wb, 'gdp', 'World Bank API', 1e9);
+      put('population', wb, 'population', 'World Bank API', 1e6);
+      put('inflation', wb, 'inflation', 'World Bank API');
+      if (data.inflation === null) put('inflation', imf, 'inflation', 'IMF DataMapper');
+      put('unemployment', wb, 'unemployment', 'World Bank API');
+      put('gdpPerCapita', imf, 'gdpPerCapita', 'IMF DataMapper');
+      const growth = [...(imf.gdpGrowthHistory || [])].filter(item =>
+        finite(item.value) && item.year < new Date().getUTCFullYear() && item.dataStatus !== 'forecast'
+      ).sort((a, b) => b.year - a.year)[0];
+      if (growth) {
+        data.gdpGrowth = growth.value;
+        evidence.gdpGrowth = { source: 'IMF DataMapper', observationPeriod: growth.observationPeriod || String(growth.year), retrievedAt: growth.retrievedAt || null,
+          status: 'reported', limitation: 'Reported past-year series; actual/estimate classification has not been independently verified. Forecast/current-year rows are excluded.' };
       }
-
-      for (const country of allCountries) {
-        const wb = worldBankData[country] || {};
-        const imf = imfData[country] || {};
-        const econ = economicIndicators.find(e => e.country === country);
-        const fallback = this.getFallbackCountryData(country);
-
-        const latestGrowth = imf.gdpGrowthHistory && imf.gdpGrowthHistory.length > 0
-          ? imf.gdpGrowthHistory.sort((a: any, b: any) => b.year - a.year)[0].value
-          : fallback.gdpGrowth;
-
-        unifiedData.push({
-          country,
-          gdp: wb.gdp || econ?.gdp || fallback.gdp,
-          gdpGrowth: latestGrowth,
-          inflation: wb.inflation || imf.inflation || econ?.inflation || fallback.inflation,
-          unemployment: wb.unemployment || econ?.unemployment || fallback.unemployment,
-          population: wb.population || fallback.population,
-          gdpPerCapita: imf.gdpPerCapita || fallback.gdpPerCapita,
-          internetUsers: wb.internetUsers || fallback.internetUsers,
-          exchangeRate: econ?.exchangeRate || fallback.exchangeRate,
-          interestRate: econ?.interestRate || fallback.interestRate,
-          source: 'World Bank, IMF, Live Market Data',
-          lastUpdated: new Date().toISOString()
-        });
+      const populationPeriod = period(wb, 'population');
+      const internetPeriod = period(wb, 'internetUsers');
+      if (finite(wb.internetUsers) && wb.internetUsers >= 0 && wb.internetUsers <= 100 && data.population !== null && populationPeriod && populationPeriod === internetPeriod) {
+        data.internetUsers = data.population * (wb.internetUsers / 100);
+        evidence.internetUsers = { source: 'Derived from World Bank population and internet-use percentage', observationPeriod: populationPeriod,
+          retrievedAt: retrieved(wb, 'internetUsers'), status: 'derived', limitation: 'Arithmetic estimate from same-period series, not a directly observed person count; source accuracy has not been independently verified.' };
+      } else {
+        evidence.internetUsers.limitation = 'A count cannot be derived without same-period population and internet-use percentage. No cross-year estimate was substituted.';
       }
-
-      this.setCachedData(cacheKey, unifiedData);
-      this.notifySubscribers(cacheKey, unifiedData);
-
-      return unifiedData;
-    } catch (error) {
-      console.error('Error fetching unified economic data:', error);
-      return this.getFallbackEconomicData();
+      if (!metrics.some(metric => data[metric] !== null)) continue;
+      data.source = [...new Set(metrics.filter(metric => data[metric] !== null).map(metric => evidence[metric].source))].join('; ') + ' — provider-reported or derived, not independently verified';
+      rows.push(data);
     }
+    this.setCachedData(cacheKey, rows);
+    this.notifySubscribers(cacheKey, rows);
+    return rows;
   }
 
-  private getFallbackEconomicData(): UnifiedEconomicData[] {
-    const fallbackCountries = ['Indonesia', 'Thailand', 'Singapore', 'Malaysia', 'Vietnam', 'Philippines'];
-    return fallbackCountries.map(country => this.getFallbackCountryData(country));
-  }
-
-  private getFallbackCountryData(country: string): UnifiedEconomicData {
-    const fallbackData: { [key: string]: UnifiedEconomicData } = {
-      'Indonesia': {
-        country: 'Indonesia',
-        gdp: 1319000000000,
-        gdpGrowth: 5.2,
-        inflation: 3.2,
-        unemployment: 5.8,
-        population: 273500000,
-        gdpPerCapita: 4822,
-        internetUsers: 199800000,
-        exchangeRate: 15750,
-        interestRate: 6.00,
-        source: 'Static Fallback',
-        lastUpdated: new Date().toISOString()
-      },
-      'Thailand': {
-        country: 'Thailand',
-        gdp: 543500000000,
-        gdpGrowth: 2.8,
-        inflation: 1.2,
-        unemployment: 1.1,
-        population: 69800000,
-        gdpPerCapita: 7786,
-        internetUsers: 59200000,
-        exchangeRate: 35.42,
-        interestRate: 2.50,
-        source: 'Static Fallback',
-        lastUpdated: new Date().toISOString()
-      },
-      'Singapore': {
-        country: 'Singapore',
-        gdp: 397000000000,
-        gdpGrowth: 2.6,
-        inflation: 2.1,
-        unemployment: 2.0,
-        population: 5900000,
-        gdpPerCapita: 67298,
-        internetUsers: 5400000,
-        exchangeRate: 1.35,
-        interestRate: 3.50,
-        source: 'Static Fallback',
-        lastUpdated: new Date().toISOString()
-      },
-      'Malaysia': {
-        country: 'Malaysia',
-        gdp: 432000000000,
-        gdpGrowth: 4.5,
-        inflation: 2.8,
-        unemployment: 3.3,
-        population: 32700000,
-        gdpPerCapita: 13215,
-        internetUsers: 27500000,
-        exchangeRate: 4.68,
-        interestRate: 3.00,
-        source: 'Static Fallback',
-        lastUpdated: new Date().toISOString()
-      },
-      'Vietnam': {
-        country: 'Vietnam',
-        gdp: 409000000000,
-        gdpGrowth: 6.8,
-        inflation: 3.6,
-        unemployment: 2.3,
-        population: 97300000,
-        gdpPerCapita: 4202,
-        internetUsers: 72900000,
-        exchangeRate: 24350,
-        interestRate: 4.50,
-        source: 'Static Fallback',
-        lastUpdated: new Date().toISOString()
-      },
-      'Philippines': {
-        country: 'Philippines',
-        gdp: 394000000000,
-        gdpGrowth: 6.2,
-        inflation: 4.1,
-        unemployment: 4.5,
-        population: 109600000,
-        gdpPerCapita: 3595,
-        internetUsers: 74500000,
-        exchangeRate: 56.25,
-        interestRate: 6.50,
-        source: 'Static Fallback',
-        lastUpdated: new Date().toISOString()
-      }
-    };
-
-    return fallbackData[country] || {
-      country,
-      gdp: 100000000000,
-      gdpGrowth: 3.0,
-      inflation: 2.5,
-      unemployment: 4.0,
-      population: 10000000,
-      gdpPerCapita: 10000,
-      internetUsers: 7000000,
-      exchangeRate: 1,
-      interestRate: 3.0,
-      source: 'Generic Fallback',
-      lastUpdated: new Date().toISOString()
-    };
-  }
-
-  async getMarketData(symbols: string[]): Promise<any[]> {
-    const cacheKey = `market_${symbols.sort().join('_')}`;
-    const cached = this.getCachedData<any[]>(cacheKey);
+  async getMarketData(symbols: string[]): Promise<MarketData[]> {
+    const cacheKey = `market_integrity_v1_${[...symbols].sort().join('_')}`;
+    const cached = this.getCachedData<MarketData[]>(cacheKey);
 
     if (cached) {
       return cached;
@@ -288,9 +227,9 @@ export class UnifiedDataService {
     }
   }
 
-  async getCurrencyRates(): Promise<any[]> {
-    const cacheKey = 'currency_rates';
-    const cached = this.getCachedData<any[]>(cacheKey);
+  async getCurrencyRates(): Promise<CurrencyRate[]> {
+    const cacheKey = 'currency_rates_integrity_v1';
+    const cached = this.getCachedData<CurrencyRate[]>(cacheKey);
 
     if (cached) {
       return cached;
@@ -307,26 +246,26 @@ export class UnifiedDataService {
     }
   }
 
-  async getGDPGrowthTrends(countries: string[] = []): Promise<any> {
-    const cacheKey = `gdp_trends_${countries.sort().join('_')}`;
-    const cached = this.getCachedData<any>(cacheKey);
+  async getGDPGrowthTrends(countries: string[] = []): Promise<GDPGrowthTrend[]> {
+    const cacheKey = `gdp_trends_${[...countries].sort().join('_')}`;
+    const cached = this.getCachedData<GDPGrowthTrend[]>(cacheKey);
 
     if (cached) {
       return cached;
     }
 
     try {
-      const imfData = await this.imfService.getAllEconomicData(countries);
+      const imfData: Record<string, ProviderEconomicData> = await this.imfService.getAllEconomicData(countries);
 
-      const trendsData: any[] = [];
+      const trendsData: GDPGrowthTrend[] = [];
       const years = ['2020', '2021', '2022', '2023', '2024', '2025'];
 
       years.forEach(year => {
-        const yearData: any = { year };
+        const yearData: GDPGrowthTrend = { year };
 
         Object.keys(imfData).forEach(country => {
           const growthHistory = imfData[country].gdpGrowthHistory || [];
-          const yearValue = growthHistory.find((h: any) => h.year === parseInt(year));
+          const yearValue = growthHistory.find(history => history.year === parseInt(year));
           if (yearValue) {
             yearData[country] = yearValue.value;
           }
@@ -345,102 +284,44 @@ export class UnifiedDataService {
     }
   }
 
-  async getInstitutionalReports(): Promise<any[]> {
-    const cacheKey = 'institutional_reports';
-    const cached = this.getCachedData<any[]>(cacheKey);
-
-    if (cached) {
-      return cached;
-    }
-
-    try {
-      const imfReports = this.imfService.getIMFReports();
-
-      const worldBankReports = [
-        {
-          title: 'East Asia and Pacific Economic Update',
-          organization: 'World Bank',
-          country: 'East Asia & Pacific',
-          summary: 'Latest economic developments and projections for the East Asia and Pacific region, including detailed country analysis for Indonesia, Thailand, Philippines, Vietnam, and Malaysia.',
-          publicationDate: '2024-10-01',
-          url: 'https://www.worldbank.org/en/region/eap/publication/east-asia-pacific-economic-update',
-          type: 'Economic Update'
-        },
-        {
-          title: 'World Development Indicators',
-          organization: 'World Bank',
-          country: 'Global',
-          summary: 'Comprehensive compilation of cross-country comparable data on development covering demographics, economy, environment, education, health, infrastructure, and governance.',
-          publicationDate: '2024-09-15',
-          url: 'https://datatopics.worldbank.org/world-development-indicators/',
-          type: 'Statistical Database'
-        },
-        {
-          title: 'Doing Business in ASEAN',
-          organization: 'World Bank',
-          country: 'ASEAN',
-          summary: 'Analysis of business regulations and their enforcement across ASEAN countries, covering starting a business, dealing with construction permits, getting electricity, registering property, and more.',
-          publicationDate: '2024-08-20',
-          url: 'https://www.worldbank.org/en/programs/business-enabling-environment',
-          type: 'Business Environment Report'
-        }
-      ];
-
-      const aseanReports = [
-        {
-          title: 'ASEAN Investment Report 2024',
-          organization: 'ASEAN Secretariat',
-          country: 'ASEAN',
-          summary: 'Comprehensive analysis of FDI flows, investment policies, and opportunities across ASEAN member states. Covers digital economy investments, sustainable finance, and regional integration progress.',
-          publicationDate: '2024-11-15',
-          url: 'https://asean.org/book/asean-investment-report-2024/',
-          type: 'Investment Report'
-        },
-        {
-          title: 'ASEAN Key Figures 2024',
-          organization: 'ASEAN Secretariat',
-          country: 'ASEAN',
-          summary: 'Statistical publication providing key economic and social indicators for ASEAN countries including GDP, trade, investment, population, and sectoral performance.',
-          publicationDate: '2024-10-30',
-          url: 'https://www.aseanstats.org/publication/asean-key-figures-2024/',
-          type: 'Statistical Publication'
-        }
-      ];
-
-      const allReports = [...imfReports, ...worldBankReports, ...aseanReports];
-
-      this.setCachedData(cacheKey, allReports, 3600000);
-      return allReports;
-    } catch (error) {
-      console.error('Error fetching institutional reports:', error);
-      return [];
-    }
+  async getInstitutionalReports(): Promise<IMFReport[]> {
+    // Discovery links are not fetched reports or verified publication records.
+    return [
+      { title: 'IMF DataMapper', organization: 'IMF', country: 'Global', summary: 'Official data discovery portal. Contents, editions, observation periods and applicability have not been verified.', publicationDate: '', url: 'https://www.imf.org/external/datamapper/', type: 'Reference link (unverified)' },
+      { title: 'World Bank Open Data', organization: 'World Bank', country: 'Global', summary: 'Official data discovery portal. No publication date or current business applicability is established by this directory.', publicationDate: '', url: 'https://data.worldbank.org/', type: 'Reference link (unverified)' },
+      { title: 'ASEANstats Data Portal', organization: 'ASEAN Secretariat', country: 'ASEAN', summary: 'Regional data discovery portal. Linked content has not been fetched, checked or incorporated as verified research.', publicationDate: '', url: 'https://data.aseanstats.org/', type: 'Reference link (unverified)' }
+    ];
   }
 
   getDataFreshness(key: string): DataFreshness {
     const cached = this.dataCache.get(key);
-
-    if (!cached) {
+    const rows: unknown[] = Array.isArray(cached?.data) ? cached.data : [];
+    const timestamps = rows.map(row => {
+      if (typeof row !== 'object' || row === null || !('lastUpdated' in row)) return NaN;
+      return typeof row.lastUpdated === 'string' ? Date.parse(row.lastUpdated) : NaN;
+    });
+    if (!cached || rows.length === 0 || timestamps.some((timestamp: number) => !Number.isFinite(timestamp))) {
       return {
         isFresh: false,
         age: -1,
-        source: 'No data',
-        lastUpdated: 'Never'
+        source: rows.length ? 'Observation date unavailable' : 'No data',
+        lastUpdated: ''
       };
     }
 
-    const age = Date.now() - cached.timestamp;
-    const isFresh = age < cached.ttl;
+    const oldestObservation = Math.min(...timestamps);
+    const age = Date.now() - oldestObservation;
+    const isFresh = age >= 0 && age < cached.ttl;
 
     return {
       isFresh,
       age,
-      source: 'Cached',
-      lastUpdated: new Date(cached.timestamp).toISOString()
+      source: 'Stored observation dates; provider provenance requires review',
+      lastUpdated: new Date(oldestObservation).toISOString()
     };
   }
 
-  subscribe(key: string, callback: (data: any) => void): () => void {
+  subscribe(key: string, callback: (data: unknown) => void): () => void {
     if (!this.updateCallbacks.has(key)) {
       this.updateCallbacks.set(key, []);
     }
@@ -458,7 +339,7 @@ export class UnifiedDataService {
     };
   }
 
-  private notifySubscribers(key: string, data: any): void {
+  private notifySubscribers(key: string, data: unknown): void {
     const callbacks = this.updateCallbacks.get(key);
     if (callbacks) {
       callbacks.forEach(callback => callback(data));
@@ -487,7 +368,6 @@ export class UnifiedDataService {
             this.getMarketData(['SET.BK', 'STI.SI', 'KLCI.KL', 'JKSE.JK', 'PSEI.PS', 'VN-INDEX.HM']),
             this.getCurrencyRates()
           ]);
-          console.log('Market data updated at', new Date().toLocaleTimeString());
         } catch (error) {
           console.error('Error during real-time update:', error);
         }

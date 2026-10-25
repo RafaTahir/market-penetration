@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Building2, Shield, Scale, MapPin, Users, TrendingUp, AlertTriangle, FileText } from 'lucide-react';
 import CompetitiveIntelligence from './CompetitiveIntelligence';
 import RegulatoryCompliance from './RegulatoryCompliance';
@@ -26,7 +26,7 @@ export default function EnterpriseIntelligenceDashboard() {
       icon: TrendingUp,
       description: 'Competitor profiles, market share, pricing intelligence',
       color: 'blue',
-      stats: { total: '500+', recent: '45 new' }
+      coverage: 'Competitor reference records'
     },
     {
       id: 'regulatory' as IntelligenceModule,
@@ -34,7 +34,7 @@ export default function EnterpriseIntelligenceDashboard() {
       icon: Scale,
       description: 'Legal requirements, tax incentives, policy changes',
       color: 'green',
-      stats: { total: '300+', recent: '12 updates' }
+      coverage: 'Requirements to verify locally'
     },
     {
       id: 'risk' as IntelligenceModule,
@@ -42,7 +42,7 @@ export default function EnterpriseIntelligenceDashboard() {
       icon: Shield,
       description: 'Political, economic, and operational risk analysis',
       color: 'red',
-      stats: { total: '250+', recent: '8 alerts' }
+      coverage: 'Risk research starting points'
     },
     {
       id: 'real-estate' as IntelligenceModule,
@@ -50,7 +50,7 @@ export default function EnterpriseIntelligenceDashboard() {
       icon: MapPin,
       description: 'Commercial properties, economic zones, infrastructure',
       color: 'purple',
-      stats: { total: '1,000+', recent: '67 listings' }
+      coverage: 'Location reference records'
     },
     {
       id: 'labor' as IntelligenceModule,
@@ -58,7 +58,7 @@ export default function EnterpriseIntelligenceDashboard() {
       icon: Users,
       description: 'Labor market data, salary benchmarks, recruitment',
       color: 'orange',
-      stats: { total: '750+', recent: '23 updates' }
+      coverage: 'Workforce reference records'
     }
   ];
 
@@ -107,7 +107,17 @@ export default function EnterpriseIntelligenceDashboard() {
             <h1 className="text-3xl font-bold">Enterprise Intelligence Hub</h1>
           </div>
           <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-            Comprehensive market intelligence for strategic decision-making
+            Research categories for Southeast Asian market-entry planning
+          </p>
+        </div>
+
+        <div className={`mb-6 rounded-lg border p-4 ${theme === 'dark' ? 'border-amber-700 bg-amber-900/20 text-amber-100' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+          <p className="font-semibold">Source and coverage notice</p>
+          <p className="mt-1 text-sm">
+            These modules may contain seeded reference records. Their presence does not establish current
+            coverage, verified market facts, or current law. Sources, observation dates, and local applicability
+            need review before use. Confirm legal and tax requirements with official local sources and a
+            qualified adviser.
           </p>
         </div>
 
@@ -119,8 +129,8 @@ export default function EnterpriseIntelligenceDashboard() {
                 <h2 className="text-xl font-semibold">Key Intelligence Categories</h2>
               </div>
               <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                Access comprehensive intelligence across five critical business domains. Each module provides
-                data-driven insights to support your market entry, expansion, and operational decisions.
+                Explore five research categories to identify evidence needed for market entry. Available
+                records depend on the connected source; inventory and update totals have not been verified.
               </p>
             </div>
 
@@ -139,9 +149,9 @@ export default function EnterpriseIntelligenceDashboard() {
                         <Icon className={colors.text} size={24} />
                       </div>
                       <div className="text-right">
-                        <div className={`text-2xl font-bold ${colors.text}`}>{module.stats.total}</div>
-                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {module.stats.recent}
+                        <div className={`text-sm font-medium ${colors.text}`}>Reference coverage</div>
+                        <div className={`mt-1 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {module.coverage}
                         </div>
                       </div>
                     </div>

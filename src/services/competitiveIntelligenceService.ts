@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient';
 
+// JSONB fields may contain nested records, lists, or null.
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export interface CompetitorProfile {
   id: string;
   company_name: string;
@@ -14,13 +17,13 @@ export interface CompetitorProfile {
   entry_year: number;
   headquarters_location: string;
   business_model: string;
-  competitive_advantages: any;
-  weaknesses: any;
+  competitive_advantages: JsonValue;
+  weaknesses: JsonValue;
   expansion_plans: string;
   parent_company: string;
   stock_symbol: string;
   website: string;
-  data_sources: any;
+  data_sources: JsonValue;
   confidence_score: number;
   last_updated: string;
   created_at: string;
@@ -39,7 +42,7 @@ export interface CompetitorActivity {
   impact_level: string;
   strategic_significance: string;
   activity_date: string;
-  data_sources: any;
+  data_sources: JsonValue;
   tags: string[];
   created_at: string;
 }
@@ -74,8 +77,8 @@ export interface PricingIntelligence {
   price_usd: number;
   pricing_model: string;
   price_tier: string;
-  features_included: any;
-  competitor_comparison: any;
+  features_included: JsonValue;
+  competitor_comparison: JsonValue;
   price_positioning: string;
   discounts_available: string;
   observation_date: string;
@@ -93,8 +96,8 @@ export interface MarketEntryBarrier {
   severity_level: string;
   estimated_cost_usd: number;
   time_to_overcome_days: number;
-  mitigation_strategies: any;
-  examples: any;
+  mitigation_strategies: JsonValue;
+  examples: JsonValue;
   regulatory_reference: string;
   last_updated: string;
   created_at: string;

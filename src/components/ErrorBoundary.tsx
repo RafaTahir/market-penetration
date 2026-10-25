@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -74,7 +74,7 @@ class ErrorBoundary extends Component<Props, State> {
               </p>
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
+            {import.meta.env.DEV && this.state.errorInfo && (
               <details className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 mb-6">
                 <summary className="text-sm font-semibold text-slate-400 cursor-pointer hover:text-slate-300">
                   Component Stack (Development Only)

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ScatterChart, Scatter, Treemap } from 'recharts';
-import { BarChart3, TrendingUp, PieChart as PieChartIcon, Activity, Globe, Users, DollarSign, Smartphone, Target, Zap, Eye, ShoppingCart, Building2, Briefcase } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, ComposedChart, ScatterChart, Scatter } from 'recharts';
+import { BarChart3, TrendingUp, PieChart as PieChartIcon, Activity, Globe, Users, DollarSign, Target } from 'lucide-react';
 
 interface DataVisualizationProps {
   selectedCountries: string[];
@@ -375,6 +375,11 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
 
   return (
     <div className="space-y-6">
+      <div role="note" className="rounded-xl border border-amber-700/60 bg-amber-900/20 p-4 text-sm text-amber-100">
+        <p className="font-semibold">Unverified static reference charts</p>
+        <p className="mt-1">All figures are bundled reference material with unknown observation dates. Listed source names are unverified attributions, not checked citations. Historical years and projections do not establish current accuracy; scores are illustrative, not calibrated likelihoods. These figures are excluded from the entry planner.</p>
+        <p className="mt-2">Country filters apply to country charts and tables. Industry, consumer, competition, investment, and regional summaries describe the full static sample.</p>
+      </div>
       {/* Chart Selection */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex items-center space-x-2 mb-6">
@@ -389,7 +394,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
           {chartOptions.map((option) => (
             <button
               key={option.id}
-              onClick={() => setActiveChart(option.id as any)}
+              onClick={() => setActiveChart(option.id as typeof activeChart)}
               className={`flex flex-col items-center space-y-2 p-3 rounded-lg border transition-all duration-200 ${
                 activeChart === option.id
                   ? 'border-blue-500 bg-blue-900/20 text-white'
@@ -413,7 +418,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">Market Size Analysis</h3>
                 <div className="text-xs text-slate-400">
-                  Source: World Bank, IMF, Google-Temasek e-Conomy SEA 2024
+                  Unverified attribution: World Bank, IMF, Google-Temasek e-Conomy SEA 2024
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -466,23 +471,23 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                 <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
                   <div className="text-sm text-blue-400 mb-1">Total Combined Market</div>
                   <div className="text-2xl font-bold text-white">
-                    ${marketSizeData.reduce((acc, item) => acc + item.marketSize, 0).toFixed(1)}B
+                    {marketSizeData.length > 0 ? `$${marketSizeData.reduce((acc, item) => acc + item.marketSize, 0).toFixed(1)}B` : 'Unavailable'}
                   </div>
                   <div className="text-xs text-slate-400">Across selected markets</div>
                 </div>
                 <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
                   <div className="text-sm text-emerald-400 mb-1">Digital Economy Share</div>
                   <div className="text-2xl font-bold text-white">
-                    {((marketSizeData.reduce((acc, item) => acc + item.digitalEconomy, 0) / marketSizeData.reduce((acc, item) => acc + item.marketSize, 0)) * 100).toFixed(1)}%
+                    {marketSizeData.length > 0 ? `${((marketSizeData.reduce((acc, item) => acc + item.digitalEconomy, 0) / marketSizeData.reduce((acc, item) => acc + item.marketSize, 0)) * 100).toFixed(1)}%` : 'Unavailable'}
                   </div>
                   <div className="text-xs text-slate-400">Of total market size</div>
                 </div>
                 <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
                   <div className="text-sm text-purple-400 mb-1">Average GDP/Capita</div>
                   <div className="text-2xl font-bold text-white">
-                    ${(marketSizeData.reduce((acc, item) => acc + item.gdpPerCapita, 0) / marketSizeData.length).toLocaleString()}
+                    {marketSizeData.length > 0 ? `$${(marketSizeData.reduce((acc, item) => acc + item.gdpPerCapita, 0) / marketSizeData.length).toLocaleString()}` : 'Unavailable'}
                   </div>
-                  <div className="text-xs text-slate-400">Weighted average</div>
+                  <div className="text-xs text-slate-400">Unweighted country average</div>
                 </div>
               </div>
             </div>
@@ -493,7 +498,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">GDP Growth Trends (2020-2025)</h3>
                 <div className="text-xs text-slate-400">
-                  Source: IMF World Economic Outlook Database 2024
+                  Unverified attribution: IMF World Economic Outlook Database 2024
                 </div>
               </div>
               <div className="h-96 mb-6">
@@ -578,7 +583,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">Industry Market Share & Growth</h3>
                 <div className="text-xs text-slate-400">
-                  Source: IDC, Gartner, Google-Temasek e-Conomy SEA 2024
+                  Unverified attribution: IDC, Gartner, Google-Temasek e-Conomy SEA 2024
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -626,7 +631,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                           borderRadius: '8px',
                           color: '#F9FAFB'
                         }}
-                        formatter={(value: any) => [`${value}%`, 'Growth Rate']}
+                        formatter={(value) => [`${value}%`, 'Growth Rate']}
                       />
                       <Bar dataKey="growth" radius={[0, 4, 4, 0]} name="Growth Rate %">
                         {industryBreakdownData.map((entry, index) => (
@@ -660,7 +665,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">Digital Adoption Metrics</h3>
                 <div className="text-xs text-slate-400">
-                  Source: IMDA, NBTC, MCMC, Kominfo, DICT, MIC Vietnam
+                  Unverified attribution: IMDA, NBTC, MCMC, Kominfo, DICT, MIC Vietnam
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -678,7 +683,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                           borderRadius: '8px',
                           color: '#F9FAFB'
                         }}
-                        formatter={(value: any) => `${value}%`}
+                        formatter={(value) => `${value}%`}
                       />
                       <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                       <Bar dataKey="mobile" fill="#3B82F6" name="Mobile" radius={[4, 4, 0, 0]} />
@@ -735,7 +740,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                         }}
                       />
                       <Scatter name="Countries" data={digitalAdoptionData} fill="#8B5CF6">
-                        {digitalAdoptionData.map((entry, index) => (
+                      {digitalAdoptionData.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'][index % 6]} />
                         ))}
                       </Scatter>
@@ -780,7 +785,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">Consumer Behavior Analysis</h3>
                 <div className="text-xs text-slate-400">
-                  Source: Nielsen, Meta Business, Visa, Media Partners Asia
+                  Unverified attribution: Nielsen, Meta Business, Visa, Media Partners Asia
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -853,7 +858,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                         }}
                       />
                       <Scatter name="Consumer Behaviors" data={consumerBehaviorData} fill="#F59E0B">
-                        {consumerBehaviorData.map((entry, index) => (
+                      {consumerBehaviorData.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                         ))}
                       </Scatter>
@@ -890,7 +895,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">Competitive Landscape Analysis</h3>
                 <div className="text-xs text-slate-400">
-                  Source: Momentum Works, PwC, Euromonitor, Frost & Sullivan
+                  Unverified attribution: Momentum Works, PwC, Euromonitor, Frost & Sullivan
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -1023,7 +1028,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">Investment Flows Analysis</h3>
                 <div className="text-xs text-slate-400">
-                  Source: UNCTAD, Preqin, CB Insights
+                  Unverified attribution: UNCTAD, Preqin, CB Insights
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -1109,7 +1114,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">International Trade Analysis</h3>
                 <div className="text-xs text-slate-400">
-                  Source: National Trade Ministries, ASEAN Trade Statistics
+                  Unverified attribution: National Trade Ministries, ASEAN Trade Statistics
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -1206,6 +1211,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
       </div>
 
       {/* Key Insights Summary */}
+      <h3 className="text-lg font-semibold text-white">Regional reference summary (full static sample)</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
           <div className="flex items-center space-x-2 mb-2">
@@ -1214,7 +1220,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
           </div>
           <div className="text-lg font-semibold text-emerald-400">Vietnam</div>
           <div className="text-xs text-slate-400">7.0% projected 2025 growth</div>
-          <div className="text-xs text-slate-500 mt-1">Source: IMF Economic Outlook</div>
+          <div className="text-xs text-slate-500 mt-1">Unverified attribution: IMF Economic Outlook</div>
         </div>
         
         <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
@@ -1224,7 +1230,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
           </div>
           <div className="text-lg font-semibold text-blue-400">Indonesia</div>
           <div className="text-xs text-slate-400">$287.2B market size</div>
-          <div className="text-xs text-slate-500 mt-1">Source: World Bank, Google-Temasek</div>
+          <div className="text-xs text-slate-500 mt-1">Unverified attribution: World Bank, Google-Temasek</div>
         </div>
         
         <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
@@ -1234,7 +1240,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
           </div>
           <div className="text-lg font-semibold text-purple-400">Singapore</div>
           <div className="text-xs text-slate-400">92.3% mobile penetration</div>
-          <div className="text-xs text-slate-500 mt-1">Source: IMDA Digital Society Report</div>
+          <div className="text-xs text-slate-500 mt-1">Unverified attribution: IMDA Digital Society Report</div>
         </div>
 
         <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-4">
@@ -1244,7 +1250,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
           </div>
           <div className="text-lg font-semibold text-orange-400">Technology</div>
           <div className="text-xs text-slate-400">23.4% market share, 15.2% growth</div>
-          <div className="text-xs text-slate-500 mt-1">Source: IDC Asia Pacific, Gartner</div>
+          <div className="text-xs text-slate-500 mt-1">Unverified attribution: IDC Asia Pacific, Gartner</div>
         </div>
       </div>
 
@@ -1262,7 +1268,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                 <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Digital Economy (B)</th>
                 <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Mobile Penetration</th>
                 <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">E-commerce (B)</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Data Source</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Unverified attribution</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
@@ -1275,7 +1281,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
                     <td className="py-4 px-4 text-right text-slate-300">{country.population}</td>
                     <td className="py-4 px-4 text-right text-slate-300">${country.gdpPerCapita.toLocaleString()}</td>
                     <td className="py-4 px-4 text-right text-slate-300">${country.digitalEconomy}</td>
-                    <td className="py-4 px-4 text-right text-slate-300">{digitalData?.mobile || 'N/A'}%</td>
+                    <td className="py-4 px-4 text-right text-slate-300">{digitalData ? `${digitalData.mobile}%` : 'Unavailable'}</td>
                     <td className="py-4 px-4 text-right text-slate-300">${country.ecommerce}</td>
                     <td className="py-4 px-4 text-xs text-slate-400">{country.source.split(',')[0]}...</td>
                   </tr>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Mail, Lock, User, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,7 +18,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword, isConfigured } = useAuth();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setMode(initialMode);
+    setError(null);
+    setSuccess(null);
+  }, [isOpen, initialMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,14 +54,38 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
         if (error) throw error;
         setSuccess('Password reset email sent!');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
   if (!isOpen) return null;
+
+  if (!isConfigured) {
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div role="dialog" aria-modal="true" aria-labelledby="guest-access-title" className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full mx-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 id="guest-access-title" className="text-2xl font-bold text-white">Explore as a guest</h2>
+            <button onClick={onClose} aria-label="Close account dialog" className="text-slate-400 hover:text-white transition-colors">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <p className="text-slate-300 leading-relaxed">
+            This workspace is in guest mode. You can explore Southeast Asian markets and compare the included research.
+          </p>
+          <p className="text-slate-400 text-sm mt-3 leading-relaxed">
+            Sign in, saved accounts, and collaboration require connected services, which are not enabled in this workspace.
+          </p>
+          <button onClick={onClose} className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors">
+            Continue exploring
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
@@ -67,6 +98,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close account dialog"
             className="text-slate-400 hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />

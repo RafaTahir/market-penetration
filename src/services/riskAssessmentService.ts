@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient';
 
+// JSONB fields may contain nested records, lists, or null.
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export interface PoliticalRiskIndex {
   id: string;
   country: string;
@@ -15,10 +18,10 @@ export interface PoliticalRiskIndex {
   election_risk: string;
   civil_unrest_risk: string;
   policy_continuity_risk: string;
-  recent_events: any;
+  recent_events: JsonValue;
   risk_summary: string;
-  mitigation_strategies: any;
-  data_sources: any;
+  mitigation_strategies: JsonValue;
+  data_sources: JsonValue;
   assessment_date: string;
   created_at: string;
 }
@@ -42,7 +45,7 @@ export interface EconomicRiskFactor {
   ease_of_repatriation: string;
   recession_risk: string;
   risk_summary: string;
-  data_sources: any;
+  data_sources: JsonValue;
   assessment_date: string;
   created_at: string;
 }
@@ -59,15 +62,15 @@ export interface OperationalRisk {
   likelihood: string;
   impact_on_operations: string;
   affected_business_functions: string[];
-  historical_incidents: any;
+  historical_incidents: JsonValue;
   current_status: string;
-  mitigation_measures: any;
-  contingency_plans: any;
+  mitigation_measures: JsonValue;
+  contingency_plans: JsonValue;
   cost_of_mitigation_usd: number;
   monitoring_frequency: string;
-  early_warning_indicators: any;
+  early_warning_indicators: JsonValue;
   last_incident_date: string;
-  data_sources: any;
+  data_sources: JsonValue;
   last_updated: string;
   created_at: string;
 }
@@ -82,8 +85,8 @@ export interface CountryCreditRating {
   previous_rating: string;
   rating_change: string;
   rating_score_numeric: number;
-  key_factors_positive: any;
-  key_factors_negative: any;
+  key_factors_positive: JsonValue;
+  key_factors_negative: JsonValue;
   rating_rationale: string;
   implications_for_business: string;
   next_review_date: string;
@@ -98,15 +101,15 @@ export interface SanctionsCompliance {
   sanction_type: string;
   sectors_affected: string[];
   transaction_types_restricted: string[];
-  entities_blacklisted: any;
+  entities_blacklisted: JsonValue;
   effective_date: string;
   expiration_date: string;
   severity: string;
   business_impact: string;
-  compliance_requirements: any;
+  compliance_requirements: JsonValue;
   penalties_for_violation: string;
   exemptions: string;
-  due_diligence_steps: any;
+  due_diligence_steps: JsonValue;
   official_reference: string;
   source_url: string;
   last_updated: string;

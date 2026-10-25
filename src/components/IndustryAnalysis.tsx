@@ -111,6 +111,11 @@ const IndustryAnalysis: React.FC<IndustryAnalysisProps> = ({ selectedCountries, 
         </div>
       </div>
       
+      <div role="note" className="mb-6 rounded-lg border border-amber-500/50 bg-amber-900/20 p-4 text-sm text-amber-100">
+        <p className="font-semibold">Unverified static industry reference</p>
+        <p>Market sizes, growth, trends, and opportunity/risk scores are hardcoded examples with unavailable observation dates. They do not change with selected countries and are excluded from the entry planner. Scores are illustrative and are not calibrated probabilities or forecasts.</p>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Industry Selection */}
         <div className="lg:col-span-1">
@@ -194,8 +199,8 @@ const IndustryAnalysis: React.FC<IndustryAnalysisProps> = ({ selectedCountries, 
                     ></div>
                   </div>
                   <div className="flex justify-between text-xs text-slate-400">
-                    <span>Low Risk</span>
-                    <span>High Potential</span>
+                    <span>Lower illustrative score</span>
+                    <span>Higher illustrative score</span>
                   </div>
                 </div>
               </div>

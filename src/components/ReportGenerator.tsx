@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
 import { FileText, Download, Presentation, Sparkles } from 'lucide-react';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import { ProfessionalDeckService } from '../services/professionalDeckService';
 
-interface ReportData {
-  type: 'written' | 'presentation';
-  title: string;
-  subtitle: string;
-  date: string;
-}
+// This route exports a bundled planning example; it does not load provider data.
+const labelIllustrativePages = (doc: jsPDF): void => {
+  const width = doc.internal.pageSize.getWidth();
+  const height = doc.internal.pageSize.getHeight();
+  const generatedAt = new Date().toISOString();
+  for (let page = 1; page <= doc.getNumberOfPages(); page++) {
+    doc.setPage(page);
+    doc.setFillColor(248, 250, 252);
+    doc.rect(0, height - 23, width, 23, 'F');
+    doc.setTextColor(71, 85, 105);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('Illustrative planning example; all figures and recommendations require independent verification.', 12, height - 16);
+    doc.text('Source: src/components/ReportGenerator.tsx | observedAt: unavailable', 12, height - 11);
+    doc.text(`generatedAt: ${generatedAt} (export creation only)`, 12, height - 6);
+  }
+};
 
 const ReportGenerator: React.FC = () => {
   const [generating, setGenerating] = useState(false);
 
+  // Fixed illustrative assumptions, not provider observations or current market facts.
   const marketData = {
     overview: {
       totalMarketSize: 901,
@@ -62,20 +74,20 @@ const ReportGenerator: React.FC = () => {
       doc.setFontSize(28);
       doc.setTextColor(30, 58, 138);
       doc.setFont('helvetica', 'bold');
-      const title = 'Southeast Asian Market Entry Strategy';
+      const title = 'Illustrative Market Entry Planning Example';
       doc.text(title, pageWidth / 2, 90, { align: 'center', maxWidth: contentWidth });
 
       // Subtitle
       doc.setFontSize(16);
       doc.setTextColor(71, 85, 105);
       doc.setFont('helvetica', 'normal');
-      doc.text('Comprehensive Market Analysis & Investment Recommendations', pageWidth / 2, 110, { align: 'center', maxWidth: contentWidth });
+      doc.text('Static scenario for research and planning; not an investment recommendation', pageWidth / 2, 110, { align: 'center', maxWidth: contentWidth });
 
       // Date
       doc.setFontSize(12);
       doc.setTextColor(148, 163, 184);
       const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      doc.text(currentDate, pageWidth / 2, 130, { align: 'center' });
+      doc.text(`Generated: ${currentDate}; observation dates unavailable`, pageWidth / 2, 130, { align: 'center' });
 
       // Blue accent bar
       doc.setFillColor(59, 130, 246);
@@ -173,7 +185,7 @@ const ReportGenerator: React.FC = () => {
       doc.setFontSize(20);
       doc.setTextColor(30, 58, 138);
       doc.setFont('helvetica', 'bold');
-      doc.text('Market Overview', margin, yPos);
+      doc.text('Illustrative Market Overview', margin, yPos);
 
       yPos += 12;
 
@@ -208,7 +220,7 @@ const ReportGenerator: React.FC = () => {
       doc.setFontSize(14);
       doc.setTextColor(30, 58, 138);
       doc.setFont('helvetica', 'bold');
-      doc.text('Country Comparison', margin, yPos);
+      doc.text('Illustrative Country Comparison', margin, yPos);
 
       yPos += 10;
 
@@ -256,7 +268,7 @@ const ReportGenerator: React.FC = () => {
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'italic');
-      doc.text('Source: World Bank, IMF Economic Outlook 2024, National Statistical Offices', margin, yPos);
+      doc.text('Illustrative values from src/components/ReportGenerator.tsx; original observations unavailable', margin, yPos);
 
       // Page 4: Detailed Analysis
       doc.addPage();
@@ -420,9 +432,9 @@ const ReportGenerator: React.FC = () => {
         '• Achieve profitability in primary markets',
         '• Explore acquisition opportunities',
         '',
-        'INVESTMENT REQUIRED: $50-75M over 3 years',
-        'EXPECTED ROI: 25-30% by Year 3',
-        'BREAK-EVEN: 18-24 months in primary markets'
+        'ILLUSTRATIVE INVESTMENT ASSUMPTION: $50-75M over 3 years',
+        'ILLUSTRATIVE ROI ASSUMPTION: 25-30% by Year 3',
+        'ILLUSTRATIVE BREAK-EVEN ASSUMPTION: 18-24 months'
       ];
 
       actionPlan.forEach(line => {
@@ -441,6 +453,7 @@ const ReportGenerator: React.FC = () => {
         });
       });
 
+      labelIllustrativePages(doc);
       doc.save('FLOW_SEA_Market_Entry_Strategy_Report.pdf');
 
     } catch (error) {
@@ -498,7 +511,7 @@ const ReportGenerator: React.FC = () => {
       // Subtitle
       doc.setFontSize(18);
       doc.setTextColor(203, 213, 225);
-      doc.text('Board Presentation | ' + new Date().getFullYear(), pageWidth / 2, 130, { align: 'center' });
+      doc.text('Illustrative template | generated ' + new Date().getFullYear(), pageWidth / 2, 130, { align: 'center' });
 
       // Decorative element
       doc.setDrawColor(59, 130, 246);
@@ -558,7 +571,7 @@ const ReportGenerator: React.FC = () => {
       doc.setFontSize(16);
       doc.setTextColor(16, 185, 129);
       doc.setFont('helvetica', 'bold');
-      doc.text('RECOMMENDATION: PROCEED', margin + 5, yPos + 10);
+      doc.text('ILLUSTRATIVE PLANNING SCENARIO', margin + 5, yPos + 10);
 
       doc.setFontSize(12);
       doc.setTextColor(51, 65, 85);
@@ -580,7 +593,7 @@ const ReportGenerator: React.FC = () => {
 
       doc.setFontSize(24);
       doc.setTextColor(30, 58, 138);
-      doc.text('Regional Market Metrics', margin, yPos);
+      doc.text('Illustrative Regional Market Metrics', margin, yPos);
 
       yPos += 15;
 
@@ -624,7 +637,7 @@ const ReportGenerator: React.FC = () => {
       doc.setFontSize(16);
       doc.setTextColor(30, 58, 138);
       doc.setFont('helvetica', 'bold');
-      doc.text('Top Markets by Size', margin, yPos);
+      doc.text('Illustrative Markets by Size', margin, yPos);
 
       yPos += 12;
 
@@ -650,6 +663,7 @@ const ReportGenerator: React.FC = () => {
         yPos += 20;
       });
 
+      labelIllustrativePages(doc);
       doc.save('FLOW_SEA_Market_Entry_Presentation.pdf');
 
     } catch (error) {
@@ -665,7 +679,7 @@ const ReportGenerator: React.FC = () => {
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-white mb-4">Professional Report Generator</h2>
           <p className="text-slate-300">
-            Generate McKinsey-style reports and presentations for Southeast Asian market analysis
+            Generate illustrative reports and presentation templates for Southeast Asian market planning
           </p>
         </div>
 
@@ -702,7 +716,7 @@ const ReportGenerator: React.FC = () => {
               <Presentation className="h-8 w-8 text-emerald-400" />
               <div>
                 <h3 className="text-lg font-semibold text-white">Slide Deck</h3>
-                <p className="text-sm text-slate-400">Board presentation</p>
+                <p className="text-sm text-slate-400">Illustrative planning template</p>
               </div>
             </div>
 
@@ -732,7 +746,7 @@ const ReportGenerator: React.FC = () => {
               <Sparkles className="h-8 w-8 text-purple-400" />
               <div>
                 <h3 className="text-lg font-semibold text-white">Professional Deck</h3>
-                <p className="text-sm text-slate-300">Premium pitch style</p>
+                <p className="text-sm text-slate-300">Illustrative pitch template</p>
               </div>
             </div>
 
@@ -756,8 +770,8 @@ const ReportGenerator: React.FC = () => {
         </div>
 
         <div className="mt-8 text-center text-sm text-slate-400">
-          <p>Reports are generated in McKinsey professional style with FLOW branding</p>
-          <p className="mt-1">All data sourced from World Bank, IMF, and official national statistics (2024)</p>
+          <p>Reports use FLOW templates with illustrative figures and planning scenarios</p>
+          <p className="mt-1">This report page uses bundled examples; original sources and observation dates are unavailable. Verify before decisions.</p>
         </div>
       </div>
     </div>

@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   riskAssessmentService,
@@ -11,6 +10,7 @@ import {
 export default function RiskAssessment() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState('');
   const [politicalRisk, setPoliticalRisk] = useState<PoliticalRiskIndex | null>(null);
   const [economicRisk, setEconomicRisk] = useState<EconomicRiskFactor | null>(null);
@@ -19,24 +19,33 @@ export default function RiskAssessment() {
   const countries = ['Thailand', 'Singapore', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam'];
 
   useEffect(() => {
-    if (selectedCountry) {
-      loadData();
-    }
-  }, [selectedCountry]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const riskProfile = await riskAssessmentService.getComprehensiveRiskProfile(selectedCountry);
-      setPoliticalRisk(riskProfile.political);
-      setEconomicRisk(riskProfile.economic);
-      setOperationalRisks(riskProfile.operational);
-    } catch (error) {
-      console.error('Error loading risk assessment data:', error);
-    } finally {
+    let active = true;
+    setLoadError(null);
+    setPoliticalRisk(null);
+    setEconomicRisk(null);
+    setOperationalRisks([]);
+    if (!selectedCountry) {
       setLoading(false);
+      return;
     }
-  };
+    setLoading(true);
+    const loadData = async () => {
+      try {
+        const riskProfile = await riskAssessmentService.getComprehensiveRiskProfile(selectedCountry);
+        if (active) {
+          setPoliticalRisk(riskProfile.political);
+          setEconomicRisk(riskProfile.economic);
+          setOperationalRisks(riskProfile.operational);
+        }
+      } catch {
+        if (active) setLoadError('Connected risk records are unavailable.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadData();
+    return () => { active = false; };
+  }, [selectedCountry]);
 
   const getRiskColor = (score: number) => {
     if (score >= 70) return 'text-green-500';
@@ -48,6 +57,11 @@ export default function RiskAssessment() {
     <div className="space-y-6">
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className="text-2xl font-bold mb-4">Risk Assessment</h2>
+
+        <div role="note" className="mb-6 rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-900/20 dark:text-amber-200">
+          <p className="font-semibold">Unverified connected risk reference</p>
+          <p>Connected records may include seeded reference content or database defaults. Observation dates and source attribution have not been verified. Scores and severity labels are unverified, are not calibrated likelihoods, and do not establish an investment recommendation. Zero scores may be defaults rather than measured values. Excluded from the entry planner.</p>
+        </div>
 
         <div className="mb-6">
           <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -74,6 +88,9 @@ export default function RiskAssessment() {
           </div>
         ) : selectedCountry ? (
           <div className="space-y-6">
+            {!politicalRisk && !economicRisk && operationalRisks.length === 0 && (
+              <p className="py-8 text-center">{loadError ?? 'No risk records available for this country.'}</p>
+            )}
             {politicalRisk && (
               <div className={`p-4 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
                 <h3 className="text-xl font-semibold mb-4">Political Risk Profile</h3>

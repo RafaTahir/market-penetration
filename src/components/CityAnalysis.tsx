@@ -113,7 +113,7 @@ const CityAnalysis: React.FC<CityAnalysisProps> = ({ selectedCountries, selected
   const [selectedCity, setSelectedCity] = useState<string>('singapore-city');
 
   const availableCities = cities.filter(city => selectedCountries.includes(city.country));
-  const selectedCityData = cities.find(city => city.id === selectedCity);
+  const selectedCityData = availableCities.find(city => city.id === selectedCity) ?? availableCities[0];
 
   const getCostColor = (cost: string) => {
     switch (cost) {
@@ -128,11 +128,18 @@ const CityAnalysis: React.FC<CityAnalysisProps> = ({ selectedCountries, selected
     <div className="space-y-6">
       {/* City Selection Grid */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-        <div className="flex items-center space-x-2 mb-6">
+        <div className="flex items-center space-x-2 mb-3">
           <Building2 className="h-5 w-5 text-purple-400" />
           <h2 className="text-lg font-semibold text-white">Major Cities Analysis</h2>
         </div>
+        <p className="text-sm text-slate-400 mb-6">
+          These unverified static city figures are for reference only and are excluded from the entry planner.
+          Observation dates are unavailable.
+        </p>
         
+        {availableCities.length === 0 && (
+          <p className="text-sm text-slate-300">Select a country with city data to view city analysis.</p>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {availableCities.map((city) => (
             <div

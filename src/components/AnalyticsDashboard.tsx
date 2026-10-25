@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, Area, AreaChart } from 'recharts';
-import { BarChart3, Users, TrendingUp, Globe, Smartphone, DollarSign, Target, Zap } from 'lucide-react';
+import { BarChart3, Users, TrendingUp, Smartphone, DollarSign, Target, Zap } from 'lucide-react';
 
 const AnalyticsDashboard: React.FC = () => {
   const [selectedMetric, setSelectedMetric] = useState<'population' | 'economic' | 'digital' | 'market'>('population');
@@ -209,16 +209,21 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Analytics Dashboard</h1>
-              <p className="text-sm text-slate-400">Comprehensive Southeast Asian Market Analytics</p>
+              <p className="text-sm text-slate-400">Southeast Asian reference analytics</p>
             </div>
           </div>
           
+          <div role="note" className="mb-6 rounded-lg border border-amber-700/60 bg-amber-900/20 p-4 text-sm text-amber-100">
+            <p className="font-semibold">Unverified static reference data</p>
+            <p className="mt-1">These charts use bundled figures with unknown observation dates. Historical years and projections are labels from the reference material; their accuracy has not been verified. Opportunity scores are illustrative and are not calibrated probabilities. These figures are excluded from the entry planner.</p>
+          </div>
+
           {/* Metric Selection */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {metrics.map((metric) => (
               <button
                 key={metric.id}
-                onClick={() => setSelectedMetric(metric.id as any)}
+                onClick={() => setSelectedMetric(metric.id as typeof selectedMetric)}
                 className={`flex items-center space-x-2 p-3 rounded-lg border transition-all duration-200 ${
                   selectedMetric === metric.id
                     ? 'border-purple-500 bg-purple-900/20 text-white'
@@ -441,7 +446,7 @@ const AnalyticsDashboard: React.FC = () => {
                         dataKey="cloudAdoption"
                         label={({ country, cloudAdoption }) => `${country}: ${cloudAdoption}%`}
                       >
-                        {digitalMetrics.map((entry, index) => (
+                {digitalMetrics.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={colors[index]} />
                         ))}
                       </Pie>

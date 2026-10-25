@@ -1,6 +1,35 @@
 import pptxgen from 'pptxgenjs';
 import { UnifiedDataService } from './unifiedDataService';
+import type { UnifiedEconomicData } from './unifiedDataService';
 import { MarketDataService } from './marketDataService';
+import type { CurrencyRate, MarketData } from './marketDataService';
+
+type EconomicReference = UnifiedEconomicData;
+type StockReference = MarketData;
+type CurrencyReference = CurrencyRate;
+
+// Missing values remain missing, including in aggregates and derived scenarios.
+const numeric = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN;
+const display = (value: unknown, digits = 1, divisor = 1, prefix = '', suffix = ''): string => {
+  const number = numeric(value) / divisor;
+  return Number.isFinite(number) ? `${prefix}${number.toFixed(digits)}${suffix}` : 'Unavailable';
+};
+const completeTotal = (values: unknown[]): number => values.length && values.every(value => Number.isFinite(numeric(value)))
+  ? values.reduce<number>((sum, value) => sum + numeric(value), 0) : Number.NaN;
+const completeAverage = (values: unknown[]): number => completeTotal(values) / values.length;
+const ratio = (numerator: unknown, denominator: unknown): number => numeric(denominator) > 0
+  ? numeric(numerator) / numeric(denominator) : Number.NaN;
+
+// Unattributed payload values do not become factual report numbers.
+const sourced = <T extends { source?: string; metricEvidence?: Record<string, { source?: string; status?: string }> }>(records: T[], fields: string[]): T[] => records.map(record => ({
+  ...record,
+  ...Object.fromEntries(fields.map(field => {
+    const evidence = record.metricEvidence?.[field];
+    const source = evidence?.source || record.source;
+    const available = typeof source === 'string' && source.trim().length > 0 && !/^(unavailable|unknown|n\/a)$/i.test(source.trim()) && evidence?.status !== 'unavailable';
+    return [field, available ? Reflect.get(record, field) : Number.NaN];
+  }))
+}));
 
 export interface PPTXReportData {
   selectedCountries: string[];
@@ -65,15 +94,14 @@ export class EnhancedPPTXService {
           },
           {
             text: {
-              text: '[[SLIDE_NUMBER]]',
+              text: 'Unverified reference. Static examples: src/services/enhancedPPTXService.ts. Supplied data: see Data Provenance.',
               options: {
-                x: 12.5,
-                y: 0.05,
-                w: 0.5,
-                h: 0.2,
-                fontSize: 10,
-                color: 'FFFFFF',
-                align: 'right',
+                x: 0.5,
+                y: 7.1,
+                w: 12,
+                h: 0.25,
+                fontSize: 9,
+                color: '94A3B8',
                 fontFace: 'Arial'
               }
             }
@@ -82,50 +110,46 @@ export class EnhancedPPTXService {
         slideNumber: { x: 12.5, y: 0.05, color: 'FFFFFF', fontFace: 'Arial', fontSize: 10 }
       });
 
-      let economicData: any[] = [];
-      let stockIndices: any[] = [];
-      let currencies: any[] = [];
+      let economicData: EconomicReference[] = [];
+      let stockIndices: StockReference[] = [];
+      let currencies: CurrencyReference[] = [];
 
       try {
         economicData = await this.unifiedDataService.getUnifiedEconomicData(data.selectedCountries);
-        if (!economicData || economicData.length === 0) {
-          throw new Error('No economic data available');
-        }
+        economicData = sourced(economicData || [], ['gdp', 'gdpGrowth', 'inflation', 'unemployment', 'population', 'gdpPerCapita', 'internetUsers', 'exchangeRate', 'interestRate']);
       } catch (error) {
-        console.error('Error loading economic data, using fallback:', error);
-        economicData = this.getFallbackEconomicData();
+        console.error('Economic data unavailable for export:', error);
+        economicData = [];
       }
 
       try {
         stockIndices = await this.marketDataService.getStockData(['JCI', 'SET', 'KLSE', 'PSEI', 'VNI', 'STI']);
-        if (!stockIndices || stockIndices.length === 0) {
-          throw new Error('No stock data available');
-        }
+        stockIndices = sourced(stockIndices || [], ['price', 'change', 'changePercent', 'volume', 'marketCap']);
       } catch (error) {
-        console.error('Error loading stock data, using fallback:', error);
-        stockIndices = this.getFallbackStockData();
+        console.error('Stock data unavailable for export:', error);
+        stockIndices = [];
       }
 
       try {
         currencies = await this.marketDataService.getCurrencyRates();
-        if (!currencies || currencies.length === 0) {
-          throw new Error('No currency data available');
-        }
+        currencies = sourced(currencies || [], ['rate', 'change', 'changePercent']);
       } catch (error) {
-        console.error('Error loading currency data, using fallback:', error);
-        currencies = this.getFallbackCurrencyData();
+        console.error('Currency data unavailable for export:', error);
+        currencies = [];
       }
 
+
       this.addTitleSlide(pres, data);
-      this.addExecutiveSummary(pres, economicData, stockIndices);
+      this.addExecutiveSummary(pres, economicData);
       this.addMarketOpportunity(pres, economicData);
       this.addLiveMarketData(pres, stockIndices, currencies);
       this.addCountryAnalysis(pres, economicData);
       this.addDigitalEconomy(pres, economicData);
       this.addCompetitiveLandscape(pres);
-      this.addInvestmentStrategy(pres, economicData);
+      this.addInvestmentStrategy(pres);
       this.addRoadmap(pres);
       this.addCallToAction(pres);
+      this.addProvenance(pres, economicData, stockIndices, currencies);
 
       const fileName = `SEA-Market-Strategy-${new Date().toISOString().split('T')[0]}.pptx`;
       await pres.writeFile({ fileName });
@@ -133,39 +157,6 @@ export class EnhancedPPTXService {
       console.error('Critical error generating PowerPoint:', error);
       throw new Error('Failed to generate PowerPoint presentation. Please try again or contact support.');
     }
-  }
-
-  private getFallbackEconomicData(): any[] {
-    return [
-      { country: 'Indonesia', gdp: 1319000000000, gdpGrowth: 5.2, inflation: 3.2, unemployment: 5.8, population: 273500000, gdpPerCapita: 4822, internetUsers: 199800000, exchangeRate: 15750, interestRate: 6.00 },
-      { country: 'Thailand', gdp: 543500000000, gdpGrowth: 2.8, inflation: 1.2, unemployment: 1.1, population: 69800000, gdpPerCapita: 7786, internetUsers: 59200000, exchangeRate: 35.42, interestRate: 2.50 },
-      { country: 'Singapore', gdp: 397000000000, gdpGrowth: 2.6, inflation: 2.1, unemployment: 2.0, population: 5900000, gdpPerCapita: 67298, internetUsers: 5400000, exchangeRate: 1.35, interestRate: 3.50 },
-      { country: 'Malaysia', gdp: 432000000000, gdpGrowth: 4.5, inflation: 2.8, unemployment: 3.3, population: 32700000, gdpPerCapita: 13215, internetUsers: 27500000, exchangeRate: 4.68, interestRate: 3.00 },
-      { country: 'Vietnam', gdp: 409000000000, gdpGrowth: 6.8, inflation: 3.6, unemployment: 2.3, population: 97300000, gdpPerCapita: 4202, internetUsers: 72900000, exchangeRate: 24350, interestRate: 4.50 },
-      { country: 'Philippines', gdp: 394000000000, gdpGrowth: 6.2, inflation: 4.1, unemployment: 4.5, population: 109600000, gdpPerCapita: 3595, internetUsers: 74500000, exchangeRate: 56.25, interestRate: 6.50 }
-    ];
-  }
-
-  private getFallbackStockData(): any[] {
-    return [
-      { symbol: 'JCI', name: 'Jakarta Composite Index', price: 7245.50, change: 45.30, changePercent: 0.63, volume: 8450000000 },
-      { symbol: 'SET', name: 'Stock Exchange of Thailand', price: 1432.25, change: -12.45, changePercent: -0.86, volume: 82340000000 },
-      { symbol: 'KLSE', name: 'Bursa Malaysia', price: 1545.80, change: 8.25, changePercent: 0.54, volume: 3240000000 },
-      { symbol: 'PSEI', name: 'Philippine Stock Exchange', price: 6542.15, change: 32.80, changePercent: 0.50, volume: 4580000000 },
-      { symbol: 'VNI', name: 'Vietnam Stock Index', price: 1245.60, change: 18.90, changePercent: 1.54, volume: 12340000000 },
-      { symbol: 'STI', name: 'Straits Times Index', price: 3285.40, change: -5.20, changePercent: -0.16, volume: 1240000000 }
-    ];
-  }
-
-  private getFallbackCurrencyData(): any[] {
-    return [
-      { pair: 'USD/IDR', rate: 15750, change: 25, changePercent: 0.16 },
-      { pair: 'USD/THB', rate: 35.42, change: 0.12, changePercent: 0.34 },
-      { pair: 'USD/MYR', rate: 4.68, change: 0.03, changePercent: 0.64 },
-      { pair: 'USD/PHP', rate: 56.25, change: -0.15, changePercent: -0.27 },
-      { pair: 'USD/VND', rate: 24350, change: 50, changePercent: 0.21 },
-      { pair: 'USD/SGD', rate: 1.35, change: -0.002, changePercent: -0.15 }
-    ];
   }
 
   private addTitleSlide(pres: pptxgen, data: PPTXReportData): void {
@@ -259,10 +250,10 @@ export class EnhancedPPTXService {
     });
 
     const metrics = [
-      { label: 'Data Sources', value: '10+', icon: '📊' },
-      { label: 'Countries', value: '6', icon: '🌏' },
-      { label: 'Real-Time', value: 'Live', icon: '⚡' },
-      { label: 'Data Points', value: '1000+', icon: '📈' }
+      { label: 'Material', value: 'Reference', icon: '📊' },
+      { label: 'Scope', value: 'National', icon: '🌏' },
+      { label: 'Observation dates', value: 'Unknown', icon: '⚡' },
+      { label: 'Applicability', value: 'Unverified', icon: '📈' }
     ];
 
     metrics.forEach((metric, index) => {
@@ -310,7 +301,7 @@ export class EnhancedPPTXService {
     });
   }
 
-  private addExecutiveSummary(pres: pptxgen, economicData: any[], stockIndices: any[]): void {
+  private addExecutiveSummary(pres: pptxgen, economicData: EconomicReference[]): void {
     const slide = pres.addSlide({ masterName: 'FLOW_MASTER' });
     slide.background = { color: '0F172A' };
 
@@ -325,16 +316,16 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
-    const totalGdp = economicData.reduce((sum, c) => sum + (c.gdp || 0), 0);
-    const totalPopulation = economicData.reduce((sum, c) => sum + (c.population || 0), 0);
-    const avgGrowth = economicData.reduce((sum, c) => sum + (c.gdpGrowth || 0), 0) / economicData.length;
-    const totalInternetUsers = economicData.reduce((sum, c) => sum + (c.internetUsers || 0), 0);
+    const totalGdp = completeTotal(economicData.map(country => country.gdp));
+    const totalPopulation = completeTotal(economicData.map(country => country.population));
+    const avgGrowth = completeAverage(economicData.map(country => country.gdpGrowth));
+    const totalInternetUsers = completeTotal(economicData.map(country => country.internetUsers));
 
     const metrics = [
-      { label: 'Combined GDP', value: `$${(totalGdp / 1e12).toFixed(2)}T`, change: '+5.2%', color: '3B82F6' },
-      { label: 'Total Population', value: `${(totalPopulation / 1e6).toFixed(0)}M`, change: '+1.8%', color: '10B981' },
-      { label: 'Avg Growth', value: `${avgGrowth.toFixed(1)}%`, change: 'Annual', color: '8B5CF6' },
-      { label: 'Digital Users', value: `${(totalInternetUsers / 1e6).toFixed(0)}M`, change: '+12.4%', color: 'F59E0B' }
+      { label: 'Combined GDP', value: display(totalGdp, 2, 1e12, '$', 'T'), change: 'Reference', color: '3B82F6' },
+      { label: 'Total Population', value: display(totalPopulation, 0, 1e6, '', 'M'), change: 'Reference', color: '10B981' },
+      { label: 'Avg Growth', value: display(avgGrowth, 1, 1, '', '%'), change: 'Reference', color: '8B5CF6' },
+      { label: 'Digital Users', value: display(totalInternetUsers, 0, 1e6, '', 'M'), change: 'Reference', color: 'F59E0B' }
     ];
 
     metrics.forEach((metric, index) => {
@@ -383,7 +374,7 @@ export class EnhancedPPTXService {
       });
     });
 
-    slide.addText('Key Strategic Insights', {
+    slide.addText('Illustrative Discussion Topics', {
       x: 0.5,
       y: 3.3,
       w: 12,
@@ -395,10 +386,10 @@ export class EnhancedPPTXService {
     });
 
     const insights = [
-      '• Southeast Asia: $3.7T economy with 680M+ consumers, unprecedented market entry opportunities',
-      '• Digital economy growing 18.6% annually, driven by mobile-first adoption and e-commerce',
-      '• Indonesia, Vietnam, Philippines: Strongest growth trajectories (5-7% GDP) with favorable demographics',
-      '• ASEAN integration: Simplified market access and reduced cross-border expansion barriers'
+      '• Research market size and demand using dated primary sources',
+      '• Test digital channels and payment methods for the specific business',
+      '• Compare verified growth and costs before selecting entry markets',
+      '• Check current country and sector rules with qualified local advisers'
     ];
 
     insights.forEach((insight, index) => {
@@ -422,7 +413,7 @@ export class EnhancedPPTXService {
       line: { color: '10B981', width: 3 }
     });
 
-    slide.addText('RECOMMENDATION: PROCEED WITH MARKET ENTRY', {
+    slide.addText('ILLUSTRATIVE STRATEGY: VERIFY BEFORE MARKET ENTRY', {
       x: 0.7,
       y: 5.6,
       w: 11.6,
@@ -444,11 +435,11 @@ export class EnhancedPPTXService {
     });
   }
 
-  private addMarketOpportunity(pres: pptxgen, economicData: any[]): void {
+  private addMarketOpportunity(pres: pptxgen, economicData: EconomicReference[]): void {
     const slide = pres.addSlide({ masterName: 'FLOW_MASTER' });
     slide.background = { color: '0F172A' };
 
-    slide.addText('Market Opportunity Matrix', {
+    slide.addText('Market Reference Comparison', {
       x: 0.5,
       y: 0.8,
       w: 8,
@@ -459,18 +450,19 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
-    const chartData = economicData.slice(0, 6).map(country => ({
+    const chartData = economicData.filter(country => [country.gdp, country.gdpGrowth, country.internetUsers, country.population].every(value => Number.isFinite(numeric(value))) && numeric(country.population) > 0).slice(0, 6).map(country => ({
       name: country.country || 'N/A',
-      labels: ['GDP', 'Growth', 'Digital', 'Population'],
+      labels: ['GDP (USD 10B)', 'Growth (x10)', 'Internet (%)', 'Population (10M)'],
       values: [
-        ((country.gdp || 0) / 1e12) * 100,
-        (country.gdpGrowth || 0) * 10,
-        ((country.internetUsers || 0) / (country.population || 1)) * 100,
-        ((country.population || 0) / 1e9) * 100
+        (numeric(country.gdp) / 1e12) * 100,
+        numeric(country.gdpGrowth) * 10,
+        ratio(country.internetUsers, country.population) * 100,
+        (numeric(country.population) / 1e9) * 100
       ]
     }));
 
-    slide.addChart(pres.ChartType.bar, chartData, {
+    if (!chartData[0]?.values.length) slide.addText('Chart unavailable: required observations are missing.', { x: 0.5, y: 2, w: 6, h: 1, fontSize: 18, color: 'FFFFFF' });
+    else slide.addChart(pres.ChartType.bar, chartData, {
       x: 0.5,
       y: 1.8,
       w: 12,
@@ -480,15 +472,13 @@ export class EnhancedPPTXService {
       showLegend: true,
       legendPos: 'b',
       showTitle: false,
-      valAxisMaxVal: 100,
       catAxisLabelColor: 'FFFFFF',
       valAxisLabelColor: 'FFFFFF',
       legendColor: 'FFFFFF',
-      fill: { color: '1E293B' },
-      border: { pt: 1, color: '3B82F6' }
+      plotArea: { fill: { color: '1E293B' }, border: { pt: 1, color: '3B82F6' } }
     });
 
-    slide.addText('Market size normalized to 100-point scale for comparison', {
+    slide.addText('Scaled reference indicators use different units; they do not form an opportunity score.', {
       x: 0.5,
       y: 6.2,
       w: 12,
@@ -500,7 +490,7 @@ export class EnhancedPPTXService {
     });
   }
 
-  private addLiveMarketData(pres: pptxgen, stockIndices: any[], currencies: any[]): void {
+  private addLiveMarketData(pres: pptxgen, stockIndices: StockReference[], currencies: CurrencyReference[]): void {
     const slide = pres.addSlide({ masterName: 'FLOW_MASTER' });
     slide.background = { color: '0F172A' };
 
@@ -512,7 +502,7 @@ export class EnhancedPPTXService {
       fill: { color: '10B981', transparency: 80 }
     });
 
-    slide.addText('⚡ LIVE MARKET DATA', {
+    slide.addText('MARKET REFERENCE SNAPSHOT', {
       x: 0.7,
       y: 0.9,
       w: 6,
@@ -523,7 +513,7 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
-    slide.addText(`Updated: ${new Date().toLocaleTimeString()}`, {
+    slide.addText('Data dates unverified', {
       x: 10,
       y: 0.95,
       w: 2.3,
@@ -545,12 +535,13 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
+    if (!stockIndices.length) slide.addText('Stock quotes unavailable: no supplied observations.', { x: 0.5, y: 2.2, w: 12, h: 0.5, fontSize: 18, color: 'FFFFFF' });
     stockIndices.slice(0, 6).forEach((stock, index) => {
       const row = Math.floor(index / 3);
       const col = index % 3;
       const x = 0.5 + (col * 4.2);
       const y = 2.2 + (row * 1.2);
-      const isPositive = (stock.changePercent || 0) >= 0;
+      const isPositive = numeric(stock.changePercent) >= 0;
       const color = isPositive ? '10B981' : 'EF4444';
 
       slide.addShape(pres.ShapeType.rect, {
@@ -583,7 +574,7 @@ export class EnhancedPPTXService {
         fontFace: 'Arial'
       });
 
-      slide.addText((stock.price || 0).toFixed(2), {
+      slide.addText(display(stock.price, 2), {
         x: x + 0.1,
         y: y + 0.58,
         w: 2,
@@ -594,7 +585,7 @@ export class EnhancedPPTXService {
         fontFace: 'Arial'
       });
 
-      slide.addText(`${isPositive ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%`, {
+      slide.addText(display(stock.changePercent, 2, 1, isPositive ? '+' : '', '%'), {
         x: x + 2.4,
         y: y + 0.65,
         w: 1.5,
@@ -618,19 +609,22 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
-    const currencyRows: any[][] = [['Pair', 'Rate', 'Change', 'Change %', 'Trend']];
+    const currencyRows: pptxgen.TableRow[] = [
+      ['Pair', 'Rate', 'Change', 'Change %', 'Trend'].map(text => ({ text }))
+    ];
 
     currencies.slice(0, 6).forEach(currency => {
-      const isPositive = (currency.changePercent || 0) >= 0;
+      const isPositive = numeric(currency.changePercent) >= 0;
       currencyRows.push([
         currency.pair || 'N/A',
-        (currency.rate || 0).toFixed(4),
-        (currency.change || 0).toFixed(4),
-        `${isPositive ? '+' : ''}${(currency.changePercent || 0).toFixed(2)}%`,
-        isPositive ? '▲' : '▼'
-      ]);
+        display(currency.rate, 4),
+        display(currency.change, 4),
+        display(currency.changePercent, 2, 1, isPositive ? '+' : '', '%'),
+        !Number.isFinite(numeric(currency.changePercent)) ? 'Unavailable' : numeric(currency.changePercent) === 0 ? 'No change' : isPositive ? 'Increase' : 'Decrease'
+      ].map(text => ({ text })));
     });
 
+    if (!currencies.length) currencyRows.push([{ text: 'FX rates unavailable: no supplied observations.' }]);
     slide.addTable(currencyRows, {
       x: 0.5,
       y: 5.2,
@@ -644,7 +638,7 @@ export class EnhancedPPTXService {
     });
   }
 
-  private addCountryAnalysis(pres: pptxgen, economicData: any[]): void {
+  private addCountryAnalysis(pres: pptxgen, economicData: EconomicReference[]): void {
     const slide = pres.addSlide({ masterName: 'FLOW_MASTER' });
     slide.background = { color: '0F172A' };
 
@@ -659,7 +653,7 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
-    const topCountries = [...economicData].sort((a, b) => (b.gdp || 0) - (a.gdp || 0)).slice(0, 3);
+    const topCountries = economicData.filter(country => Number.isFinite(numeric(country.gdp))).sort((a, b) => numeric(b.gdp) - numeric(a.gdp)).slice(0, 3);
 
     topCountries.forEach((country, index) => {
       const y = 1.8 + (index * 1.6);
@@ -685,12 +679,12 @@ export class EnhancedPPTXService {
       });
 
       const metrics = [
-        { label: 'GDP', value: `$${((country.gdp || 0) / 1e12).toFixed(2)}T` },
-        { label: 'Population', value: `${((country.population || 0) / 1e6).toFixed(0)}M` },
-        { label: 'Growth', value: `${(country.gdpGrowth || 0).toFixed(1)}%` },
-        { label: 'GDP/Capita', value: `$${(country.gdpPerCapita || 0).toLocaleString()}` },
-        { label: 'Inflation', value: `${(country.inflation || 0).toFixed(1)}%` },
-        { label: 'Interest', value: `${(country.interestRate || 0).toFixed(2)}%` }
+        { label: 'GDP', value: display(country.gdp, 2, 1e12, '$', 'T') },
+        { label: 'Population', value: display(country.population, 0, 1e6, '', 'M') },
+        { label: 'Growth', value: display(country.gdpGrowth, 1, 1, '', '%') },
+        { label: 'GDP/Capita', value: display(country.gdpPerCapita, 0, 1, '$') },
+        { label: 'Inflation', value: display(country.inflation, 1, 1, '', '%') },
+        { label: 'Interest', value: display(country.interestRate, 2, 1, '', '%') }
       ];
 
       metrics.forEach((metric, idx) => {
@@ -723,7 +717,7 @@ export class EnhancedPPTXService {
     });
   }
 
-  private addDigitalEconomy(pres: pptxgen, economicData: any[]): void {
+  private addDigitalEconomy(pres: pptxgen, economicData: EconomicReference[]): void {
     const slide = pres.addSlide({ masterName: 'FLOW_MASTER' });
     slide.background = { color: '0F172A' };
 
@@ -738,18 +732,15 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
-    const chartData = economicData.slice(0, 6).map(country => {
-      const population = (country.population || 0) / 1e6;
-      const internetUsers = (country.internetUsers || 0) / 1e6;
-      const penetration = population > 0 ? (internetUsers / population) * 100 : 0;
+    const countries = economicData.filter(country => Number.isFinite(ratio(country.internetUsers, country.population))).slice(0, 6);
+    const chartData = [{
+      name: 'Internet penetration',
+      labels: countries.map(country => country.country || 'N/A'),
+      values: countries.map(country => ratio(country.internetUsers, country.population) * 100)
+    }];
 
-      return {
-        name: country.country || 'N/A',
-        values: [penetration]
-      };
-    });
-
-    slide.addChart(pres.ChartType.bar, chartData, {
+    if (!chartData[0]?.values.length) slide.addText('Chart unavailable: required observations are missing.', { x: 0.5, y: 2, w: 6, h: 1, fontSize: 18, color: 'FFFFFF' });
+    else slide.addChart(pres.ChartType.bar, chartData, {
       x: 0.5,
       y: 1.8,
       w: 6,
@@ -761,8 +752,7 @@ export class EnhancedPPTXService {
       valAxisMaxVal: 100,
       catAxisLabelColor: 'FFFFFF',
       valAxisLabelColor: 'FFFFFF',
-      fill: { color: '1E293B' },
-      border: { pt: 1, color: '8B5CF6' }
+      plotArea: { fill: { color: '1E293B' }, border: { pt: 1, color: '8B5CF6' } }
     });
 
     slide.addShape(pres.ShapeType.rect, {
@@ -773,7 +763,7 @@ export class EnhancedPPTXService {
       fill: { color: '8B5CF6', transparency: 85 }
     });
 
-    slide.addText('Digital Economy Insights', {
+    slide.addText('Illustrative Digital Discussion Topics', {
       x: 7.3,
       y: 2,
       w: 5,
@@ -785,12 +775,12 @@ export class EnhancedPPTXService {
     });
 
     const insights = [
-      '• 85% mobile-first access',
-      '• 25% annual e-commerce growth',
-      '• 300% digital payment adoption',
-      '• Super apps driving inclusion',
-      '• Social commerce explosion',
-      '• 5G creating IoT opportunities'
+      '• Research customer device preferences',
+      '• Validate e-commerce size and dates',
+      '• Check payment adoption evidence',
+      '• Evaluate platform partnerships',
+      '• Test social commerce demand',
+      '• Verify network and device coverage'
     ];
 
     insights.forEach((insight, index) => {
@@ -822,7 +812,7 @@ export class EnhancedPPTXService {
     const slide = pres.addSlide({ masterName: 'FLOW_MASTER' });
     slide.background = { color: '0F172A' };
 
-    slide.addText('Competitive Landscape', {
+    slide.addText('Illustrative Competitor Examples', {
       x: 0.5,
       y: 0.8,
       w: 8,
@@ -833,15 +823,15 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
-    const tableData = [
-      ['Sector', 'Market Leader', 'Share %', 'Key Advantage', 'Opportunity'],
+    const tableData: pptxgen.TableRow[] = [
+      ['Sector', 'Example Company', 'Example Share %', 'Assumed Advantage', 'Example Opportunity'],
       ['E-commerce', 'Shopee', '68%', 'Scale + Gaming', 'Premium segment'],
       ['Ride-hailing', 'Grab', '81%', 'Super app model', 'B2B services'],
       ['Food Delivery', 'Grab Food', '52%', 'Integrated platform', 'Cloud kitchens'],
       ['Fintech', 'GrabPay', '38%', 'User base', 'SME lending'],
       ['Logistics', 'J&T Express', '32%', 'Regional network', 'Cross-border'],
       ['Cloud', 'AWS', '45%', 'Global scale', 'Local compliance']
-    ];
+    ].map(row => row.map(text => ({ text })));
 
     slide.addTable(tableData, {
       x: 0.5,
@@ -875,11 +865,11 @@ export class EnhancedPPTXService {
     });
   }
 
-  private addInvestmentStrategy(pres: pptxgen, economicData: any[]): void {
+  private addInvestmentStrategy(pres: pptxgen): void {
     const slide = pres.addSlide({ masterName: 'FLOW_MASTER' });
     slide.background = { color: '0F172A' };
 
-    slide.addText('Investment Strategy & Roadmap', {
+    slide.addText('Illustrative Investment Strategy', {
       x: 0.5,
       y: 0.8,
       w: 10,
@@ -1002,7 +992,7 @@ export class EnhancedPPTXService {
       fill: { color: '10B981', transparency: 85 }
     });
 
-    slide.addText('Total Investment: $70M | Expected ROI: 25-30% by Year 3 | Break-even: 18-24 months', {
+    slide.addText('Illustrative assumptions: $70M investment | 25-30% ROI by Year 3 | 18-24 month break-even', {
       x: 0.7,
       y: 5.8,
       w: 11.6,
@@ -1014,7 +1004,7 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
 
-    slide.addText('Risk-adjusted returns exceed regional benchmarks with diversified market entry strategy', {
+    slide.addText('Investment amounts and returns are unverified examples; build a business-specific financial model.', {
       x: 0.7,
       y: 6.1,
       w: 11.6,
@@ -1140,7 +1130,7 @@ export class EnhancedPPTXService {
 
     const ctaBoxes = [
       { title: 'Expert Team', desc: 'Market analysts & data scientists', icon: '👥' },
-      { title: 'Proven Data', desc: 'World Bank, IMF, real-time APIs', icon: '📊' },
+      { title: 'Reference Data', desc: 'Verify sources and observation dates', icon: '📊' },
       { title: 'Fast Results', desc: 'Instant reports & insights', icon: '⚡' }
     ];
 
@@ -1209,4 +1199,25 @@ export class EnhancedPPTXService {
       fontFace: 'Arial'
     });
   }
+  private addProvenance(pres: pptxgen, economicData: EconomicReference[], stockIndices: StockReference[], currencies: CurrencyReference[]): void {
+    const records = [
+      ...economicData.flatMap(record => [
+        `Economics: ${record.country} | supplied source summary: ${record.source || 'Unavailable'}`,
+        ...Object.entries(record.metricEvidence || {}).map(([field, evidence]) => `${record.country} / ${field} | ${evidence.status} | source: ${evidence.source || 'Unavailable'} | observation period: ${evidence.observationPeriod || 'Unavailable'} | retrievedAt: ${evidence.retrievedAt || 'Unavailable'}`)
+      ]),
+      ...stockIndices.map(record => `Stock: ${record.symbol} | source: ${record.source || 'Unavailable'} | status: ${record.sourceStatus || 'unverified'} | observedAt: ${record.observedAt || 'Unavailable'} | storedAt/retrievedAt: ${record.storedAt || record.retrievedAt || 'Unavailable'}`),
+      ...currencies.map(record => `FX: ${record.pair} | source: ${record.source || 'Unavailable'} | status: ${record.sourceStatus || 'unverified'} | observedAt: ${record.observedAt || 'Unavailable'} | retrievedAt: ${record.retrievedAt || 'Unavailable'}`)
+    ];
+    if (!economicData.length) records.push('Economic observations: Unavailable for requested markets.');
+    if (!stockIndices.length) records.push('Stock quotes: Unavailable.');
+    if (!currencies.length) records.push('FX rates: Unavailable.');
+    for (let offset = 0; offset < records.length; offset += 5) {
+      const slide = pres.addSlide({ masterName: 'FLOW_MASTER' });
+      slide.addText('Data Provenance and Limits', { x: 0.5, y: 0.8, w: 12, h: 0.6, fontSize: 28, color: '3B82F6', bold: true });
+      slide.addText(`generatedAt: ${new Date().toISOString()} (export time only)\nobservedAt is unavailable unless supplied; retrieval/storage is separate. Totals cover complete supplied rows only; requested markets without observations may be absent.\nStatic competitor/strategy/financial/roadmap examples: src/services/enhancedPPTXService.ts. No verified external provenance or forecast.`, { x: 0.5, y: 1.5, w: 12, h: 1.1, fontSize: 12, color: 'E2E8F0', breakLine: false });
+      slide.addText(records.slice(offset, offset + 5).join('\n\n'), { x: 0.5, y: 2.8, w: 12, h: 3.9, fontSize: 12, color: 'FFFFFF', fit: 'shrink' });
+    }
+  }
+
+
 }

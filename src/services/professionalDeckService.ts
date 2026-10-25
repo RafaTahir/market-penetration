@@ -1,9 +1,9 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 
 export interface DeckData {
   selectedCountries: string[];
   selectedCities: string[];
-  marketData?: any;
+  marketData?: unknown;
 }
 
 export class ProfessionalDeckService {
@@ -25,6 +25,7 @@ export class ProfessionalDeckService {
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+    const generatedAt = new Date().toISOString();
 
     // Colors matching the FinLit+ style
     const darkNavy = [15, 23, 42]; // slate-950
@@ -49,7 +50,7 @@ export class ProfessionalDeckService {
     doc.setTextColor(white[0], white[1], white[2]);
     doc.setFontSize(42);
     doc.setFont('helvetica', 'bold');
-    const titleLines = doc.splitTextToSize('Flow Market Entry Strategy', leftWidth - 40);
+    const titleLines = doc.splitTextToSize('Illustrative Market Entry Template', leftWidth - 40);
     let yPos = 50;
     titleLines.forEach((line: string) => {
       doc.text(line, 20, yPos);
@@ -267,10 +268,10 @@ export class ProfessionalDeckService {
 
     // Feature boxes (2x2 grid on left)
     const features = [
-      { icon: '📊', title: 'Live Market Data', desc: 'Real-time stock indices, economic indicators, and currency rates' },
-      { icon: '🎯', title: 'Smart Analytics', desc: 'AI-powered insights and predictive market analysis' },
+      { icon: '📊', title: 'Market Reference Views', desc: 'Available provider observations and explicitly labeled reference material' },
+      { icon: '🎯', title: 'Planning Examples', desc: 'Illustrative business scenarios for further research' },
       { icon: '📱', title: 'Mobile-First', desc: 'Access anywhere, anytime with responsive design' },
-      { icon: '🔒', title: 'Secure & Reliable', desc: 'Enterprise-grade security and data integrity' }
+      { icon: '🔒', title: 'Source Transparency', desc: 'Check source availability and observation dates before use' }
     ];
 
     const featureBoxW = (leftWidth - 35) / 2;
@@ -359,8 +360,8 @@ export class ProfessionalDeckService {
     const keyFeatures = [
       {
         icon: '📈',
-        title: 'Live Market Tracking',
-        desc: 'Real-time stock market indices, economic indicators, and currency exchange rates across 6 Southeast Asian markets.'
+        title: 'Market Reference Views',
+        desc: 'Market views for six Southeast Asian countries. Quotes and rates are unavailable when no provider observation exists.'
       },
       {
         icon: '🌍',
@@ -375,7 +376,7 @@ export class ProfessionalDeckService {
       {
         icon: '📊',
         title: 'Professional Reports',
-        desc: 'Generate McKinsey-style reports and presentation decks with one click for board meetings and stakeholders.'
+        desc: 'Generate reports and presentation templates with visible source and illustration labels.'
       }
     ];
 
@@ -439,15 +440,15 @@ export class ProfessionalDeckService {
     const differentiators = [
       {
         title: 'Comprehensive Coverage',
-        desc: 'First platform combining live market data, economic indicators, and business intelligence'
+        desc: 'Combines market reference views, economic indicators, and planning examples'
       },
       {
-        title: 'Real-Time Insights',
-        desc: 'Live stock indices, currency rates, and market status updated every 5 minutes'
+        title: 'Observation Status',
+        desc: 'Available data retains its source date; missing provider observations remain unavailable'
       },
       {
         title: 'Professional Grade',
-        desc: 'McKinsey-quality reports and presentations generated instantly'
+        desc: 'Downloadable reports and presentation templates'
       }
     ];
 
@@ -489,9 +490,9 @@ export class ProfessionalDeckService {
 
     const stats = [
       { label: 'Markets Covered', value: '6 Countries' },
-      { label: 'Data Points', value: '1000+' },
-      { label: 'Update Frequency', value: '5 Minutes' },
-      { label: 'Report Types', value: '10+' }
+      { label: 'Provider Observations', value: 'Unavailable here' },
+      { label: 'Template Refresh', value: 'No live refresh' },
+      { label: 'This Export', value: 'PDF template' }
     ];
 
     let statY = statsY + 22;
@@ -532,7 +533,7 @@ export class ProfessionalDeckService {
       {
         number: '1',
         title: 'Market Research Phase',
-        desc: 'Comprehensive analysis across all Southeast Asian markets with real-time data access and competitive intelligence.'
+        desc: 'Illustrative research phase: verify sources, observation dates, market coverage, and competitor claims.'
       },
       {
         number: '2',
@@ -616,9 +617,9 @@ export class ProfessionalDeckService {
     // CTA boxes
     const ctaY = 110;
     const ctaBoxes = [
-      { title: 'Expert Team', desc: 'Market analysts & data scientists' },
-      { title: 'Proven Data', desc: 'World Bank, IMF, real-time APIs' },
-      { title: 'Fast Results', desc: 'Instant reports & insights' }
+      { title: 'Research Plan', desc: 'Identify qualified local researchers' },
+      { title: 'Source Review', desc: 'Original observations unavailable here' },
+      { title: 'Planning Template', desc: 'Validate assumptions before decisions' }
     ];
 
     const ctaBoxWidth = (pageWidth - 80) / 3;
@@ -658,6 +659,20 @@ export class ProfessionalDeckService {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('Made with FLOW', pageWidth - 47, pageHeight - 8);
+
+    // Keep the status and provenance visible on every detached or shared slide.
+    for (let page = 1; page <= doc.getNumberOfPages(); page++) {
+      doc.setPage(page);
+      doc.setFillColor(darkNavy[0], darkNavy[1], darkNavy[2]);
+      doc.rect(0, pageHeight - 23, pageWidth, 23, 'F');
+      doc.setTextColor(lightGray[0], lightGray[1], lightGray[2]);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Illustrative template; business and market claims are examples requiring independent verification.', 12, pageHeight - 15);
+      doc.setFontSize(7);
+      doc.text('Source: src/services/professionalDeckService.ts | observedAt: unavailable', 12, pageHeight - 10);
+      doc.text(`generatedAt: ${generatedAt} (export creation only; no live refresh)`, 12, pageHeight - 5);
+    }
 
     // Save the PDF
     doc.save(`Flow-Professional-Deck-${new Date().toISOString().split('T')[0]}.pdf`);

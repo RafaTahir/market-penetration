@@ -1,15 +1,20 @@
 import axios from 'axios';
 import { FinnhubService } from './finnhubService';
-import { MarketHoursService } from './marketHoursService';
 
 export interface MarketData {
   symbol: string;
   price: number;
-  change: number;
-  changePercent: number;
-  volume: number;
+  change: number | null;
+  changePercent: number | null;
+  volume: number | null;
   marketCap?: number;
   name: string;
+  source?: string;
+  lastUpdated?: string;
+  storedAt?: string;
+  observedAt?: string;
+  retrievedAt?: string;
+  sourceStatus?: 'reported' | 'cached-unverified';
 }
 
 export interface EconomicIndicator {
@@ -20,14 +25,20 @@ export interface EconomicIndicator {
   interestRate: number;
   exchangeRate: number;
   lastUpdated: string;
+  source?: string;
 }
 
 export interface CurrencyRate {
   pair: string;
   rate: number;
-  change: number;
-  changePercent: number;
+  change: number | null;
+  changePercent: number | null;
   lastUpdated: string;
+  source?: string;
+  hasPreviousRate?: boolean;
+  observedAt?: string;
+  retrievedAt?: string;
+  sourceStatus?: 'reported' | 'cached-unverified';
 }
 
 export class MarketDataService {
@@ -36,11 +47,9 @@ export class MarketDataService {
   private lastCurrencyUpdate = 0;
   private readonly CACHE_DURATION = 60000;
   private finnhubService: FinnhubService;
-  private marketHoursService: MarketHoursService;
 
   private constructor() {
     this.finnhubService = FinnhubService.getInstance();
-    this.marketHoursService = MarketHoursService.getInstance();
   }
 
   public static getInstance(): MarketDataService {
@@ -52,76 +61,37 @@ export class MarketDataService {
 
   async getStockData(symbols: string[]): Promise<MarketData[]> {
     try {
-      const cachedData = await this.getCachedStockData(symbols);
-
-      if (cachedData.length > 0) {
-        return cachedData;
-      }
-
-      const isAnyMarketOpen = this.marketHoursService.isAnyMarketOpen();
-
-      if (!isAnyMarketOpen) {
-        return this.getFallbackStockData(symbols);
-      }
-
-      try {
-        const stockData = await this.finnhubService.fetchAndCacheStockData(symbols);
-
-        if (!stockData || stockData.length === 0) {
-          return this.getFallbackStockData(symbols);
-        }
-
-        return stockData.map(stock => ({
-          symbol: stock.symbol,
-          name: stock.name,
-          price: stock.price,
-          change: stock.change,
-          changePercent: stock.change_percent,
-          volume: stock.volume || 0,
-          marketCap: stock.market_cap
-        }));
-      } catch (fetchError) {
-        console.error('Error fetching fresh stock data, using fallback:', fetchError);
-        return cachedData.length > 0 ? cachedData : this.getFallbackStockData(symbols);
-      }
+      // Browsing is read-only. Provider requests and database writes require a
+      // separately configured integration; opening a page must not trigger them.
+      return await this.getCachedStockData(symbols);
     } catch (error) {
       console.error('Error fetching stock data:', error);
-      return this.getFallbackStockData(symbols);
+      return [];
     }
-  }
-
-  private getFallbackStockData(symbols: string[]): MarketData[] {
-    const fallbackData: { [key: string]: MarketData } = {
-      'JCI': { symbol: 'JCI', name: 'Jakarta Composite Index', price: 7245.50, change: 45.30, changePercent: 0.63, volume: 8450000000, marketCap: 0 },
-      'SET': { symbol: 'SET', name: 'Stock Exchange of Thailand', price: 1432.25, change: -12.45, changePercent: -0.86, volume: 82340000000, marketCap: 0 },
-      'KLSE': { symbol: 'KLSE', name: 'Bursa Malaysia', price: 1545.80, change: 8.25, changePercent: 0.54, volume: 3240000000, marketCap: 0 },
-      'PSEI': { symbol: 'PSEI', name: 'Philippine Stock Exchange', price: 6542.15, change: 32.80, changePercent: 0.50, volume: 4580000000, marketCap: 0 },
-      'VNI': { symbol: 'VNI', name: 'Vietnam Stock Index', price: 1245.60, change: 18.90, changePercent: 1.54, volume: 12340000000, marketCap: 0 },
-      'STI': { symbol: 'STI', name: 'Straits Times Index', price: 3285.40, change: -5.20, changePercent: -0.16, volume: 1240000000, marketCap: 0 }
-    };
-
-    return symbols.map(symbol => fallbackData[symbol] || {
-      symbol,
-      name: `${symbol} Index`,
-      price: 1000 + Math.random() * 5000,
-      change: (Math.random() - 0.5) * 100,
-      changePercent: (Math.random() - 0.5) * 5,
-      volume: Math.floor(Math.random() * 10000000000),
-      marketCap: 0
-    });
   }
 
   private async getCachedStockData(symbols: string[]): Promise<MarketData[]> {
     const cachedData = await this.finnhubService.getAllCachedStockData(symbols);
 
-    return cachedData.map(stock => ({
+    return cachedData.filter(stock =>
+      symbols.includes(stock.symbol) && Number.isFinite(stock.price) && stock.price > 0 &&
+      typeof stock.data_source === 'string' && stock.data_source.trim().length > 0 &&
+      !/unknown|unavailable|synthetic|demo|sample|fallback/i.test(stock.data_source) &&
+      typeof stock.observed_at === 'string' && Number.isFinite(Date.parse(stock.observed_at))
+    ).map(stock => ({
       symbol: stock.symbol,
       name: stock.name,
       price: stock.price,
-      change: stock.change,
-      changePercent: stock.change_percent,
-      volume: stock.volume || 0,
-      marketCap: stock.market_cap
+      change: Number.isFinite(stock.change) ? stock.change : null,
+      changePercent: Number.isFinite(stock.change_percent) ? stock.change_percent : null,
+      volume: Number.isFinite(stock.volume) && stock.volume >= 0 ? stock.volume : null,
+      marketCap: stock.market_cap,
+      source: `Stored record claiming ${stock.data_source}; not independently verified`,
+      lastUpdated: stock.observed_at || '',
+      observedAt: stock.observed_at || '',
+      retrievedAt: stock.retrieved_at && Number.isFinite(Date.parse(stock.retrieved_at)) ? stock.retrieved_at : '',
+      sourceStatus: 'cached-unverified',
+      storedAt: Number.isFinite(Date.parse(stock.timestamp)) ? stock.timestamp : ''
     }));
   }
 
@@ -139,7 +109,10 @@ export class MarketDataService {
         timeout: 5000
       });
       
-      const rates = response.data.rates;
+      const rates = response.data?.rates;
+      const providerDate = response.data?.date;
+      const lastUpdated = typeof providerDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(providerDate) && Number.isFinite(Date.parse(providerDate)) && new Date(providerDate).toISOString().slice(0, 10) === providerDate
+        ? providerDate : '';
       const currencyPairs = [
         { pair: 'USD/THB', code: 'THB' },
         { pair: 'USD/SGD', code: 'SGD' },
@@ -149,111 +122,42 @@ export class MarketDataService {
         { pair: 'USD/VND', code: 'VND' }
       ];
 
-      const currencyData = currencyPairs.map(currency => {
-        const rate = rates[currency.code] || this.getFallbackRate(currency.code);
-        const previousRate = this.currencyCache[currency.pair]?.rate || rate;
+      const currencyData = currencyPairs.flatMap(currency => {
+        const rate = rates?.[currency.code];
+        if (!Number.isFinite(rate) || rate <= 0) return [];
+        const previous = this.currencyCache[currency.pair];
+        const previousRate = previous?.rate ?? rate;
         const change = rate - previousRate;
         const changePercent = previousRate !== 0 ? (change / previousRate) * 100 : 0;
 
         const currencyRate: CurrencyRate = {
           pair: currency.pair,
           rate: rate,
-          change: change,
-          changePercent: changePercent,
-          lastUpdated: new Date().toISOString()
+          change: previous ? change : null,
+          changePercent: previous ? changePercent : null,
+          lastUpdated,
+          observedAt: lastUpdated,
+          retrievedAt: new Date().toISOString(),
+          sourceStatus: 'reported',
+          source: 'exchangerate-api.com (provider-dated reference rate)',
+          hasPreviousRate: Boolean(previous)
         };
 
         this.currencyCache[currency.pair] = currencyRate;
-        return currencyRate;
+        return [currencyRate];
       });
 
       this.lastCurrencyUpdate = now;
       return currencyData;
     } catch (error) {
       console.error('Error fetching currency rates:', error);
-      return this.getFallbackCurrencyData();
+      return Object.values(this.currencyCache).map(rate => ({ ...rate, sourceStatus: 'cached-unverified' }));
     }
   }
 
-  private getFallbackRate(code: string): number {
-    const fallbackRates: { [key: string]: number } = {
-      'THB': 35.42,
-      'SGD': 1.35,
-      'MYR': 4.68,
-      'IDR': 15750,
-      'PHP': 56.25,
-      'VND': 24350
-    };
-    return fallbackRates[code] || 1;
-  }
-
-  private getFallbackCurrencyData(): CurrencyRate[] {
-    return [
-      { pair: 'USD/THB', rate: 35.42, change: 0.12, changePercent: 0.34, lastUpdated: new Date().toISOString() },
-      { pair: 'USD/SGD', rate: 1.35, change: -0.002, changePercent: -0.15, lastUpdated: new Date().toISOString() },
-      { pair: 'USD/MYR', rate: 4.68, change: 0.03, changePercent: 0.64, lastUpdated: new Date().toISOString() },
-      { pair: 'USD/IDR', rate: 15750, change: 25, changePercent: 0.16, lastUpdated: new Date().toISOString() },
-      { pair: 'USD/PHP', rate: 56.25, change: -0.15, changePercent: -0.27, lastUpdated: new Date().toISOString() },
-      { pair: 'USD/VND', rate: 24350, change: 50, changePercent: 0.21, lastUpdated: new Date().toISOString() }
-    ];
-  }
-
   getEconomicIndicators(): EconomicIndicator[] {
-    return [
-      {
-        country: 'Thailand',
-        gdp: 543.5,
-        inflation: 1.2,
-        unemployment: 1.1,
-        interestRate: 2.50,
-        exchangeRate: 35.42,
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        country: 'Singapore',
-        gdp: 397.0,
-        inflation: 2.1,
-        unemployment: 2.0,
-        interestRate: 3.50,
-        exchangeRate: 1.35,
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        country: 'Malaysia',
-        gdp: 432.0,
-        inflation: 2.8,
-        unemployment: 3.3,
-        interestRate: 3.00,
-        exchangeRate: 4.68,
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        country: 'Indonesia',
-        gdp: 1319.0,
-        inflation: 3.2,
-        unemployment: 5.8,
-        interestRate: 6.00,
-        exchangeRate: 15750,
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        country: 'Philippines',
-        gdp: 394.0,
-        inflation: 4.1,
-        unemployment: 4.5,
-        interestRate: 6.50,
-        exchangeRate: 56.25,
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        country: 'Vietnam',
-        gdp: 409.0,
-        inflation: 3.6,
-        unemployment: 2.3,
-        interestRate: 4.50,
-        exchangeRate: 24350,
-        lastUpdated: new Date().toISOString()
-      }
-    ];
+    // No connected source implements this synchronous API. Missing records are
+    // unavailable; bundled macroeconomic assumptions are not provider results.
+    return [];
   }
 }

@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient';
 
+// JSONB fields may contain nested records, lists, or null.
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export interface CommercialRealEstate {
   id: string;
   country: string;
@@ -19,7 +22,7 @@ export interface CommercialRealEstate {
   deposit_months: number;
   lease_term_min_months: number;
   amenities: string[];
-  transport_access: any;
+  transport_access: JsonValue;
   parking_spaces: number;
   parking_cost_per_space_month: number;
   ceiling_height_meters: number;
@@ -45,12 +48,12 @@ export interface EconomicZone {
   established_year: number;
   managing_authority: string;
   focus_industries: string[];
-  incentives_offered: any;
+  incentives_offered: JsonValue;
   tax_benefits: string;
   customs_benefits: string;
   infrastructure_quality: string;
   utilities_available: string[];
-  transport_connectivity: any;
+  transport_connectivity: JsonValue;
   land_cost_per_sqm_usd: number;
   factory_rent_per_sqm_month: number;
   office_rent_per_sqm_month: number;
@@ -59,7 +62,7 @@ export interface EconomicZone {
   employment_requirements: string;
   current_occupancy_rate: number;
   major_companies_present: string[];
-  success_stories: any;
+  success_stories: JsonValue;
   application_process: string;
   contact_information: string;
   website: string;
@@ -78,12 +81,12 @@ export interface InfrastructureProject {
   expected_completion_date: string;
   actual_completion_date: string;
   total_investment_usd: number;
-  funding_sources: any;
+  funding_sources: JsonValue;
   implementing_agency: string;
   contractors: string[];
   location_description: string;
   affected_regions: string[];
-  business_opportunities: any;
+  business_opportunities: JsonValue;
   industries_benefiting: string[];
   economic_impact: string;
   connectivity_improvements: string;
@@ -91,7 +94,7 @@ export interface InfrastructureProject {
   challenges: string;
   strategic_importance: string;
   related_projects: string[];
-  data_sources: any;
+  data_sources: JsonValue;
   last_updated: string;
   created_at: string;
 }
@@ -138,8 +141,8 @@ export interface SiteSelectionMatrix {
   transport_connectivity_score: number;
   real_estate_availability_score: number;
   supplier_ecosystem_score: number;
-  strengths: any;
-  weaknesses: any;
+  strengths: JsonValue;
+  weaknesses: JsonValue;
   best_suited_for: string[];
   comparable_cities: string[];
   assessment_date: string;

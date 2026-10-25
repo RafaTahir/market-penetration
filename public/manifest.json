@@ -1,55 +1,40 @@
 {
-  "name": "Flow - Market Intelligence Platform",
+  "name": "Flow — Southeast Asia Market Entry",
   "short_name": "Flow",
   "description": "Professional market research platform for Southeast Asian markets",
-  "start_url": "/",
+  "start_url": "/#/plan",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
-  "categories": ["business", "finance", "productivity"],
-  "screenshots": [
-    {
-      "src": "/screenshot1.png",
-      "sizes": "1280x720",
-      "type": "image/png"
-    }
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
   ],
   "shortcuts": [
     {
-      "name": "Live Market Data",
-      "short_name": "Live Data",
-      "description": "View real-time market data",
-      "url": "/?view=live-data",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "name": "Entry planner",
+      "description": "Build a documented city-entry assessment",
+      "url": "/#/plan"
+    },
+    {
+      "name": "Market reference",
+      "description": "View stored financial observations and reference coverage",
+      "url": "/#/research/live-data"
     },
     {
       "name": "Analytics",
-      "short_name": "Analytics",
-      "description": "View analytics dashboard",
-      "url": "/?view=analytics",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "My Dashboard",
-      "short_name": "Dashboard",
-      "description": "View your personal dashboard",
-      "url": "/?view=dashboard",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "description": "Explore the reference analytics library",
+      "url": "/#/research/analytics"
     }
   ]
 }

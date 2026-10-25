@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BookOpen, ExternalLink, Calendar, Building2, FileText, Download, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { BookOpen, ExternalLink, Calendar, Building2, FileText, Search, Filter } from 'lucide-react';
 import { UnifiedDataService } from '../services/unifiedDataService';
 
 interface Report {
@@ -14,7 +14,6 @@ interface Report {
 
 const InstitutionalReports: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([]);
-  const [filteredReports, setFilteredReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrg, setSelectedOrg] = useState<string>('all');
@@ -24,28 +23,17 @@ const InstitutionalReports: React.FC = () => {
   const unifiedService = UnifiedDataService.getInstance();
 
   useEffect(() => {
-    fetchReports();
-  }, []);
+    let active = true;
+    setLoading(true);
+    void unifiedService.getInstitutionalReports().then(data => {
+      if (active) { setReports(data); setLastUpdated(new Date()); }
+    }).catch(() => {
+      if (active) setReports([]);
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [unifiedService]);
 
-  useEffect(() => {
-    filterReports();
-  }, [searchTerm, selectedOrg, selectedType, reports]);
-
-  const fetchReports = async () => {
-    try {
-      setLoading(true);
-      const data = await unifiedService.getInstitutionalReports();
-      setReports(data);
-      setFilteredReports(data);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('Error fetching reports:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterReports = () => {
+  const filteredReports = useMemo(() => {
     let filtered = [...reports];
 
     if (searchTerm) {
@@ -66,13 +54,14 @@ const InstitutionalReports: React.FC = () => {
 
     filtered.sort((a, b) => new Date(b.publicationDate).getTime() - new Date(a.publicationDate).getTime());
 
-    setFilteredReports(filtered);
-  };
+    return filtered;
+  }, [reports, searchTerm, selectedOrg, selectedType]);
 
   const organizations = ['all', ...Array.from(new Set(reports.map(r => r.organization)))];
   const types = ['all', ...Array.from(new Set(reports.map(r => r.type)))];
 
   const formatDate = (dateString: string) => {
+    if (!dateString || !Number.isFinite(Date.parse(dateString))) return 'Unknown';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
@@ -101,12 +90,12 @@ const InstitutionalReports: React.FC = () => {
                 <BookOpen className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">Institutional Reports Library</h1>
-                <p className="text-sm text-slate-400">Authoritative research from IMF, World Bank, and ASEAN</p>
+                <h1 className="text-2xl font-bold text-white">Institutional Reference Directory</h1>
+                <p className="text-sm text-slate-400">Official source discovery links · contents and publication dates unverified</p>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-slate-400">Last Updated</div>
+              <div className="text-sm text-slate-400">Directory loaded on this device</div>
               <div className="text-sm text-white">{lastUpdated.toLocaleTimeString()}</div>
             </div>
           </div>
@@ -153,7 +142,7 @@ const InstitutionalReports: React.FC = () => {
           <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
             <div className="flex items-center space-x-2 mb-2">
               <FileText className="h-4 w-4 text-blue-400" />
-              <span className="text-sm font-medium text-blue-400">Total Reports</span>
+              <span className="text-sm font-medium text-blue-400">Directory Links</span>
             </div>
             <div className="text-2xl font-bold text-white">{reports.length}</div>
           </div>
@@ -177,10 +166,10 @@ const InstitutionalReports: React.FC = () => {
           <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-4">
             <div className="flex items-center space-x-2 mb-2">
               <Calendar className="h-4 w-4 text-orange-400" />
-              <span className="text-sm font-medium text-orange-400">Recent (2024)</span>
+              <span className="text-sm font-medium text-orange-400">Publication Dates</span>
             </div>
             <div className="text-2xl font-bold text-white">
-              {reports.filter(r => r.publicationDate.startsWith('2024')).length}
+              Unavailable
             </div>
           </div>
         </div>
@@ -203,7 +192,7 @@ const InstitutionalReports: React.FC = () => {
                 key={index}
                 className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
               >
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getOrgColor(report.organization)}`}>
@@ -219,18 +208,18 @@ const InstitutionalReports: React.FC = () => {
                     <div className="flex items-center space-x-4 text-xs text-slate-400">
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-3 w-3" />
-                        <span>Published: {formatDate(report.publicationDate)}</span>
+                        <span>Publication date: {formatDate(report.publicationDate)}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="ml-4 flex flex-col space-y-2">
+                  <div className="sm:ml-4 shrink-0 flex flex-col space-y-2">
                     <a
                       href={report.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors text-sm font-medium"
                     >
-                      <span>View Report</span>
+                      <span>Open source portal</span>
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   </div>
@@ -244,11 +233,11 @@ const InstitutionalReports: React.FC = () => {
         <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-4 border border-slate-700/30">
           <div className="text-center text-xs text-slate-400">
             <p>
-              Reports sourced from International Monetary Fund (IMF), World Bank Group, and ASEAN Secretariat.
-              Data is updated periodically. Visit official websites for the most current information.
+              Directory of IMF, World Bank and ASEAN source portals, maintained in application code. These entries are not retrieved reports or verified publication records.
+              Listed reports, links, and publication details are an unverified reference directory. No automatic update is running; confirm current editions on the publisher’s website.
             </p>
             <p className="mt-2">
-              <strong className="text-slate-300">Sources:</strong> IMF.org • WorldBank.org • ASEAN.org
+              <strong className="text-slate-300">Directory links:</strong> IMF.org • WorldBank.org • ASEAN.org
             </p>
           </div>
         </div>

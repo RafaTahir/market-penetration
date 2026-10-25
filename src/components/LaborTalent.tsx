@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Users, DollarSign, GraduationCap } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   laborTalentService,
@@ -11,6 +10,7 @@ import {
 export default function LaborTalent() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'salaries' | 'talent-pools' | 'market-data'>('salaries');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [salaries, setSalaries] = useState<SalaryBenchmark[]>([]);
@@ -20,41 +20,55 @@ export default function LaborTalent() {
   const countries = ['Thailand', 'Singapore', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam'];
 
   useEffect(() => {
-    if (selectedCountry) {
-      loadData();
-    }
-  }, [selectedCountry, activeTab]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const filters = { country: selectedCountry, limit: 20 };
-
-      switch (activeTab) {
-        case 'salaries':
-          const salaryData = await laborTalentService.getSalaryBenchmarks(filters);
-          setSalaries(salaryData);
-          break;
-        case 'talent-pools':
-          const poolData = await laborTalentService.getTalentPools(filters);
-          setTalentPools(poolData);
-          break;
-        case 'market-data':
-          const laborData = await laborTalentService.getLaborMarketData(filters);
-          setMarketData(laborData);
-          break;
-      }
-    } catch (error) {
-      console.error('Error loading labor talent data:', error);
-    } finally {
+    let active = true;
+    setLoadError(null);
+    setSalaries([]);
+    setTalentPools([]);
+    setMarketData([]);
+    if (!selectedCountry) {
       setLoading(false);
+      return;
     }
-  };
+    setLoading(true);
+    const loadData = async () => {
+      try {
+        const filters = { country: selectedCountry, limit: 20 };
+        switch (activeTab) {
+          case 'salaries': {
+            const salaryData = await laborTalentService.getSalaryBenchmarks(filters);
+            if (active) setSalaries(salaryData);
+            break;
+          }
+          case 'talent-pools': {
+            const poolData = await laborTalentService.getTalentPools(filters);
+            if (active) setTalentPools(poolData);
+            break;
+          }
+          case 'market-data': {
+            const laborData = await laborTalentService.getLaborMarketData(filters);
+            if (active) setMarketData(laborData);
+            break;
+          }
+        }
+      } catch {
+        if (active) setLoadError('Connected labor and talent records are unavailable.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadData();
+    return () => { active = false; };
+  }, [selectedCountry, activeTab]);
 
   return (
     <div className="space-y-6">
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className="text-2xl font-bold mb-4">Labor & Talent Intelligence</h2>
+
+        <div role="note" className="mb-6 rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-900/20 dark:text-amber-200">
+          <p className="font-semibold">Unverified connected reference records</p>
+          <p>Connected labor records are unverified and may include seeded reference content or database defaults. Observation dates and source attribution have not been verified; year labels are record claims. Zero values may be defaults rather than measured values. Scores are not calibrated probabilities. Excluded from the entry planner.</p>
+        </div>
 
         <div className="mb-6">
           <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -118,7 +132,7 @@ export default function LaborTalent() {
               <div className="space-y-4">
                 {salaries.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view salary benchmarks.
+                    {loadError ?? (selectedCountry ? 'No salary benchmarks available for this country.' : 'Select a country to view salary benchmarks.')}
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -165,7 +179,7 @@ export default function LaborTalent() {
               <div className="space-y-4">
                 {talentPools.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view talent pools.
+                    {loadError ?? (selectedCountry ? 'No talent pools available for this country.' : 'Select a country to view talent pools.')}
                   </p>
                 ) : (
                   talentPools.map((pool) => (
@@ -207,7 +221,7 @@ export default function LaborTalent() {
               <div className="space-y-4">
                 {marketData.length === 0 ? (
                   <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Select a country to view labor market data.
+                    {loadError ?? (selectedCountry ? 'No labor market data available for this country.' : 'Select a country to view labor market data.')}
                   </p>
                 ) : (
                   marketData.map((data) => (

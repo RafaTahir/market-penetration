@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase, MarketStockRow } from './supabaseClient';
+import { supabase, isSupabaseConfigured, MarketStockRow } from './supabaseClient';
 import { MarketHoursService } from './marketHoursService';
 
 export interface FinnhubQuote {
@@ -17,7 +17,6 @@ export class FinnhubService {
   private static instance: FinnhubService;
   private readonly apiKey: string;
   private readonly baseUrl = 'https://finnhub.io/api/v1';
-  private requestQueue: Promise<any>[] = [];
   private lastRequestTime = 0;
   private readonly MIN_REQUEST_INTERVAL = 1100;
 
@@ -78,9 +77,14 @@ export class FinnhubService {
         })
       );
 
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching quote for ${symbol}:`, error);
+      const quote = response.data;
+      return Number.isFinite(quote.c) && quote.c > 0 &&
+        Number.isFinite(quote.d) && Number.isFinite(quote.dp) &&
+        Number.isFinite(quote.t) && quote.t > 0 &&
+        Number.isFinite(new Date(quote.t * 1000).getTime()) ? quote : null;
+    } catch {
+      // Axios errors include request configuration, including the provider token.
+      console.error(`Quote unavailable for ${symbol}.`);
       return null;
     }
   }
@@ -115,7 +119,7 @@ export class FinnhubService {
           change: quote.d,
           change_percent: quote.dp,
           volume: 0,
-          timestamp: new Date().toISOString()
+          timestamp: new Date(quote.t * 1000).toISOString()
         };
 
         await this.cacheStockData(stockData);
@@ -134,6 +138,7 @@ export class FinnhubService {
   }
 
   private async cacheStockData(data: MarketStockRow): Promise<void> {
+    if (!isSupabaseConfigured) return;
     try {
       const { error } = await supabase
         .from('market_stocks')
@@ -159,6 +164,7 @@ export class FinnhubService {
   }
 
   async getCachedStockData(symbol: string): Promise<MarketStockRow | null> {
+    if (!isSupabaseConfigured) return null;
     try {
       const { data, error } = await supabase
         .from('market_stocks')
@@ -181,6 +187,7 @@ export class FinnhubService {
   }
 
   async getAllCachedStockData(symbols: string[]): Promise<MarketStockRow[]> {
+    if (!isSupabaseConfigured || symbols.length === 0) return [];
     try {
       const { data, error } = await supabase
         .from('market_stocks')

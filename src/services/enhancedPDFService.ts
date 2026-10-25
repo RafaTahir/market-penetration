@@ -1,7 +1,41 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { UnifiedDataService } from './unifiedDataService';
+import type { UnifiedEconomicData } from './unifiedDataService';
 import { MarketDataService } from './marketDataService';
+import type { CurrencyRate, MarketData } from './marketDataService';
+
+type ReportEconomicData = UnifiedEconomicData;
+type ReportStockData = MarketData;
+type ReportCurrencyData = CurrencyRate;
+type ReportColors = Record<
+  'primary' | 'secondary' | 'accent' | 'warning' | 'dark' | 'darkGray' | 'lightGray' | 'white',
+  [number, number, number]
+>;
+
+const REFERENCE_NOTICE = 'Unverified reference; observation dates/current applicability unknown';
+
+// Missing values remain missing, including in aggregates and derived scenarios.
+const numeric = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN;
+const display = (value: unknown, digits = 1, divisor = 1, prefix = '', suffix = ''): string => {
+  const number = numeric(value) / divisor;
+  return Number.isFinite(number) ? `${prefix}${number.toFixed(digits)}${suffix}` : 'Unavailable';
+};
+const completeTotal = (values: unknown[]): number => values.length && values.every(value => Number.isFinite(numeric(value)))
+  ? values.reduce<number>((sum, value) => sum + numeric(value), 0) : Number.NaN;
+const completeAverage = (values: unknown[]): number => completeTotal(values) / values.length;
+const ratio = (numerator: unknown, denominator: unknown): number => numeric(denominator) > 0
+  ? numeric(numerator) / numeric(denominator) : Number.NaN;
+
+// Unattributed payload values do not become factual report numbers.
+const sourced = <T extends { source?: string; metricEvidence?: Record<string, { source?: string; status?: string }> }>(records: T[], fields: string[]): T[] => records.map(record => ({
+  ...record,
+  ...Object.fromEntries(fields.map(field => {
+    const evidence = record.metricEvidence?.[field];
+    const source = evidence?.source || record.source;
+    const available = typeof source === 'string' && source.trim().length > 0 && !/^(unavailable|unknown|n\/a)$/i.test(source.trim()) && evidence?.status !== 'unavailable';
+    return [field, available ? Reflect.get(record, field) : Number.NaN];
+  }))
+}));
 
 export interface PDFReportData {
   selectedCountries: string[];
@@ -35,7 +69,7 @@ export class EnhancedPDFService {
       const margin = 20;
       const contentWidth = pageWidth - (2 * margin);
 
-      const colors = {
+      const colors: ReportColors = {
         primary: [59, 130, 246],
         secondary: [16, 185, 129],
         accent: [139, 92, 246],
@@ -46,68 +80,63 @@ export class EnhancedPDFService {
         white: [255, 255, 255]
       };
 
-      let economicData: any[] = [];
-      let stockIndices: any[] = [];
-      let currencies: any[] = [];
+      let economicData: ReportEconomicData[] = [];
+      let stockIndices: ReportStockData[] = [];
+      let currencies: ReportCurrencyData[] = [];
 
       try {
         economicData = await this.unifiedDataService.getUnifiedEconomicData(data.selectedCountries);
-        if (!economicData || economicData.length === 0) {
-          throw new Error('No economic data available');
-        }
+        economicData = sourced(economicData || [], ['gdp', 'gdpGrowth', 'inflation', 'unemployment', 'population', 'gdpPerCapita', 'internetUsers', 'exchangeRate', 'interestRate']);
       } catch (error) {
-        console.error('Error loading economic data, using fallback:', error);
-        economicData = this.getFallbackEconomicData();
+        console.error('Economic data unavailable for export:', error);
+        economicData = [];
       }
 
       try {
         stockIndices = await this.marketDataService.getStockData([
           'JCI', 'SET', 'KLSE', 'PSEI', 'VNI', 'STI'
         ]);
-        if (!stockIndices || stockIndices.length === 0) {
-          throw new Error('No stock data available');
-        }
+        stockIndices = sourced(stockIndices || [], ['price', 'change', 'changePercent', 'volume', 'marketCap']);
       } catch (error) {
-        console.error('Error loading stock data, using fallback:', error);
-        stockIndices = this.getFallbackStockData();
+        console.error('Stock data unavailable for export:', error);
+        stockIndices = [];
       }
 
       try {
         currencies = await this.marketDataService.getCurrencyRates();
-        if (!currencies || currencies.length === 0) {
-          throw new Error('No currency data available');
-        }
+        currencies = sourced(currencies || [], ['rate', 'change', 'changePercent']);
       } catch (error) {
-        console.error('Error loading currency data, using fallback:', error);
-        currencies = this.getFallbackCurrencyData();
+        console.error('Currency data unavailable for export:', error);
+        currencies = [];
       }
 
       this.addCoverPage(doc, data, colors, pageWidth, pageHeight, contentWidth);
 
       doc.addPage();
       let yPos = this.addPageHeader(doc, 'Executive Summary', 2, colors, pageWidth, margin);
-      yPos = await this.addExecutiveSummary(doc, yPos, economicData, stockIndices, colors, margin, contentWidth, pageHeight);
+      yPos = await this.addExecutiveSummary(doc, yPos, economicData, colors, margin, contentWidth);
 
       doc.addPage();
       yPos = this.addPageHeader(doc, 'Market Overview', 3, colors, pageWidth, margin);
-      yPos = await this.addMarketOverview(doc, yPos, economicData, colors, margin, contentWidth, pageHeight, pageWidth);
+      yPos = await this.addMarketOverview(doc, yPos, economicData, colors, margin, contentWidth);
 
       doc.addPage();
-      yPos = this.addPageHeader(doc, 'Live Market Data', 4, colors, pageWidth, margin);
-      yPos = await this.addLiveMarketData(doc, yPos, stockIndices, currencies, colors, margin, contentWidth, pageHeight);
+      yPos = this.addPageHeader(doc, 'Market Reference Data', 4, colors, pageWidth, margin);
+      yPos = await this.addMarketReferenceData(doc, yPos, stockIndices, currencies, colors, margin, contentWidth);
 
       doc.addPage();
       yPos = this.addPageHeader(doc, 'Country Deep Dive', 5, colors, pageWidth, margin);
       yPos = await this.addCountryAnalysis(doc, yPos, economicData, colors, margin, contentWidth, pageHeight);
 
       doc.addPage();
-      yPos = this.addPageHeader(doc, 'Digital Economy Insights', 6, colors, pageWidth, margin);
-      yPos = await this.addDigitalEconomy(doc, yPos, economicData, colors, margin, contentWidth, pageHeight, pageWidth);
+      yPos = this.addPageHeader(doc, 'Illustrative Digital Discussion Topics', 6, colors, pageWidth, margin);
+      yPos = await this.addDigitalEconomy(doc, yPos, economicData, colors, margin, contentWidth);
 
       doc.addPage();
-      yPos = this.addPageHeader(doc, 'Investment Recommendations', 7, colors, pageWidth, margin);
-      yPos = await this.addRecommendations(doc, yPos, economicData, colors, margin, contentWidth, pageHeight);
+      yPos = this.addPageHeader(doc, 'Illustrative Investment Strategy', 7, colors, pageWidth, margin);
+      await this.addRecommendations(doc, yPos, colors, margin, contentWidth, pageHeight);
 
+      this.addProvenance(doc, economicData, stockIndices, currencies, colors, pageWidth, margin, contentWidth);
       this.addFooter(doc, pageHeight, pageWidth, margin, colors);
 
       const fileName = `SEA-Market-Intelligence-${new Date().toISOString().split('T')[0]}.pdf`;
@@ -118,40 +147,7 @@ export class EnhancedPDFService {
     }
   }
 
-  private getFallbackEconomicData(): any[] {
-    return [
-      { country: 'Indonesia', gdp: 1319000000000, gdpGrowth: 5.2, inflation: 3.2, unemployment: 5.8, population: 273500000, gdpPerCapita: 4822, internetUsers: 199800000, exchangeRate: 15750, interestRate: 6.00 },
-      { country: 'Thailand', gdp: 543500000000, gdpGrowth: 2.8, inflation: 1.2, unemployment: 1.1, population: 69800000, gdpPerCapita: 7786, internetUsers: 59200000, exchangeRate: 35.42, interestRate: 2.50 },
-      { country: 'Singapore', gdp: 397000000000, gdpGrowth: 2.6, inflation: 2.1, unemployment: 2.0, population: 5900000, gdpPerCapita: 67298, internetUsers: 5400000, exchangeRate: 1.35, interestRate: 3.50 },
-      { country: 'Malaysia', gdp: 432000000000, gdpGrowth: 4.5, inflation: 2.8, unemployment: 3.3, population: 32700000, gdpPerCapita: 13215, internetUsers: 27500000, exchangeRate: 4.68, interestRate: 3.00 },
-      { country: 'Vietnam', gdp: 409000000000, gdpGrowth: 6.8, inflation: 3.6, unemployment: 2.3, population: 97300000, gdpPerCapita: 4202, internetUsers: 72900000, exchangeRate: 24350, interestRate: 4.50 },
-      { country: 'Philippines', gdp: 394000000000, gdpGrowth: 6.2, inflation: 4.1, unemployment: 4.5, population: 109600000, gdpPerCapita: 3595, internetUsers: 74500000, exchangeRate: 56.25, interestRate: 6.50 }
-    ];
-  }
-
-  private getFallbackStockData(): any[] {
-    return [
-      { symbol: 'JCI', name: 'Jakarta Composite Index', price: 7245.50, change: 45.30, changePercent: 0.63, volume: 8450000000 },
-      { symbol: 'SET', name: 'Stock Exchange of Thailand', price: 1432.25, change: -12.45, changePercent: -0.86, volume: 82340000000 },
-      { symbol: 'KLSE', name: 'Bursa Malaysia', price: 1545.80, change: 8.25, changePercent: 0.54, volume: 3240000000 },
-      { symbol: 'PSEI', name: 'Philippine Stock Exchange', price: 6542.15, change: 32.80, changePercent: 0.50, volume: 4580000000 },
-      { symbol: 'VNI', name: 'Vietnam Stock Index', price: 1245.60, change: 18.90, changePercent: 1.54, volume: 12340000000 },
-      { symbol: 'STI', name: 'Straits Times Index', price: 3285.40, change: -5.20, changePercent: -0.16, volume: 1240000000 }
-    ];
-  }
-
-  private getFallbackCurrencyData(): any[] {
-    return [
-      { pair: 'USD/IDR', rate: 15750, change: 25, changePercent: 0.16 },
-      { pair: 'USD/THB', rate: 35.42, change: 0.12, changePercent: 0.34 },
-      { pair: 'USD/MYR', rate: 4.68, change: 0.03, changePercent: 0.64 },
-      { pair: 'USD/PHP', rate: 56.25, change: -0.15, changePercent: -0.27 },
-      { pair: 'USD/VND', rate: 24350, change: 50, changePercent: 0.21 },
-      { pair: 'USD/SGD', rate: 1.35, change: -0.002, changePercent: -0.15 }
-    ];
-  }
-
-  private addCoverPage(doc: jsPDF, data: PDFReportData, colors: any, pageWidth: number, pageHeight: number, contentWidth: number): void {
+  private addCoverPage(doc: jsPDF, data: PDFReportData, colors: ReportColors, pageWidth: number, pageHeight: number, contentWidth: number): void {
     doc.setFillColor(colors.dark[0], colors.dark[1], colors.dark[2]);
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
@@ -184,7 +180,7 @@ export class EnhancedPDFService {
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(230, 230, 230);
-    doc.text('Comprehensive Market Analysis & Real-Time Intelligence', 20, titleY + 10);
+    doc.text('Market Research Reference Report', 20, titleY + 10);
 
     const selectedMarketsText = data.selectedCountries.length > 0
       ? data.selectedCountries.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(' • ')
@@ -201,13 +197,20 @@ export class EnhancedPDFService {
     doc.setFontSize(11);
     doc.setTextColor(220, 220, 220);
     doc.text(`Generated: ${date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 20, titleY + 45);
-    doc.text(`Time: ${date.toLocaleTimeString('en-US')}`, 20, titleY + 52);
+    doc.text(`Export time: ${date.toLocaleTimeString('en-US')}`, 20, titleY + 52);
+
+    doc.setFontSize(10);
+    doc.setTextColor(colors.warning[0], colors.warning[1], colors.warning[2]);
+    doc.text(REFERENCE_NOTICE, 20, titleY + 65, { maxWidth: contentWidth });
+    doc.setFontSize(9);
+    doc.setTextColor(220, 220, 220);
+    doc.text('Supplied figures require verification. Static scenarios: src/services/enhancedPDFService.ts. Generated time is not an observation date.', 20, titleY + 78, { maxWidth: contentWidth });
 
     const metrics = [
-      { label: 'Data Sources', value: '10+', icon: '📊' },
-      { label: 'Countries', value: '6', icon: '🌏' },
-      { label: 'Real-Time Updates', value: 'Live', icon: '⚡' },
-      { label: 'Data Points', value: '1000+', icon: '📈' }
+      { label: 'Material', value: 'Reference' },
+      { label: 'Verification', value: 'Required' },
+      { label: 'Data dates', value: 'Unknown' },
+      { label: 'Strategies', value: 'Illustrative' }
     ];
 
     const boxWidth = (pageWidth - 50) / 4;
@@ -218,15 +221,12 @@ export class EnhancedPDFService {
       doc.setFillColor(colors.darkGray[0], colors.darkGray[1], colors.darkGray[2], 0.5);
       doc.roundedRect(boxX, boxY, boxWidth - 5, 25, 2, 2, 'F');
 
-      doc.setFontSize(14);
-      doc.text(metric.icon, boxX + 3, boxY + 10);
-
       doc.setFontSize(10);
       doc.setTextColor(200, 200, 200);
       doc.setFont('helvetica', 'bold');
       doc.text(metric.label, boxX + 3, boxY + 17);
 
-      doc.setFontSize(14);
+      doc.setFontSize(11);
       doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
       doc.setFont('helvetica', 'bold');
       doc.text(metric.value, boxX + 3, boxY + 24);
@@ -240,7 +240,7 @@ export class EnhancedPDFService {
     doc.text('CONFIDENTIAL - For Internal Use Only', pageWidth / 2, pageHeight - 10, { align: 'center' });
   }
 
-  private addPageHeader(doc: jsPDF, title: string, pageNum: number, colors: any, pageWidth: number, margin: number): number {
+  private addPageHeader(doc: jsPDF, title: string, pageNum: number, colors: ReportColors, pageWidth: number, margin: number): number {
     doc.setFillColor(colors.darkGray[0], colors.darkGray[1], colors.darkGray[2]);
     doc.rect(0, 0, pageWidth, 15, 'F');
 
@@ -264,30 +264,30 @@ export class EnhancedPDFService {
     return 42;
   }
 
-  private async addExecutiveSummary(doc: jsPDF, yPos: number, economicData: any[], stockIndices: any[], colors: any, margin: number, contentWidth: number, pageHeight: number): Promise<number> {
+  private async addExecutiveSummary(doc: jsPDF, yPos: number, economicData: ReportEconomicData[], colors: ReportColors, margin: number, contentWidth: number): Promise<number> {
     const metrics = [
       {
         label: 'Combined GDP',
-        value: `$${(economicData.reduce((sum, c) => sum + (c.gdp || 0), 0) / 1e9).toFixed(1)}T`,
-        change: '+5.2%',
+        value: display(completeTotal(economicData.map(country => country.gdp)), 1, 1e12, '$', 'T'),
+        change: 'Reference',
         color: colors.primary
       },
       {
         label: 'Total Population',
-        value: `${(economicData.reduce((sum, c) => sum + (c.population || 0), 0) / 1e6).toFixed(0)}M`,
-        change: '+1.8%',
+        value: display(completeTotal(economicData.map(country => country.population)), 0, 1e6, '', 'M'),
+        change: 'Reference',
         color: colors.secondary
       },
       {
         label: 'Avg GDP Growth',
-        value: `${(economicData.reduce((sum, c) => sum + (c.gdpGrowth || 0), 0) / economicData.length).toFixed(1)}%`,
-        change: 'Annual',
+        value: display(completeAverage(economicData.map(country => country.gdpGrowth)), 1, 1, '', '%'),
+        change: 'Reference',
         color: colors.accent
       },
       {
         label: 'Digital Users',
-        value: `${(economicData.reduce((sum, c) => sum + (c.internetUsers || 0), 0) / 1e6).toFixed(0)}M`,
-        change: '+12.4%',
+        value: display(completeTotal(economicData.map(country => country.internetUsers)), 0, 1e6, '', 'M'),
+        change: 'Reference',
         color: colors.warning
       }
     ];
@@ -326,15 +326,15 @@ export class EnhancedPDFService {
     doc.setFontSize(16);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text('Key Strategic Insights', margin, yPos);
+    doc.text('Illustrative Discussion Topics', margin, yPos);
 
     yPos += 10;
 
     const insights = [
-      'Southeast Asia represents a $3.7T combined economy with 680M+ consumers, offering unprecedented market entry opportunities across multiple high-growth sectors.',
-      'Digital economy growing at 18.6% annually, driven by mobile-first adoption and e-commerce expansion across all six major markets.',
-      'Indonesia, Vietnam, and Philippines show strongest growth trajectories (5-7% GDP growth) with favorable demographics and urbanization trends.',
-      'Regional trade integration through ASEAN creates simplified market access and reduced barriers for cross-border expansion strategies.'
+      'Research market size and consumer demand with dated primary sources before selecting an entry market.',
+      'Test digital channels, payment methods and customer needs for the specific product and market.',
+      'Compare verified growth, demographics and business-specific costs; this report does not establish investment suitability.',
+      'Check current country and sector rules with qualified local advisers before committing resources.'
     ];
 
     doc.setFontSize(11);
@@ -368,7 +368,7 @@ export class EnhancedPDFService {
     doc.setFontSize(13);
     doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text('STRATEGIC RECOMMENDATION: PROCEED WITH MARKET ENTRY', margin + 4, yPos + 8);
+    doc.text('ILLUSTRATIVE STRATEGY - VERIFY BEFORE USE', margin + 4, yPos + 8);
 
     doc.setFontSize(11);
     doc.setTextColor(40, 40, 40);
@@ -384,7 +384,7 @@ export class EnhancedPDFService {
     return yPos + 25;
   }
 
-  private async addMarketOverview(doc: jsPDF, yPos: number, economicData: any[], colors: any, margin: number, contentWidth: number, pageHeight: number, pageWidth: number): Promise<number> {
+  private async addMarketOverview(doc: jsPDF, yPos: number, economicData: ReportEconomicData[], colors: ReportColors, margin: number, contentWidth: number): Promise<number> {
     doc.setFontSize(16);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.setFont('helvetica', 'bold');
@@ -419,23 +419,23 @@ export class EnhancedPDFService {
 
       doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
       doc.text(country.country || 'N/A', margin + 2, yPos + 5);
-      doc.text(`$${((country.gdp || 0) / 1e9).toFixed(0)}`, margin + colWidth + 2, yPos + 5);
-      doc.text(`${((country.population || 0) / 1e6).toFixed(1)}`, margin + (colWidth * 2) + 2, yPos + 5);
+      doc.text(`$${display(country.gdp, 0, 1e9)}`, margin + colWidth + 2, yPos + 5);
+      doc.text(display(country.population, 1, 1e6, '', ''), margin + (colWidth * 2) + 2, yPos + 5);
 
-      const growth = country.gdpGrowth || 0;
+      const growth = numeric(country.gdpGrowth);
       doc.setTextColor(growth > 0 ? colors.secondary[0] : colors.warning[0], growth > 0 ? colors.secondary[1] : colors.warning[1], growth > 0 ? colors.secondary[2] : colors.warning[2]);
-      doc.text(`${growth.toFixed(1)}%`, margin + (colWidth * 3) + 2, yPos + 5);
+      doc.text(display(growth, 1, 1, '', '%'), margin + (colWidth * 3) + 2, yPos + 5);
 
       doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
-      doc.text(`${(country.inflation || 0).toFixed(1)}%`, margin + (colWidth * 4) + 2, yPos + 5);
-      doc.text(`${(country.unemployment || 0).toFixed(1)}%`, margin + (colWidth * 5) + 2, yPos + 5);
+      doc.text(display(country.inflation, 1, 1, '', '%'), margin + (colWidth * 4) + 2, yPos + 5);
+      doc.text(display(country.unemployment, 1, 1, '', '%'), margin + (colWidth * 5) + 2, yPos + 5);
 
       yPos += 7;
     });
 
     yPos += 10;
 
-    const topCountries = [...economicData].sort((a, b) => (b.gdp || 0) - (a.gdp || 0)).slice(0, 3);
+    const topCountries = economicData.filter(country => Number.isFinite(numeric(country.gdp))).sort((a, b) => numeric(b.gdp) - numeric(a.gdp)).slice(0, 3);
 
     doc.setFontSize(14);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
@@ -444,10 +444,11 @@ export class EnhancedPDFService {
 
     yPos += 8;
 
-    const maxGdp = topCountries[0]?.gdp || 1;
+    if (!topCountries.length) doc.text('GDP chart unavailable: no supplied GDP observations.', margin, yPos + 5);
+    const maxGdp = Math.max(1, ...topCountries.map(country => numeric(country.gdp)));
 
     topCountries.forEach((country, index) => {
-      const barWidth = ((country.gdp || 0) / maxGdp) * (contentWidth - 60);
+      const barWidth = (numeric(country.gdp) / maxGdp) * (contentWidth - 60);
 
       doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2], 0.7 - (index * 0.15));
       doc.roundedRect(margin + 45, yPos, barWidth, 12, 1, 1, 'F');
@@ -459,7 +460,7 @@ export class EnhancedPDFService {
 
       doc.setFontSize(9);
       doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
-      doc.text(`$${((country.gdp || 0) / 1e9).toFixed(1)}T`, margin + 48, yPos + 8);
+      doc.text(display(country.gdp, 1, 1e12, '$', 'T'), margin + 48, yPos + 8);
 
       yPos += 16;
     });
@@ -469,24 +470,24 @@ export class EnhancedPDFService {
     doc.setFontSize(9);
     doc.setTextColor(100, 100, 100);
     doc.setFont('helvetica', 'normal');
-    doc.text('Data sources: World Bank, IMF, National Statistical Offices | Last updated: ' + new Date().toLocaleDateString(), margin, yPos);
+    doc.text(REFERENCE_NOTICE, margin, yPos, { maxWidth: contentWidth });
 
     return yPos + 5;
   }
 
-  private async addLiveMarketData(doc: jsPDF, yPos: number, stockIndices: any[], currencies: any[], colors: any, margin: number, contentWidth: number, pageHeight: number): Promise<number> {
+  private async addMarketReferenceData(doc: jsPDF, yPos: number, stockIndices: ReportStockData[], currencies: ReportCurrencyData[], colors: ReportColors, margin: number, contentWidth: number): Promise<number> {
     doc.setFillColor(colors.secondary[0], colors.secondary[1], colors.secondary[2], 0.1);
     doc.roundedRect(margin, yPos, contentWidth, 12, 2, 2, 'F');
 
     doc.setFontSize(11);
     doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text('⚡ LIVE MARKET DATA', margin + 3, yPos + 6);
+    doc.text('MARKET REFERENCE DATA - UNVERIFIED', margin + 3, yPos + 6);
 
     doc.setFontSize(8);
     doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Updated: ${new Date().toLocaleTimeString()}`, margin + 3, yPos + 10);
+    doc.text('Only supplied observations; missing quotes and FX rates are unavailable.', margin + 3, yPos + 10);
 
     yPos += 18;
 
@@ -497,6 +498,7 @@ export class EnhancedPDFService {
 
     yPos += 8;
 
+    if (!stockIndices.length) doc.text('Stock quotes unavailable: no supplied observations.', margin, yPos + 5);
     const stockBoxWidth = (contentWidth - 10) / 3;
     let stockX = margin;
 
@@ -506,7 +508,7 @@ export class EnhancedPDFService {
         stockX = margin;
       }
 
-      const isPositive = (stock.changePercent || 0) >= 0;
+      const isPositive = numeric(stock.changePercent) >= 0;
 
       doc.setFillColor(isPositive ? colors.secondary[0] : colors.warning[0], isPositive ? colors.secondary[1] : colors.warning[1], isPositive ? colors.secondary[2] : colors.warning[2], 0.1);
       doc.roundedRect(stockX, yPos, stockBoxWidth - 2, 28, 2, 2, 'F');
@@ -528,11 +530,11 @@ export class EnhancedPDFService {
       doc.setFontSize(13);
       doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
       doc.setFont('helvetica', 'bold');
-      doc.text((stock.price || 0).toFixed(2), stockX + 2, yPos + 20);
+      doc.text(display(stock.price, 2), stockX + 2, yPos + 20);
 
       doc.setFontSize(9);
       doc.setTextColor(isPositive ? colors.secondary[0] : colors.warning[0], isPositive ? colors.secondary[1] : colors.warning[1], isPositive ? colors.secondary[2] : colors.warning[2]);
-      doc.text(`${isPositive ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%`, stockX + 2, yPos + 26);
+      doc.text(display(stock.changePercent, 2, 1, isPositive ? '+' : '', '%'), stockX + 2, yPos + 26);
 
       stockX += stockBoxWidth + 2;
     });
@@ -546,13 +548,14 @@ export class EnhancedPDFService {
 
     yPos += 8;
 
+    if (!currencies.length) doc.text('FX rates unavailable: no supplied observations.', margin, yPos + 5);
     currencies.slice(0, 6).forEach((currency, index) => {
       if (index % 2 === 0) {
         doc.setFillColor(248, 250, 252);
         doc.rect(margin, yPos, contentWidth, 8, 'F');
       }
 
-      const isPositive = (currency.changePercent || 0) >= 0;
+      const isPositive = numeric(currency.changePercent) >= 0;
 
       doc.setFontSize(9);
       doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
@@ -560,10 +563,10 @@ export class EnhancedPDFService {
       doc.text(currency.pair || 'N/A', margin + 2, yPos + 5);
 
       doc.setFont('helvetica', 'normal');
-      doc.text((currency.rate || 0).toFixed(4), margin + 40, yPos + 5);
+      doc.text(display(currency.rate, 4), margin + 40, yPos + 5);
 
       doc.setTextColor(isPositive ? colors.secondary[0] : colors.warning[0], isPositive ? colors.secondary[1] : colors.warning[1], isPositive ? colors.secondary[2] : colors.warning[2]);
-      doc.text(`${isPositive ? '+' : ''}${(currency.changePercent || 0).toFixed(2)}%`, margin + 70, yPos + 5);
+      doc.text(display(currency.changePercent, 2, 1, isPositive ? '+' : '', '%'), margin + 70, yPos + 5);
 
       yPos += 8;
     });
@@ -571,8 +574,8 @@ export class EnhancedPDFService {
     return yPos + 5;
   }
 
-  private async addCountryAnalysis(doc: jsPDF, yPos: number, economicData: any[], colors: any, margin: number, contentWidth: number, pageHeight: number): Promise<number> {
-    const topCountries = [...economicData].sort((a, b) => (b.gdp || 0) - (a.gdp || 0)).slice(0, 3);
+  private async addCountryAnalysis(doc: jsPDF, yPos: number, economicData: ReportEconomicData[], colors: ReportColors, margin: number, contentWidth: number, pageHeight: number): Promise<number> {
+    const topCountries = economicData.filter(country => Number.isFinite(numeric(country.gdp))).sort((a, b) => numeric(b.gdp) - numeric(a.gdp)).slice(0, 3);
 
     topCountries.forEach((country, index) => {
       if (yPos > pageHeight - 80) {
@@ -593,12 +596,12 @@ export class EnhancedPDFService {
       doc.setFont('helvetica', 'normal');
 
       const metrics = [
-        { label: 'GDP', value: `$${((country.gdp || 0) / 1e9).toFixed(2)}T` },
-        { label: 'Population', value: `${((country.population || 0) / 1e6).toFixed(1)}M` },
-        { label: 'GDP Growth', value: `${(country.gdpGrowth || 0).toFixed(1)}%` },
-        { label: 'GDP per Capita', value: `$${(country.gdpPerCapita || 0).toLocaleString()}` },
-        { label: 'Inflation', value: `${(country.inflation || 0).toFixed(1)}%` },
-        { label: 'Interest Rate', value: `${(country.interestRate || 0).toFixed(2)}%` }
+        { label: 'GDP', value: display(country.gdp, 2, 1e12, '$', 'T') },
+        { label: 'Population', value: display(country.population, 1, 1e6, '', 'M') },
+        { label: 'GDP Growth', value: display(country.gdpGrowth, 1, 1, '', '%') },
+        { label: 'GDP per Capita', value: display(country.gdpPerCapita, 0, 1, '$') },
+        { label: 'Inflation', value: display(country.inflation, 1, 1, '', '%') },
+        { label: 'Interest Rate', value: display(country.interestRate, 2, 1, '', '%') }
       ];
 
       let metricY = yPos + 16;
@@ -627,7 +630,7 @@ export class EnhancedPDFService {
     return yPos;
   }
 
-  private async addDigitalEconomy(doc: jsPDF, yPos: number, economicData: any[], colors: any, margin: number, contentWidth: number, pageHeight: number, pageWidth: number): Promise<number> {
+  private async addDigitalEconomy(doc: jsPDF, yPos: number, economicData: ReportEconomicData[], colors: ReportColors, margin: number, contentWidth: number): Promise<number> {
     doc.setFontSize(12);
     doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
     doc.setFont('helvetica', 'bold');
@@ -635,17 +638,18 @@ export class EnhancedPDFService {
 
     yPos += 10;
 
-    const digitalMetrics = economicData.map(country => ({
+    const digitalMetrics = economicData.filter(country => Number.isFinite(numeric(country.internetUsers))).map(country => ({
       country: country.country,
-      internetUsers: (country.internetUsers || 0) / 1e6,
-      population: (country.population || 0) / 1e6
+      internetUsers: numeric(country.internetUsers) / 1e6,
+      population: numeric(country.population) / 1e6
     })).sort((a, b) => b.internetUsers - a.internetUsers);
 
-    const maxUsers = digitalMetrics[0]?.internetUsers || 1;
+    if (!digitalMetrics.length) doc.text('Internet chart unavailable: no supplied observations.', margin, yPos + 5);
+    const maxUsers = Math.max(1, ...digitalMetrics.map(metric => metric.internetUsers));
 
     digitalMetrics.slice(0, 6).forEach((metric, index) => {
       const barWidth = (metric.internetUsers / maxUsers) * (contentWidth - 60);
-      const penetration = ((metric.internetUsers / metric.population) * 100).toFixed(0);
+      const penetration = display(ratio(metric.internetUsers, metric.population) * 100, 0, 1, '', '%');
 
       doc.setFillColor(colors.accent[0], colors.accent[1], colors.accent[2], 0.6 - (index * 0.08));
       doc.roundedRect(margin + 40, yPos, barWidth, 10, 1, 1, 'F');
@@ -656,7 +660,7 @@ export class EnhancedPDFService {
       doc.text(metric.country, margin, yPos + 7);
 
       doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
-      doc.text(`${metric.internetUsers.toFixed(1)}M (${penetration}%)`, margin + 43, yPos + 7);
+      doc.text(`${metric.internetUsers.toFixed(1)}M (${penetration})`, margin + 43, yPos + 7);
 
       yPos += 14;
     });
@@ -669,17 +673,17 @@ export class EnhancedPDFService {
     doc.setFontSize(11);
     doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text('Digital Economy Insights', margin + 3, yPos + 8);
+    doc.text('Illustrative Digital Discussion Topics', margin + 3, yPos + 8);
 
     doc.setFontSize(9);
     doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
     doc.setFont('helvetica', 'normal');
 
     const insights = [
-      '• Mobile-first approach critical: 85% of users access internet via mobile',
-      '• E-commerce growing 25% annually across all markets',
-      '• Digital payment adoption accelerated 300% (2020-2024)',
-      '• Super apps (Grab, Gojek) driving financial inclusion'
+      '• Research device preferences for the target customer segment',
+      '• Validate the relevant e-commerce market size and observation year',
+      '• Check dated payment adoption and licensing evidence',
+      '• Evaluate potential platform partners through primary research'
     ];
 
     let insightY = yPos + 16;
@@ -691,7 +695,7 @@ export class EnhancedPDFService {
     return yPos + 45;
   }
 
-  private async addRecommendations(doc: jsPDF, yPos: number, economicData: any[], colors: any, margin: number, contentWidth: number, pageHeight: number): Promise<number> {
+  private async addRecommendations(doc: jsPDF, yPos: number, colors: ReportColors, margin: number, contentWidth: number, pageHeight: number): Promise<number> {
     const phases = [
       {
         phase: 'Phase 1: Foundation',
@@ -728,10 +732,10 @@ export class EnhancedPDFService {
       }
     ];
 
-    phases.forEach((phase, index) => {
+    phases.forEach((phase) => {
       if (yPos > pageHeight - 60) {
         doc.addPage();
-        yPos = this.addPageHeader(doc, 'Investment Recommendations (cont.)', 7, colors, doc.internal.pageSize.getWidth(), margin);
+        yPos = this.addPageHeader(doc, 'Illustrative Strategy (cont.)', 7, colors, doc.internal.pageSize.getWidth(), margin);
       }
 
       doc.setFillColor(phase.color[0], phase.color[1], phase.color[2], 0.1);
@@ -774,18 +778,45 @@ export class EnhancedPDFService {
     doc.setFontSize(11);
     doc.setTextColor(colors.warning[0], colors.warning[1], colors.warning[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text('💰 Investment Summary', margin + 3, yPos + 8);
+    doc.text('Illustrative Investment Assumptions - Unverified', margin + 3, yPos + 8);
 
     doc.setFontSize(9);
     doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
     doc.setFont('helvetica', 'normal');
-    doc.text('Total Investment Required: $50-75M over 3 years', margin + 3, yPos + 15);
-    doc.text('Expected ROI: 25-30% by Year 3', margin + 3, yPos + 20);
+    doc.text('Example investment assumption: $50-75M over 3 years', margin + 3, yPos + 15);
+    doc.text('Example ROI assumption: 25-30% by Year 3; not a forecast', margin + 3, yPos + 20);
 
     return yPos + 30;
   }
 
-  private addFooter(doc: jsPDF, pageHeight: number, pageWidth: number, margin: number, colors: any): void {
+  private addProvenance(doc: jsPDF, economicData: ReportEconomicData[], stockIndices: ReportStockData[], currencies: ReportCurrencyData[], colors: ReportColors, pageWidth: number, margin: number, contentWidth: number): void {
+    doc.addPage();
+    let y = this.addPageHeader(doc, 'Data Provenance and Limits', doc.getNumberOfPages(), colors, pageWidth, margin);
+    const lines = [
+      `generatedAt: ${new Date().toISOString()} (export time only)`,
+      'observedAt: only explicitly supplied observation periods below. Retrieval/storage times are not observation dates.',
+      'Coverage: totals require complete metrics for supplied rows only. Requested markets with no observations may be absent.',
+      'Static strategy and financial scenarios: src/services/enhancedPDFService.ts. Illustrative examples, not verified forecasts or recommendations.',
+      ...economicData.map(record => `Economics: ${record.country}; source: ${record.source || 'Unavailable'}; observation periods: ${Object.entries(record.metricEvidence || {}).map(([field, evidence]) => `${field}=${evidence.observationPeriod || 'Unavailable'} [${evidence.status}; source: ${evidence.source || 'Unavailable'}; retrievedAt: ${evidence.retrievedAt || 'Unavailable'}]`).join('; ') || 'Unavailable'}`),
+      ...stockIndices.map(record => `Stock: ${record.symbol}; source: ${record.source || 'Unavailable'}; status: ${record.sourceStatus || 'unverified'}; observedAt: ${record.observedAt || 'Unavailable'}; storedAt/retrievedAt: ${record.storedAt || record.retrievedAt || 'Unavailable'}`),
+      ...currencies.map(record => `FX: ${record.pair}; source: ${record.source || 'Unavailable'}; status: ${record.sourceStatus || 'unverified'}; observedAt: ${record.observedAt || 'Unavailable'}; retrievedAt: ${record.retrievedAt || 'Unavailable'}`)
+    ];
+    if (!economicData.length) lines.push('Economic observations: Unavailable for requested markets.');
+    if (!stockIndices.length) lines.push('Stock quotes: Unavailable.');
+    if (!currencies.length) lines.push('FX rates: Unavailable.');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 40, 40);
+    for (const item of lines) {
+      for (const line of doc.splitTextToSize(item, contentWidth)) {
+        if (y > 267) { doc.addPage(); y = this.addPageHeader(doc, 'Data Provenance (cont.)', doc.getNumberOfPages(), colors, pageWidth, margin); doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(40, 40, 40); }
+        doc.text(line, margin, y); y += 5;
+      }
+      y += 3;
+    }
+  }
+
+  private addFooter(doc: jsPDF, pageHeight: number, pageWidth: number, margin: number, colors: ReportColors): void {
     const pageCount = doc.getNumberOfPages();
 
     for (let i = 1; i <= pageCount; i++) {
@@ -797,7 +828,8 @@ export class EnhancedPDFService {
       doc.setFontSize(7);
       doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
       doc.setFont('helvetica', 'normal');
-      doc.text('© 2024 FLOW Market Intelligence | Confidential', margin, pageHeight - 5);
+      doc.text(REFERENCE_NOTICE, margin, pageHeight - 8);
+      doc.text('Static examples: src/services/enhancedPDFService.ts; supplied data: see Data Provenance.', margin, pageHeight - 4);
       doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
     }
   }

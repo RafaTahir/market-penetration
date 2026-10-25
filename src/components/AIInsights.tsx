@@ -5,7 +5,6 @@ interface Insight {
   type: 'opportunity' | 'risk' | 'trend' | 'recommendation';
   title: string;
   description: string;
-  confidence: number;
   impact: 'high' | 'medium' | 'low';
 }
 
@@ -16,55 +15,16 @@ const AIInsights: React.FC<{ selectedCountries: string[] }> = ({ selectedCountri
   const generateInsights = async () => {
     setLoading(true);
 
-    setTimeout(() => {
-      const generatedInsights: Insight[] = [
-        {
-          type: 'opportunity',
-          title: 'Digital Payment Surge in Southeast Asia',
-          description: `${selectedCountries.join(', ')} showing 45% YoY growth in digital payment adoption. E-wallet penetration expected to reach 80% by 2025. Strategic opportunity for fintech partnerships and payment infrastructure investments.`,
-          confidence: 92,
-          impact: 'high'
-        },
-        {
-          type: 'trend',
-          title: 'Cross-Border E-Commerce Acceleration',
-          description: 'Regional trade agreements enabling seamless cross-border transactions. Markets becoming increasingly interconnected with unified logistics networks. Expected 35% growth in regional e-commerce over next 18 months.',
-          confidence: 88,
-          impact: 'high'
-        },
-        {
-          type: 'risk',
-          title: 'Regulatory Divergence Alert',
-          description: 'Increasing regulatory fragmentation across ASEAN markets. Data localization requirements vary significantly between countries. Compliance costs projected to increase 20-30% for multi-market operators.',
-          confidence: 75,
-          impact: 'medium'
-        },
-        {
-          type: 'recommendation',
-          title: 'Mobile-First Strategy Essential',
-          description: '85% of internet users in selected markets are mobile-only. Desktop traffic declining 12% annually. Recommend prioritizing mobile app development and progressive web apps for market penetration.',
-          confidence: 95,
-          impact: 'high'
-        },
-        {
-          type: 'opportunity',
-          title: 'Sustainability Premium Growing',
-          description: 'Consumer willingness to pay premium for sustainable products up 28% YoY. Gen Z and Millennial segments driving trend. ESG-focused brands seeing 40% higher customer retention rates.',
-          confidence: 82,
-          impact: 'medium'
-        },
-        {
-          type: 'trend',
-          title: 'Social Commerce Dominance',
-          description: 'Social media platforms driving 67% of online purchase decisions. Live-streaming commerce growing 3x faster than traditional e-commerce. Instagram and TikTok Shop integration critical for market success.',
-          confidence: 90,
-          impact: 'high'
-        }
-      ];
-
-      setInsights(generatedInsights);
-      setLoading(false);
-    }, 2000);
+    const generatedInsights: Insight[] = [
+      { type: 'opportunity', title: 'Example prompt: payment needs', description: 'Interview prospective customers about payment needs. No adoption or growth statistic has been established.', impact: 'high' },
+      { type: 'trend', title: 'Example prompt: cross-border operations', description: 'Map operating assumptions for each selected jurisdiction and verify them against evidence. This example supplies no market forecast.', impact: 'high' },
+      { type: 'risk', title: 'Example prompt: regulatory questions', description: 'List licensing, ownership and data-handling questions to confirm with relevant authorities or qualified advisers. No legal conclusion is supplied.', impact: 'medium' },
+      { type: 'recommendation', title: 'Example prompt: customer channels', description: 'Test channel and device preferences with your target customers. No demographic percentage has been established.', impact: 'high' },
+      { type: 'opportunity', title: 'Example prompt: pricing assumptions', description: 'Validate pricing and purchasing preferences with customers before relying on a proposed value proposition.', impact: 'medium' },
+      { type: 'trend', title: 'Example prompt: acquisition experiments', description: 'Compare acquisition experiments with dated evidence. No channel market share or growth result is supplied.', impact: 'high' }
+    ];
+    setInsights(generatedInsights);
+    setLoading(false);
   };
 
   const getIcon = (type: string) => {
@@ -119,9 +79,9 @@ const AIInsights: React.FC<{ selectedCountries: string[] }> = ({ selectedCountri
               <Sparkles className="h-6 w-6 text-purple-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">AI-Powered Market Insights</h2>
+              <h2 className="text-2xl font-bold text-white">AI interface examples — no model connected</h2>
               <p className="text-slate-400 text-sm mt-1">
-                Advanced analytics for {selectedCountries.length > 0 ? selectedCountries.join(', ') : 'selected markets'}
+                Example research prompts for {selectedCountries.length > 0 ? selectedCountries.join(', ') : 'selected markets'}
               </p>
             </div>
           </div>
@@ -133,12 +93,12 @@ const AIInsights: React.FC<{ selectedCountries: string[] }> = ({ selectedCountri
             {loading ? (
               <>
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Analyzing...</span>
+                <span>Loading examples...</span>
               </>
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />
-                <span>Generate Insights</span>
+                <span>Show example prompts</span>
               </>
             )}
           </button>
@@ -148,7 +108,7 @@ const AIInsights: React.FC<{ selectedCountries: string[] }> = ({ selectedCountri
           <div className="text-center py-16 text-slate-400">
             <Sparkles className="h-16 w-16 mx-auto mb-4 opacity-30" />
             <p className="text-lg font-medium mb-2">No insights generated yet</p>
-            <p className="text-sm">Click "Generate Insights" to analyze market data with AI</p>
+            <p className="text-sm">These are fixed interface examples. No AI analysis or market-data retrieval takes place.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -167,26 +127,13 @@ const AIInsights: React.FC<{ selectedCountries: string[] }> = ({ selectedCountri
                         {insight.title}
                       </h3>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getImpactColor(insight.impact)}`}>
-                        {insight.impact}
+                        Example only
                       </span>
                     </div>
                     <p className="text-sm text-slate-300 leading-relaxed mb-3">
                       {insight.description}
                     </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="text-xs text-slate-400">Confidence</div>
-                        <div className="flex items-center space-x-1">
-                          <div className="w-24 bg-slate-600 rounded-full h-1.5">
-                            <div
-                              className="bg-gradient-to-r from-blue-500 to-emerald-500 h-1.5 rounded-full transition-all"
-                              style={{ width: `${insight.confidence}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-white font-medium">{insight.confidence}%</span>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-xs text-slate-400">Fixed example prompt · no confidence estimate</p>
                   </div>
                 </div>
               </div>
@@ -197,8 +144,7 @@ const AIInsights: React.FC<{ selectedCountries: string[] }> = ({ selectedCountri
         {insights.length > 0 && (
           <div className="mt-6 p-4 bg-purple-900/20 border border-purple-700/50 rounded-lg">
             <p className="text-sm text-purple-300">
-              <strong>Note:</strong> These insights are generated using advanced market analytics, historical data patterns,
-              and industry trends. Insights are updated dynamically based on real-time market conditions.
+              <strong>Example only:</strong> These prompts are fixed in application code. No model, sourced analysis, factual confidence, current regulation, or live market result is provided.
             </p>
           </div>
         )}

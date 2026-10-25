@@ -6,7 +6,7 @@ export interface CachedData<T> {
 
 export class BrowserCacheService {
   private static instance: BrowserCacheService;
-  private memoryCache: Map<string, CachedData<any>> = new Map();
+  private memoryCache: Map<string, CachedData<unknown>> = new Map();
 
   public static getInstance(): BrowserCacheService {
     if (!BrowserCacheService.instance) {

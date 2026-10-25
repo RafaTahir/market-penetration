@@ -1,38 +1,87 @@
 import React, { useState, useEffect } from 'react';
-import { User, Settings, BookmarkIcon, Search, Bell, TrendingUp, BarChart3, LogOut, Edit } from 'lucide-react';
+import { User, BookmarkIcon, Search, Bell, TrendingUp, LogOut, Edit } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { supabase } from '../services/supabaseClient';
 
+interface SavedSearch {
+  id: string;
+  name: string;
+  countries: string[] | null;
+  industries: string[] | null;
+  is_favorite: boolean | null;
+}
+
+interface ActiveAlert {
+  id: string;
+}
+
+interface UserPreferences {
+  default_countries: string[] | null;
+}
+
 const UserDashboard: React.FC = () => {
   const { user, signOut, updateProfile } = useAuth();
-  const { bookmarks } = useBookmarks(user?.id || null);
-  const [savedSearches, setSavedSearches] = useState<any[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [preferences, setPreferences] = useState<any>(null);
+  const { bookmarks, loading: bookmarksLoading, error: bookmarksError } = useBookmarks(user?.id || null);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [alerts, setAlerts] = useState<ActiveAlert[]>([]);
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState('');
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const userId = user?.id;
+  const profileName = typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : '';
+
   useEffect(() => {
-    if (user) {
-      fetchUserData();
-      setFullName(user.user_metadata?.full_name || '');
+    setFullName(profileName);
+    setIsEditing(false);
+  }, [userId, profileName]);
+
+  useEffect(() => {
+    let active = true;
+    setSavedSearches([]);
+    setAlerts([]);
+    setPreferences(null);
+    setError(null);
+    if (!userId) {
+      setLoading(false);
+      return;
     }
-  }, [user]);
 
-  const fetchUserData = async () => {
-    if (!user) return;
+    const fetchUserData = async () => {
+      setLoading(true);
+      try {
+        const [searchesRes, alertsRes, prefsRes] = await Promise.all([
+          supabase.from('saved_searches').select('id,name,countries,industries,is_favorite')
+            .eq('user_id', userId).order('created_at', { ascending: false }).returns<SavedSearch[]>(),
+          supabase.from('market_alerts').select('id')
+            .eq('user_id', userId).eq('is_active', true).returns<ActiveAlert[]>(),
+          supabase.from('user_preferences').select('default_countries')
+            .eq('user_id', userId).maybeSingle<UserPreferences>()
+        ]);
 
-    const [searchesRes, alertsRes, prefsRes] = await Promise.all([
-      supabase.from('saved_searches').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('market_alerts').select('*').eq('user_id', user.id).eq('is_active', true),
-      supabase.from('user_preferences').select('*').eq('user_id', user.id).maybeSingle()
-    ]);
+        const queryError = searchesRes.error ?? alertsRes.error ?? prefsRes.error;
+        if (queryError) throw queryError;
+        if (active) {
+          setSavedSearches(searchesRes.data ?? []);
+          setAlerts(alertsRes.data ?? []);
+          setPreferences(prefsRes.data);
+        }
+      } catch (cause) {
+        if (active) {
+          console.error('Error loading user data:', cause);
+          setError('Your saved data is unavailable. Please try again.');
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
 
-    if (searchesRes.data) setSavedSearches(searchesRes.data);
-    if (alertsRes.data) setAlerts(alertsRes.data);
-    if (prefsRes.data) setPreferences(prefsRes.data);
-  };
+    void fetchUserData();
+    return () => { active = false; };
+  }, [userId]);
 
   const handleUpdateProfile = async () => {
     const { error } = await updateProfile({ full_name: fullName });
@@ -45,6 +94,7 @@ const UserDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center space-x-4">
@@ -69,7 +119,7 @@ const UserDashboard: React.FC = () => {
                   <button
                     onClick={() => {
                       setIsEditing(false);
-                      setFullName(user.user_metadata?.full_name || '');
+                      setFullName(profileName);
                     }}
                     className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
                   >
@@ -79,7 +129,7 @@ const UserDashboard: React.FC = () => {
               ) : (
                 <div className="flex items-center space-x-2">
                   <h2 className="text-2xl font-bold text-white">
-                    {user.user_metadata?.full_name || 'User'}
+                    {profileName || 'User'}
                   </h2>
                   <button
                     onClick={() => setIsEditing(true)}
@@ -107,7 +157,7 @@ const UserDashboard: React.FC = () => {
               <BookmarkIcon className="h-5 w-5 text-blue-400" />
               <span className="text-sm text-slate-400">Bookmarks</span>
             </div>
-            <div className="text-2xl font-bold text-white">{bookmarks.length}</div>
+            <div className="text-2xl font-bold text-white">{bookmarksLoading ? 'Loading…' : bookmarksError ? 'Unavailable' : bookmarks.length}</div>
           </div>
 
           <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
@@ -115,7 +165,7 @@ const UserDashboard: React.FC = () => {
               <Search className="h-5 w-5 text-emerald-400" />
               <span className="text-sm text-slate-400">Saved Searches</span>
             </div>
-            <div className="text-2xl font-bold text-white">{savedSearches.length}</div>
+            <div className="text-2xl font-bold text-white">{loading ? 'Loading…' : error ? 'Unavailable' : savedSearches.length}</div>
           </div>
 
           <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
@@ -123,7 +173,7 @@ const UserDashboard: React.FC = () => {
               <Bell className="h-5 w-5 text-purple-400" />
               <span className="text-sm text-slate-400">Active Alerts</span>
             </div>
-            <div className="text-2xl font-bold text-white">{alerts.length}</div>
+            <div className="text-2xl font-bold text-white">{loading ? 'Loading…' : error ? 'Unavailable' : alerts.length}</div>
           </div>
 
           <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-4">
@@ -132,7 +182,7 @@ const UserDashboard: React.FC = () => {
               <span className="text-sm text-slate-400">Markets Tracked</span>
             </div>
             <div className="text-2xl font-bold text-white">
-              {preferences?.default_countries?.length || 0}
+              {loading ? 'Loading…' : error ? 'Unavailable' : preferences?.default_countries?.length ?? 0}
             </div>
           </div>
         </div>
@@ -144,7 +194,11 @@ const UserDashboard: React.FC = () => {
             <BookmarkIcon className="h-5 w-5 text-blue-400" />
             <h3 className="text-lg font-semibold text-white">Recent Bookmarks</h3>
           </div>
-          {bookmarks.length === 0 ? (
+          {bookmarksLoading ? (
+            <p className="text-slate-400 text-sm">Loading bookmarks…</p>
+          ) : bookmarksError ? (
+            <p className="text-slate-400 text-sm">Bookmarks are unavailable.</p>
+          ) : bookmarks.length === 0 ? (
             <p className="text-slate-400 text-sm">No bookmarks yet</p>
           ) : (
             <div className="space-y-2">
@@ -170,7 +224,11 @@ const UserDashboard: React.FC = () => {
             <Search className="h-5 w-5 text-emerald-400" />
             <h3 className="text-lg font-semibold text-white">Saved Searches</h3>
           </div>
-          {savedSearches.length === 0 ? (
+          {loading ? (
+            <p className="text-slate-400 text-sm">Loading saved searches…</p>
+          ) : error ? (
+            <p className="text-slate-400 text-sm">Saved searches are unavailable.</p>
+          ) : savedSearches.length === 0 ? (
             <p className="text-slate-400 text-sm">No saved searches yet</p>
           ) : (
             <div className="space-y-2">

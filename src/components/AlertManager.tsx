@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CreditCard as Edit2, ToggleLeft as Toggle2, AlertCircle, CheckCircle, TrendingDown, Users, FileText, Briefcase, Clock, GitFork as Priority } from 'lucide-react';
-import alertService, { AlertRule, AlertTemplate } from '../services/alertService';
+import { Plus, Trash2, CreditCard as Edit2, AlertCircle, CheckCircle, TrendingDown, Users, FileText, Briefcase, Clock } from 'lucide-react';
+import alertService, { AlertRule } from '../services/alertService';
 import { SkeletonLoader } from './SkeletonLoader';
 
 interface CreateRuleState {
@@ -15,12 +15,9 @@ interface CreateRuleState {
 
 const AlertManager: React.FC = () => {
   const [rules, setRules] = useState<AlertRule[]>([]);
-  const [templates, setTemplates] = useState<AlertTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
-  const [useTemplate, setUseTemplate] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<AlertTemplate | null>(null);
 
   const [formState, setFormState] = useState<CreateRuleState>({
     name: '',
@@ -37,12 +34,8 @@ const AlertManager: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [rulesData, templatesData] = await Promise.all([
-      alertService.getUserAlertRules(),
-      alertService.getAlertTemplates()
-    ]);
+    const rulesData = await alertService.getUserAlertRules();
     setRules(rulesData);
-    setTemplates(templatesData);
     setLoading(false);
   };
 
@@ -54,7 +47,7 @@ const AlertManager: React.FC = () => {
 
     const conditions = {
       countries: formState.countries,
-      ...(formState.threshold && { threshold: formState.threshold })
+      ...(formState.threshold !== undefined && { threshold: formState.threshold })
     };
 
     const newRule = await alertService.createAlertRule(
@@ -81,7 +74,7 @@ const AlertManager: React.FC = () => {
 
     const conditions = {
       countries: formState.countries,
-      ...(formState.threshold && { threshold: formState.threshold })
+      ...(formState.threshold !== undefined && { threshold: formState.threshold })
     };
 
     const updated = await alertService.updateAlertRule(editingRule.id, {
@@ -126,8 +119,6 @@ const AlertManager: React.FC = () => {
       countries: [],
       notification_channels: ['in_app']
     });
-    setUseTemplate(false);
-    setSelectedTemplate(null);
   };
 
   const openEditModal = (rule: AlertRule) => {
@@ -137,8 +128,10 @@ const AlertManager: React.FC = () => {
       description: rule.description,
       rule_type: rule.rule_type,
       priority: rule.priority,
-      countries: (rule.conditions.countries || []) as string[],
-      threshold: rule.conditions.threshold,
+      countries: Array.isArray(rule.conditions.countries)
+        ? rule.conditions.countries.filter((country): country is string => typeof country === 'string')
+        : [],
+      threshold: typeof rule.conditions.threshold === 'number' ? rule.conditions.threshold : undefined,
       notification_channels: rule.notification_channels
     });
     setShowCreateModal(true);
@@ -320,7 +313,7 @@ const AlertManager: React.FC = () => {
                 </label>
                 <select
                   value={formState.rule_type}
-                  onChange={e => setFormState({ ...formState, rule_type: e.target.value as any })}
+                  onChange={e => setFormState({ ...formState, rule_type: e.target.value as AlertRule['rule_type'] })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="price_threshold">Price Threshold</option>
@@ -338,7 +331,7 @@ const AlertManager: React.FC = () => {
                 </label>
                 <select
                   value={formState.priority}
-                  onChange={e => setFormState({ ...formState, priority: e.target.value as any })}
+                  onChange={e => setFormState({ ...formState, priority: e.target.value as AlertRule['priority'] })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="low">Low</option>

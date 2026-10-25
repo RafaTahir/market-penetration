@@ -29,19 +29,19 @@ const ExportTools: React.FC<ExportToolsProps> = ({
       id: 'pdf',
       name: 'PDF Report',
       icon: <FileText className="h-5 w-5" />,
-      description: 'Visually stunning market analysis report with charts, graphs, and professional design'
+      description: 'Market reference report with visible source limits and illustrative planning content'
     },
     {
       id: 'excel',
       name: 'Excel Data',
       icon: <BarChart3 className="h-5 w-5" />,
-      description: 'Comprehensive data workbook with formatted charts and professional styling'
+      description: 'Available observations, unavailable fields, and labeled static examples with provenance'
     },
     {
       id: 'ppt',
       name: 'Pitch Deck',
       icon: <Presentation className="h-5 w-5" />,
-      description: 'Professional slide deck with stunning visuals and executive-ready content'
+      description: 'Presentation template with reference data and clearly labeled planning assumptions'
     }
   ];
 
@@ -183,8 +183,8 @@ const ExportTools: React.FC<ExportToolsProps> = ({
             </div>
           </div>
           <div className="mt-3 text-xs text-slate-400">
-            ✨ Beautiful visual reports with charts, graphs, market data, competitive analysis, 
-            consumer insights, strategic recommendations, and professional design matching your app's aesthetic.
+            Exports include source status and observation dates where available. Missing observations remain unavailable;
+            bundled examples and financial scenarios are illustrative. Export creation time does not indicate data freshness.
           </div>
         </div>
         

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import EntryPlanner from './components/EntryPlanner';
 import Header from './components/Header';
 import LiveMarketData from './components/LiveMarketData';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
@@ -12,7 +13,7 @@ import ExportTools from './components/ExportTools';
 import DataVisualization from './components/DataVisualization';
 import InstitutionalReports from './components/InstitutionalReports';
 import ReportGenerator from './components/ReportGenerator';
-import NotificationCenter, { Notification } from './components/NotificationCenter';
+import { Notification } from './components/NotificationCenter';
 import AdvancedSearch from './components/AdvancedSearch';
 import ComparisonMode from './components/ComparisonMode';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
@@ -24,22 +25,30 @@ import DataRefreshDashboard from './components/DataRefreshDashboard';
 import EnterpriseIntelligenceDashboard from './components/EnterpriseIntelligenceDashboard';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAuth } from './contexts/AuthContext';
-import { DataSyncService } from './services/dataSyncService';
 
-function App() {
+type ResearchView = 'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler' | 'data-sync' | 'enterprise-intelligence';
+
+function ResearchWorkspace({ initialView = 'main' }: { initialView?: ResearchView }) {
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['singapore', 'thailand']);
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'industries' | 'insights' | 'cases' | 'data'>('overview');
-  const [currentView, setCurrentView] = useState<'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler' | 'data-sync' | 'enterprise-intelligence'>('main');
+  const [currentView, setView] = useState<ResearchView>(initialView);
+  useEffect(() => { setView(initialView); }, [initialView]);
+  const setCurrentView = (view: ResearchView) => {
+    setView(view);
+    window.location.hash = view === 'main' ? '/research' : `/research/${view}`;
+  };
   const [activeInsightTab, setActiveInsightTab] = useState<string>('overview');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('technology');
   const [selectedCaseStudy, setSelectedCaseStudy] = useState<string>('grab-success');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showReferenceExamples, setShowReferenceExamples] = useState(false);
+  const [searchNotice, setSearchNotice] = useState('Legacy advanced search and saved searches are not connected in this build. Country selections below remain available.');
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [showCollaboration, setShowCollaboration] = useState(false);
-  const [collaborationTarget, setCollaborationTarget] = useState({ type: '', id: '' });
+  const [collaborationTarget] = useState({ type: '', id: '' });
   const { user } = useAuth();
 
   const handleCountryToggle = (countryId: string) => {
@@ -58,41 +67,31 @@ function App() {
     );
   };
 
-  const syncStartedRef = useRef(false);
-
   useEffect(() => {
     const welcomeNotification: Notification = {
       id: '1',
       type: 'info',
       title: 'Welcome to Flow',
-      message: 'Your comprehensive Southeast Asian market intelligence platform with real-time data from credible sources',
+      message: 'Explore the research library. Static and seeded material needs current source verification before business decisions.',
       timestamp: new Date(),
       read: false
     };
     setNotifications([welcomeNotification]);
 
-    if (!syncStartedRef.current) {
-      syncStartedRef.current = true;
-      const syncService = DataSyncService.getInstance();
-      syncService.startAutomaticSync();
 
-      return () => {
-        syncService.stopAutomaticSync();
-      };
-    }
   }, []);
 
   useKeyboardShortcuts([
     {
       key: 'k',
       ctrl: true,
-      action: () => setShowSearch(prev => !prev),
+      action: () => { setCurrentView('main'); setShowSearch(prev => !prev); },
       description: 'Toggle search'
     },
     {
       key: 'c',
       ctrl: true,
-      action: () => setShowComparison(prev => !prev),
+      action: () => { setCurrentView('main'); setShowComparison(prev => !prev); },
       description: 'Toggle comparison mode'
     },
     {
@@ -115,7 +114,7 @@ function App() {
     },
     {
       key: '?',
-      action: () => setShowKeyboardHelp(true),
+      action: () => { setCurrentView('main'); setShowKeyboardHelp(true); },
       description: 'Show keyboard shortcuts'
     }
   ]);
@@ -143,15 +142,42 @@ function App() {
     { name: 'Vietnam', gdp: 409, population: 97.3, growth: 6.8, digitalAdoption: 75.3, marketSize: 142.1 }
   ];
 
+  if ((currentView === 'dashboard' || currentView === 'scheduler') && !user) {
+    return <div className="min-h-screen bg-slate-900 text-white">
+      <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)} onLogoClick={() => setCurrentView('main')} onLiveDataClick={() => setCurrentView('live-data')} onAnalyticsClick={() => setCurrentView('analytics')} />
+      <main className="max-w-3xl mx-auto px-4 py-16">
+        <h2 className="text-2xl font-semibold">An account is required for this workspace</h2>
+        <p className="text-slate-400 mt-4">Personal dashboards and scheduled exports require connected account services. Your entry research can be saved and exported from the guest planner.</p>
+        <a href="#/plan" className="inline-block mt-6 px-4 py-2 rounded-lg bg-blue-600 text-white">Return to entry planner</a>
+      </main>
+    </div>;
+  }
+
+  if (!showReferenceExamples && (currentView === 'main' || currentView === 'analytics' || currentView === 'report-generator' || currentView === 'enterprise-intelligence')) {
+    return <div className="min-h-screen bg-slate-900 text-white">
+      <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)} onLogoClick={() => setCurrentView('main')} onLiveDataClick={() => setCurrentView('live-data')} onAnalyticsClick={() => setCurrentView('analytics')} onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')} />
+      <main className="max-w-3xl mx-auto px-4 py-16">
+        <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">Data integrity · reference content is optional</p>
+        <h2 className="text-3xl font-semibold mt-4">Current research data is unavailable</h2>
+        <p className="text-slate-300 mt-5 leading-relaxed">These legacy research views contain fixed reference figures, example scenarios and unverified records. Supporting citations and observation dates have not been established. They must not be treated as current market facts or business advice.</p>
+        <p className="text-slate-400 mt-4 leading-relaxed">You can inspect the reference examples explicitly. Their labels remain visible, and they never supply evidence or points to your entry assessment.</p>
+        <div className="flex flex-wrap gap-4 mt-7">
+          <button onClick={() => setShowReferenceExamples(true)} className="px-4 py-3 rounded-lg border border-amber-600 text-amber-200">View unverified reference examples</button>
+          <a href="#/plan" className="px-4 py-3 rounded-lg bg-blue-600 text-white">Use entry planner</a>
+        </div>
+      </main>
+    </div>;
+  }
+
   if (currentView === 'live-data') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
-          onLiveDataClick={() => setCurrentView('main')}
+          onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -173,12 +199,12 @@ function App() {
   if (currentView === 'analytics') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
-          onAnalyticsClick={() => setCurrentView('main')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onAnalyticsClick={() => setCurrentView('analytics')}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -206,12 +232,12 @@ function App() {
   if (currentView === 'reports') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -239,12 +265,12 @@ function App() {
   if (currentView === 'report-generator') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -266,12 +292,12 @@ function App() {
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -295,12 +321,12 @@ function App() {
   if (currentView === 'playground') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -324,12 +350,12 @@ function App() {
   if (currentView === 'scheduler') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -353,12 +379,12 @@ function App() {
   if (currentView === 'data-sync') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -382,12 +408,12 @@ function App() {
   if (currentView === 'enterprise-intelligence') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Header
+        <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
           onLogoClick={() => setCurrentView('main')}
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
-          onSearchClick={() => setShowSearch(true)}
-          onComparisonClick={() => setShowComparison(true)}
+          onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -416,13 +442,13 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <Header
+      <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)}
         onLogoClick={() => setCurrentView('main')}
         onLiveDataClick={() => setCurrentView('live-data')}
         onAnalyticsClick={() => setCurrentView('analytics')}
         onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')}
-        onSearchClick={() => setShowSearch(true)}
-        onComparisonClick={() => setShowComparison(true)}
+        onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
+        onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
         notifications={notifications}
         onMarkNotificationAsRead={handleMarkNotificationAsRead}
         onClearAllNotifications={handleClearAllNotifications}
@@ -433,14 +459,10 @@ function App() {
         <div className="space-y-8">
           {showSearch && (
             <div className="animate-in fade-in">
+              <p role="status" className="mb-3 rounded-lg border border-slate-600 p-3 text-sm text-slate-300">{searchNotice}</p>
               <AdvancedSearch
-                onSearch={(filters) => {
-                  console.log('Search filters:', filters);
-                  setShowSearch(false);
-                }}
-                onSave={(name, filters) => {
-                  console.log('Save search:', name, filters);
-                }}
+                onSearch={() => setSearchNotice('Advanced filters have not been applied: this legacy search is not connected. Use the country selections below or build a city assessment in the entry planner.')}
+                onSave={() => setSearchNotice('This search has not been saved. Saved-search storage is not connected in this build; the entry planner supports local research saving and export.')}
               />
             </div>
           )}
@@ -543,7 +565,7 @@ function App() {
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
+                      onClick={() => setActiveTab(tab.id as typeof activeTab)}
                       className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                         activeTab === tab.id
                           ? 'bg-gradient-to-r from-blue-600 to-emerald-600 text-white shadow-lg'
@@ -580,7 +602,7 @@ function App() {
                           </div>
                           <div className="text-2xl font-bold text-white">$1.2T</div>
                           <div className="text-xs text-slate-400">Combined addressable market</div>
-                          <div className="text-xs text-slate-500 mt-1">Source: World Bank, IMF 2024</div>
+                          <div className="text-xs text-slate-500 mt-1">Unverified legacy attribution: World Bank, IMF 2024</div>
                         </div>
                         
                         <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
@@ -592,7 +614,7 @@ function App() {
                           </div>
                           <div className="text-2xl font-bold text-white">+4.7%</div>
                           <div className="text-xs text-slate-400">Regional GDP growth 2024</div>
-                          <div className="text-xs text-slate-500 mt-1">Source: IMF Economic Outlook</div>
+                          <div className="text-xs text-slate-500 mt-1">Unverified legacy attribution: IMF Economic Outlook</div>
                         </div>
                         
                         <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
@@ -604,7 +626,7 @@ function App() {
                           </div>
                           <div className="text-2xl font-bold text-white">688M</div>
                           <div className="text-xs text-slate-400">Combined population</div>
-                          <div className="text-xs text-slate-500 mt-1">Source: UN Population Division</div>
+                          <div className="text-xs text-slate-500 mt-1">Unverified legacy attribution: UN Population Division</div>
                         </div>
                         
                         <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-4">
@@ -616,7 +638,7 @@ function App() {
                           </div>
                           <div className="text-2xl font-bold text-white">456M</div>
                           <div className="text-xs text-slate-400">Active internet users</div>
-                          <div className="text-xs text-slate-500 mt-1">Source: We Are Social 2024</div>
+                          <div className="text-xs text-slate-500 mt-1">Unverified legacy attribution: We Are Social 2024</div>
                         </div>
                       </div>
                       
@@ -637,14 +659,14 @@ function App() {
                             <tbody className="divide-y divide-slate-600">
                               {selectedCountries.length > 0 ? 
                                 selectedCountries.map((country) => {
-                                  const countryData = {
+                                  const countryData = ({
                                     indonesia: { pop: '273.5M', gdp: '$1.32T', growth: '+5.2%', market: '$287B' },
                                     thailand: { pop: '69.8M', gdp: '$543B', growth: '+2.8%', market: '$127B' },
                                     singapore: { pop: '5.9M', gdp: '$397B', growth: '+2.6%', market: '$89B' },
                                     malaysia: { pop: '32.7M', gdp: '$432B', growth: '+4.5%', market: '$98B' },
                                     philippines: { pop: '109.6M', gdp: '$394B', growth: '+6.2%', market: '$156B' },
                                     vietnam: { pop: '97.3M', gdp: '$409B', growth: '+6.8%', market: '$142B' }
-                                  }[country as keyof typeof countryData];
+                                  } as Record<string, { pop: string; gdp: string; growth: string; market: string }>)[country];
                                   
                                   return (
                                     <tr key={country} className="hover:bg-slate-600/30">
@@ -677,7 +699,7 @@ function App() {
                           </table>
                         </div>
                         <div className="text-xs text-slate-500 mt-2">
-                          Source: World Bank, IMF Economic Outlook 2024, National Statistical Offices
+                          Unverified legacy attribution: World Bank, IMF Economic Outlook 2024, National Statistical Offices
                         </div>
                       </div>
                     </div>
@@ -824,7 +846,7 @@ function App() {
               © 2025 Flow. Professional market research platform for Southeast Asian markets.
             </p>
             <p className="text-xs mt-2 opacity-75">
-              Data updated in real-time • Powered by advanced analytics • Trusted by leading enterprises
+              Research library contains static and seeded material. Observation dates and current applicability may be unknown.
             </p>
           </div>
         </div>
@@ -833,4 +855,37 @@ function App() {
   );
 }
 
-export default App;
+const researchViews = new Set<ResearchView>(['main', 'live-data', 'analytics', 'reports', 'report-generator', 'dashboard', 'playground', 'scheduler', 'data-sync', 'enterprise-intelligence']);
+
+export default function App() {
+  const [route, setRoute] = useState(() => window.location.hash);
+  useEffect(() => {
+    const onHashChange = (event: HashChangeEvent) => {
+      if (window.location.hash === '' || window.location.hash.startsWith('#/')) {
+        const navigation = new CustomEvent('flow:before-navigate', { cancelable: true, detail: window.location.hash });
+        if (!window.dispatchEvent(navigation)) {
+          window.history.replaceState(null, '', event.oldURL);
+          return;
+        }
+        setRoute(window.location.hash);
+        window.scrollTo(0, 0);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  if (route.startsWith('#/research')) {
+    const requested = route.split('/')[2] as ResearchView;
+    const initialView = researchViews.has(requested) ? requested : 'main';
+    return <ResearchWorkspace initialView={initialView} />;
+  }
+  return <div className="min-h-screen bg-[#0c1526] flow-planner-shell">
+    <Header
+      onLogoClick={() => { window.location.hash = '/plan'; }}
+      onLiveDataClick={() => { window.location.hash = '/research/live-data'; }}
+      onAnalyticsClick={() => { window.location.hash = '/research/analytics'; }}
+      onEnterpriseIntelligenceClick={() => { window.location.hash = '/research/enterprise-intelligence'; }}
+    />
+    <EntryPlanner />
+  </div>;
+}

@@ -32,91 +32,120 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   const [activeUsers, setActiveUsers] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const userId = user?.id;
+
   useEffect(() => {
-    if (isOpen && user) {
-      fetchComments();
-      subscribeToComments();
-      updatePresence();
-    }
-  }, [isOpen, user, targetType, targetId]);
+    let active = true;
+    let commentsChannel: ReturnType<typeof supabase.channel> | undefined;
+    let presenceChannel: ReturnType<typeof supabase.channel> | undefined;
+    setComments([]);
+    setActiveUsers(0);
+    setError(null);
+    setCommentsLoading(false);
 
-  const fetchComments = async () => {
-    const { data } = await supabase
-      .from('comments')
-      .select('*')
-      .eq('target_type', targetType)
-      .eq('target_id', targetId)
-      .order('created_at', { ascending: true });
+    if (!isOpen || !userId) return;
 
-    if (data) setComments(data);
-  };
-
-  const subscribeToComments = () => {
-    const subscription = supabase
-      .channel(`comments_${targetType}_${targetId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'comments',
-          filter: `target_type=eq.${targetType},target_id=eq.${targetId}`
-        },
-        (payload) => {
-          setComments((current) => [...current, payload.new as Comment]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
+    const reportError = (cause: unknown) => {
+      if (!active) return;
+      console.error('Error loading collaboration:', cause);
+      setError('Comments are unavailable. Please try again.');
     };
-  };
 
-  const updatePresence = () => {
-    const channel = supabase.channel(`presence_${targetType}_${targetId}`, {
-      config: {
-        presence: {
-          key: user?.id,
-        },
-      },
-    });
+    const loadComments = async () => {
+      setCommentsLoading(true);
+      try {
+        const { data, error: queryError } = await supabase
+          .from('comments')
+          .select('*')
+          .eq('target_type', targetType)
+          .eq('target_id', targetId)
+          .order('created_at', { ascending: true })
+          .returns<Comment[]>();
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        setActiveUsers(Object.keys(state).length);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user_id: user?.id,
-            online_at: new Date().toISOString(),
-          });
+        if (queryError) throw queryError;
+        if (active) {
+          setComments(current => Array.from(new Map(
+            [...(data ?? []), ...current].map(comment => [comment.id, comment])
+          ).values()).sort((a, b) => a.created_at.localeCompare(b.created_at)));
         }
+      } catch (cause) {
+        reportError(cause);
+      } finally {
+        if (active) setCommentsLoading(false);
+      }
+    };
+
+    void loadComments();
+
+    try {
+      commentsChannel = supabase
+        .channel(`comments_${targetType}_${targetId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'comments',
+            filter: `target_id=eq.${targetId}`
+          },
+          (payload) => {
+            const comment = payload.new as Comment;
+            if (!active || comment.target_type !== targetType || comment.target_id !== targetId) return;
+            setComments(current => current.some(item => item.id === comment.id)
+              ? current
+              : [...current, comment]);
+          }
+        )
+        .subscribe();
+
+      const presence = supabase.channel(`presence_${targetType}_${targetId}`, {
+        config: { presence: { key: userId } }
       });
+      presenceChannel = presence;
+      presence
+        .on('presence', { event: 'sync' }, () => {
+          if (active) setActiveUsers(Object.keys(presence.presenceState()).length);
+        })
+        .subscribe((status) => {
+          if (active && status === 'SUBSCRIBED') {
+            void presence.track({
+              user_id: userId,
+              online_at: new Date().toISOString(),
+            }).catch(reportError);
+          }
+        });
+    } catch (cause) {
+      reportError(cause);
+    }
 
     return () => {
-      channel.unsubscribe();
+      active = false;
+      if (commentsChannel) void commentsChannel.unsubscribe().catch(console.error);
+      if (presenceChannel) void presenceChannel.unsubscribe().catch(console.error);
     };
-  };
+  }, [isOpen, userId, targetType, targetId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || !user) return;
 
     setLoading(true);
+    setError(null);
     try {
-      await supabase.from('comments').insert({
+      const { error: insertError } = await supabase.from('comments').insert({
         user_id: user.id,
         content: newComment,
         target_type: targetType,
         target_id: targetId,
         user_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Anonymous'
       });
+      if (insertError) throw insertError;
       setNewComment('');
     } catch (error) {
       console.error('Error posting comment:', error);
+      setError('Your comment could not be posted. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -146,7 +175,10 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {comments.length === 0 ? (
+        {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+        {commentsLoading ? (
+          <p className="text-sm text-slate-400">Loading comments…</p>
+        ) : comments.length === 0 && !error ? (
           <div className="text-center py-12 text-slate-400">
             <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p className="text-sm">No comments yet</p>

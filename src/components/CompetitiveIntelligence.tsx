@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, Building, DollarSign, AlertCircle, RefreshCw, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { TrendingUp, Building, DollarSign, AlertCircle, RefreshCw } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   competitiveIntelligenceService,
@@ -9,6 +9,10 @@ import {
   PricingIntelligence
 } from '../services/competitiveIntelligenceService';
 import { TableSkeleton, CardSkeleton } from './SkeletonLoader';
+
+const formatPercent = (value: number) => Number.isFinite(value) ? `${value.toFixed(1)}%` : 'Unavailable';
+const formatRevenue = (value: number) => Number.isFinite(value) ? `$${(value / 1000000).toFixed(1)}M` : 'Unavailable';
+const formatListedDate = (value: string) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString() : 'Unknown';
 
 export default function CompetitiveIntelligence() {
   const { theme } = useTheme();
@@ -20,66 +24,72 @@ export default function CompetitiveIntelligence() {
   const [activities, setActivities] = useState<CompetitorActivity[]>([]);
   const [marketShare, setMarketShare] = useState<MarketShare[]>([]);
   const [pricing, setPricing] = useState<PricingIntelligence[]>([]);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [lastQueried, setLastQueried] = useState<Date | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   const countries = ['Thailand', 'Singapore', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam'];
   const industries = ['Technology', 'Finance', 'Healthcare', 'Retail', 'Manufacturing', 'Real Estate'];
 
   useEffect(() => {
-    if (selectedCountry || selectedIndustry) {
-      loadData();
+    let cancelled = false;
+    setCompetitors([]);
+    setActivities([]);
+    setMarketShare([]);
+    setPricing([]);
+    setLastQueried(null);
+    setLoadError(null);
+    if (!selectedCountry && !selectedIndustry) {
+      setLoading(false);
+      return;
     }
-  }, [selectedCountry, selectedIndustry, activeTab]);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+    const loadData = async () => {
+      setLoading(true);
       const filters = {
         country: selectedCountry || undefined,
         industry: selectedIndustry || undefined,
         limit: 20
       };
 
-      switch (activeTab) {
-        case 'competitors':
-          const competitorData = await competitiveIntelligenceService.getCompetitorProfiles(filters);
-          setCompetitors(competitorData);
-          break;
-        case 'activities':
-          const activityData = await competitiveIntelligenceService.getCompetitorActivities(filters);
-          setActivities(activityData);
-          break;
-        case 'market-share':
-          const marketData = await competitiveIntelligenceService.getMarketShareData(filters);
-          setMarketShare(marketData);
-          break;
-        case 'pricing':
-          const pricingData = await competitiveIntelligenceService.getPricingIntelligence(filters);
-          setPricing(pricingData);
-          break;
+      try {
+        switch (activeTab) {
+          case 'competitors': {
+            const data = await competitiveIntelligenceService.getCompetitorProfiles(filters);
+            if (!cancelled) setCompetitors(data ?? []);
+            break;
+          }
+          case 'activities': {
+            const data = await competitiveIntelligenceService.getCompetitorActivities(filters);
+            if (!cancelled) setActivities(data ?? []);
+            break;
+          }
+          case 'market-share': {
+            const data = await competitiveIntelligenceService.getMarketShareData(filters);
+            if (!cancelled) setMarketShare(data ?? []);
+            break;
+          }
+          case 'pricing': {
+            const data = await competitiveIntelligenceService.getPricingIntelligence(filters);
+            if (!cancelled) setPricing(data ?? []);
+            break;
+          }
+        }
+        if (!cancelled) setLastQueried(new Date());
+      } catch {
+        if (!cancelled) setLoadError('Connected records are unavailable. No verified competitive data is available for these filters.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('Error loading competitive intelligence data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    void loadData();
+    return () => { cancelled = true; };
+  }, [selectedCountry, selectedIndustry, activeTab, refreshVersion]);
 
   const handleRefresh = () => {
     if (selectedCountry || selectedIndustry) {
-      loadData();
+      setRefreshVersion(version => version + 1);
     }
-  };
-
-  const getTimeSinceUpdate = () => {
-    if (!lastUpdated) return null;
-    const seconds = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
   };
 
   const tabs = [
@@ -91,14 +101,18 @@ export default function CompetitiveIntelligence() {
 
   return (
     <div className="space-y-6">
+      <div role="note" className={`rounded-lg border p-4 text-sm ${theme === 'dark' ? 'border-amber-700 bg-amber-900/20 text-amber-100' : 'border-amber-300 bg-amber-50 text-amber-950'}`}>
+        <p className="font-semibold">Unverified stored competitive records</p>
+        <p className="mt-1">Connected records may include static seed data or numeric defaults. Company claims, source attributions, and observation dates have not been verified. A completed query does not establish when the underlying figures were observed. These records are excluded from the entry planner.</p>
+        <p className="mt-2">Activity and pricing queries support country filtering only; an industry selection does not filter those tabs.</p>
+      </div>
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Competitive Intelligence</h2>
           <div className="flex items-center gap-4">
-            {lastUpdated && (
+            {lastQueried && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Clock className="h-4 w-4" />
-                <span>Updated {getTimeSinceUpdate()}</span>
+                <span>Query completed {lastQueried.toLocaleTimeString()}; observation dates unverified</span>
               </div>
             )}
             <button
@@ -188,6 +202,8 @@ export default function CompetitiveIntelligence() {
           })}
         </div>
 
+        {loadError && <p role="alert" className="mb-4 rounded-lg border border-amber-600 p-3 text-sm">{loadError}</p>}
+
         {loading ? (
           <div className="space-y-4">
             {activeTab === 'market-share' ? (
@@ -225,10 +241,10 @@ export default function CompetitiveIntelligence() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-medium text-blue-500">
-                            {competitor.market_share_percentage}% Market Share
+                            {formatPercent(competitor.market_share_percentage)} Market Share
                           </div>
                           <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            ${(competitor.annual_revenue_usd / 1000000).toFixed(1)}M Revenue
+                            {formatRevenue(competitor.annual_revenue_usd)} Revenue
                           </div>
                         </div>
                       </div>
@@ -274,7 +290,7 @@ export default function CompetitiveIntelligence() {
                             </span>
                           </div>
                           <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {activity.company_name} | {new Date(activity.activity_date).toLocaleDateString()}
+                            {activity.company_name} | Listed activity date: {formatListedDate(activity.activity_date)} (unverified)
                           </p>
                         </div>
                       </div>
@@ -315,10 +331,10 @@ export default function CompetitiveIntelligence() {
                           >
                             <td className="px-4 py-2">{item.rank}</td>
                             <td className="px-4 py-2 font-medium">{item.company_name}</td>
-                            <td className="px-4 py-2">{item.market_share_percentage.toFixed(1)}%</td>
-                            <td className="px-4 py-2">${(item.revenue_usd / 1000000).toFixed(1)}M</td>
+                            <td className="px-4 py-2">{formatPercent(item.market_share_percentage)}</td>
+                            <td className="px-4 py-2">{formatRevenue(item.revenue_usd)}</td>
                             <td className={`px-4 py-2 ${item.growth_rate >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                              {item.growth_rate >= 0 ? '+' : ''}{item.growth_rate.toFixed(1)}%
+                              {item.growth_rate >= 0 ? '+' : ''}{formatPercent(item.growth_rate)}
                             </td>
                           </tr>
                         ))}
@@ -349,9 +365,10 @@ export default function CompetitiveIntelligence() {
                           <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {item.company_name} | {item.product_category}
                           </p>
+                          <p className="text-xs text-gray-500 mt-1">Listed source: {item.data_source || 'Unavailable'}; listed observation date: {formatListedDate(item.observation_date)} (unverified)</p>
                         </div>
                         <div className="text-right">
-                          <div className="text-lg font-bold text-blue-500">${item.price_usd}</div>
+                          <div className="text-lg font-bold text-blue-500">{Number.isFinite(item.price_usd) ? `$${item.price_usd}` : 'Unavailable'}</div>
                           <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {item.pricing_model}
                           </div>

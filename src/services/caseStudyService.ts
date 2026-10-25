@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { isSupabaseConfigured, supabase } from './supabaseClient';
 import { additionalCaseStudies } from '../data/additionalCaseStudies';
 import { caseStudiesBatch2 } from '../data/caseStudiesBatch2';
 import { caseStudiesBatch3 } from '../data/caseStudiesBatch3';
@@ -20,6 +20,31 @@ export interface EnhancedCaseStudy {
   roiPercentage: number;
   dataSources: Array<{ source: string; url: string; date: string }>;
   lastUpdated: string;
+  provenance?: 'stored-record' | 'bundled-reference';
+}
+
+interface CaseStudyFilters {
+  country?: string;
+  industry?: string;
+  caseType?: string;
+}
+
+interface CaseStudyDatabaseRecord {
+  id: string;
+  company_name: string;
+  industry: string;
+  country: string;
+  city: string;
+  entry_year: number;
+  case_type: EnhancedCaseStudy['caseType'];
+  investment_amount: number;
+  outcome_description: string;
+  key_factors: string[] | null;
+  lessons_learned: string[] | null;
+  market_strategy: string;
+  roi_percentage: number;
+  data_sources: EnhancedCaseStudy['dataSources'] | null;
+  last_updated: string | null;
 }
 
 export class CaseStudyService {
@@ -32,11 +57,9 @@ export class CaseStudyService {
     return CaseStudyService.instance;
   }
 
-  async getCaseStudies(filters?: {
-    country?: string;
-    industry?: string;
-    caseType?: string;
-  }): Promise<EnhancedCaseStudy[]> {
+  async getCaseStudies(filters?: CaseStudyFilters, options: { includeReferenceExamples?: boolean } = {}): Promise<EnhancedCaseStudy[]> {
+    const references = () => options.includeReferenceExamples ? this.getDefaultCaseStudies(filters) : [];
+    if (!isSupabaseConfigured) return references();
     try {
       let query = supabase.from('case_studies_data').select('*');
 
@@ -54,17 +77,17 @@ export class CaseStudyService {
 
       if (error) {
         console.error('Error fetching case studies:', error);
-        return this.getDefaultCaseStudies(filters);
+        return references();
       }
 
       if (!data || data.length === 0) {
-        return this.getDefaultCaseStudies(filters);
+        return references();
       }
 
       return data.map(this.mapDatabaseToModel);
     } catch (error) {
       console.error('Error in getCaseStudies:', error);
-      return this.getDefaultCaseStudies(filters);
+      return references();
     }
   }
 
@@ -84,7 +107,7 @@ export class CaseStudyService {
         market_strategy: caseStudy.marketStrategy,
         roi_percentage: caseStudy.roiPercentage,
         data_sources: caseStudy.dataSources,
-        last_updated: caseStudy.lastUpdated
+        last_updated: caseStudy.lastUpdated || undefined
       };
 
       const { error } = await supabase.from('case_studies_data').insert(record);
@@ -109,7 +132,7 @@ export class CaseStudyService {
     }
   }
 
-  private mapDatabaseToModel(data: any): EnhancedCaseStudy {
+  private mapDatabaseToModel(data: CaseStudyDatabaseRecord): EnhancedCaseStudy {
     return {
       id: data.id,
       companyName: data.company_name,
@@ -125,11 +148,12 @@ export class CaseStudyService {
       marketStrategy: data.market_strategy,
       roiPercentage: data.roi_percentage,
       dataSources: data.data_sources || [],
-      lastUpdated: data.last_updated
+      lastUpdated: data.last_updated ?? '',
+      provenance: 'stored-record'
     };
   }
 
-  private getDefaultCaseStudies(filters?: any): EnhancedCaseStudy[] {
+  private getDefaultCaseStudies(filters?: CaseStudyFilters): EnhancedCaseStudy[] {
     const allStudies: EnhancedCaseStudy[] = [
       {
         companyName: 'Grab',
@@ -161,7 +185,7 @@ export class CaseStudyService {
           { source: 'Grab Q4 2023 Earnings Report', url: 'https://investors.grab.com', date: '2024-02-22' },
           { source: 'Tech in Asia: Grab Southeast Asia Expansion', url: 'https://techinasia.com/grab-expansion', date: '2023-09-15' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Shopee',
@@ -193,7 +217,7 @@ export class CaseStudyService {
           { source: 'Momentum Works: Southeast Asia eCommerce Report', url: 'https://momentumworks.com/sea-report-2024', date: '2024-01-20' },
           { source: 'eMarketer: SEA Digital Commerce', url: 'https://emarketer.com/sea-commerce', date: '2023-11-10' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'GoTo (Gojek + Tokopedia)',
@@ -225,7 +249,7 @@ export class CaseStudyService {
           { source: 'Google-Temasek e-Conomy SEA 2024', url: 'https://economysea.withgoogle.com', date: '2024-08-15' },
           { source: 'Tech Crunch: GoTo Merger Analysis', url: 'https://techcrunch.com/goto-analysis', date: '2021-05-17' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Uber',
@@ -257,7 +281,7 @@ export class CaseStudyService {
           { source: 'Harvard Business Review: Uber Asia Challenges', url: 'https://hbr.org/uber-asia-case', date: '2019-07-15' },
           { source: 'Reuters: Uber Grab Deal Analysis', url: 'https://reuters.com/uber-grab', date: '2018-04-03' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Carrefour',
@@ -289,7 +313,7 @@ export class CaseStudyService {
           { source: 'Journal of Retailing: Carrefour International Failures', url: 'https://journal-retailing.com', date: '2014-03-10' },
           { source: 'The Star Malaysia: Carrefour Sale to AEON', url: 'https://thestar.com.my/carrefour', date: '2012-10-15' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Lazada',
@@ -321,7 +345,7 @@ export class CaseStudyService {
           { source: 'Momentum Works: Lazada Market Analysis', url: 'https://momentumworks.com/lazada-2024', date: '2024-02-10' },
           { source: 'TechCrunch: Alibaba Lazada Acquisition', url: 'https://techcrunch.com/alibaba-lazada', date: '2018-03-19' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Netflix',
@@ -353,7 +377,7 @@ export class CaseStudyService {
           { source: 'Media Partners Asia: SVOD Market Report', url: 'https://media-partners-asia.com', date: '2023-12-05' },
           { source: 'Variety: Netflix Asia Investment', url: 'https://variety.com/netflix-asia', date: '2023-09-20' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Starbucks',
@@ -385,7 +409,7 @@ export class CaseStudyService {
           { source: 'Vietnam Investment Review: Starbucks Expansion', url: 'https://vir.com.vn/starbucks', date: '2024-03-12' },
           { source: 'Euromonitor: Vietnam Cafe Market', url: 'https://euromonitor.com/vietnam-cafe', date: '2023-10-18' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Uniqlo',
@@ -417,7 +441,7 @@ export class CaseStudyService {
           { source: 'Retail Asia: Uniqlo SEA Expansion', url: 'https://retailasia.com/uniqlo', date: '2024-01-25' },
           { source: 'Nikkei Asia: Southeast Asia Retail', url: 'https://asia.nikkei.com/retail', date: '2023-12-08' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Airbnb',
@@ -449,7 +473,7 @@ export class CaseStudyService {
           { source: 'STB: Singapore Tourism Statistics', url: 'https://stb.gov.sg/statistics', date: '2024-03-01' },
           { source: 'Skift: Airbnb Asia Pacific', url: 'https://skift.com/airbnb-apac', date: '2023-11-20' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Tesco Lotus (CP All)',
@@ -481,7 +505,7 @@ export class CaseStudyService {
           { source: 'IGD: Thailand Retail Market', url: 'https://igd.com/thailand', date: '2023-10-15' },
           { source: 'Reuters: Tesco Lotus Sale', url: 'https://reuters.com/tesco-lotus', date: '2020-03-09' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Line Corporation',
@@ -513,7 +537,7 @@ export class CaseStudyService {
           { source: 'Digital Thailand Report', url: 'https://wearesocial.com/th', date: '2024-02-01' },
           { source: 'Nikkei: Line Business Model', url: 'https://asia.nikkei.com/line', date: '2023-09-28' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Jollibee',
@@ -545,7 +569,7 @@ export class CaseStudyService {
           { source: 'Vietnam F&B Market Report', url: 'https://euromonitor.com/vietnam-fb', date: '2023-12-10' },
           { source: 'QSR Magazine: Jollibee International', url: 'https://qsrmagazine.com/jollibee', date: '2023-11-05' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'H&M',
@@ -577,7 +601,7 @@ export class CaseStudyService {
           { source: 'Jakarta Post: H&M Indonesia Exit', url: 'https://thejakartapost.com/hm-exit', date: '2021-06-15' },
           { source: 'Retail News Asia: Fashion Retail Indonesia', url: 'https://retailnews.asia/indonesia', date: '2021-07-20' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Rakuten',
@@ -609,7 +633,7 @@ export class CaseStudyService {
           { source: 'Tech in Asia: Rakuten Indonesia', url: 'https://techinasia.com/rakuten-exit', date: '2022-04-05' },
           { source: 'DealStreetAsia: E-commerce Competition', url: 'https://dealstreetasia.com/ecommerce', date: '2022-04-10' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Samsung Electronics',
@@ -641,7 +665,7 @@ export class CaseStudyService {
           { source: 'Vietnam Investment Review', url: 'https://vir.com.vn/samsung', date: '2024-02-15' },
           { source: 'UNCTAD: FDI Vietnam', url: 'https://unctad.org/vietnam-fdi', date: '2023-11-20' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Zalora',
@@ -673,7 +697,7 @@ export class CaseStudyService {
           { source: 'eMarketer: SEA Fashion E-commerce', url: 'https://emarketer.com/sea-fashion', date: '2023-10-20' },
           { source: 'Tech Collective: Zalora Analysis', url: 'https://techcollective.asia/zalora', date: '2023-12-05' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       {
         companyName: 'Xiaomi',
@@ -705,7 +729,7 @@ export class CaseStudyService {
           { source: 'IDC: Indonesia Smartphone Market', url: 'https://idc.com/indonesia-mobile', date: '2024-01-10' },
           { source: 'Counterpoint: SEA Mobile Market', url: 'https://counterpointresearch.com/sea', date: '2024-02-05' }
         ],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: ''
       },
       ...additionalCaseStudies,
       ...caseStudiesBatch2,
@@ -713,11 +737,17 @@ export class CaseStudyService {
       ...caseStudiesBatch4
     ];
 
-    if (!filters) {
-      return allStudies;
-    }
+    // Imported batches contain construction-time timestamps. They do not
+    // establish a source observation or update, so never expose them as one.
+    const references = allStudies.map(study => ({
+      ...study,
+      lastUpdated: '',
+      provenance: 'bundled-reference' as const
+    }));
 
-    return allStudies.filter(study => {
+    if (!filters) return references;
+
+    return references.filter(study => {
       if (filters.country && study.country.toLowerCase() !== filters.country.toLowerCase()) {
         return false;
       }

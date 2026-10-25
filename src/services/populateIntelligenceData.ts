@@ -27,12 +27,19 @@ import {
   recruitmentPartnersData
 } from './seedData/laborTalentSeedData';
 
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return String(error);
+}
+
 export class IntelligenceDataPopulator {
   private results: {
     table: string;
     inserted: number;
     errors: number;
-    errorDetails?: any[];
+    errorDetails?: unknown[];
   }[] = [];
 
   async populateAll(): Promise<void> {
@@ -101,7 +108,7 @@ export class IntelligenceDataPopulator {
     await this.insertData('recruitment_partners', recruitmentPartnersData);
   }
 
-  private async insertData(tableName: string, data: any[]): Promise<void> {
+  private async insertData<T extends Record<string, unknown>>(tableName: string, data: T[]): Promise<void> {
     try {
       console.log(`  ↳ Inserting ${data.length} records into ${tableName}...`);
 
@@ -126,8 +133,8 @@ export class IntelligenceDataPopulator {
           errors: 0
         });
       }
-    } catch (err: any) {
-      console.error(`    ❌ Exception inserting into ${tableName}:`, err.message);
+    } catch (err: unknown) {
+      console.error(`    ❌ Exception inserting into ${tableName}:`, getErrorMessage(err));
       this.results.push({
         table: tableName,
         inserted: 0,
@@ -200,8 +207,8 @@ export class IntelligenceDataPopulator {
         } else {
           console.log(`  ✅ Cleared ${table}`);
         }
-      } catch (err: any) {
-        console.log(`  ❌ Exception clearing ${table}: ${err.message}`);
+      } catch (err: unknown) {
+        console.log(`  ❌ Exception clearing ${table}: ${getErrorMessage(err)}`);
       }
     }
 

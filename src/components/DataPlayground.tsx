@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Play, Code, Download, Share2, Save, Trash2 } from 'lucide-react';
-import { supabase } from '../services/supabaseClient';
+import { Play, Code, Download } from 'lucide-react';
+import { supabase, isSupabaseConfigured, SUPABASE_UNAVAILABLE_MESSAGE } from '../services/supabaseClient';
 
 interface QueryResult {
-  data: any[];
+  data: Record<string, unknown>[];
   columns: string[];
   rowCount: number;
   executionTime: number;
@@ -57,39 +57,32 @@ LIMIT 15;`
   const executeQuery = async () => {
     setLoading(true);
     setError(null);
+    setResult(null);
     const startTime = performance.now();
 
     try {
+      if (!isSupabaseConfigured) throw new Error(SUPABASE_UNAVAILABLE_MESSAGE);
+
       const { data, error: queryError } = await supabase.rpc('execute_safe_query', {
         query_text: query
       });
 
       if (queryError) {
-        const { data: directData, error: directError } = await supabase
-          .from('market_stocks')
-          .select('*')
-          .limit(10);
-
-        if (directError) throw directError;
-
-        const endTime = performance.now();
-        setResult({
-          data: directData || [],
-          columns: directData && directData.length > 0 ? Object.keys(directData[0]) : [],
-          rowCount: directData?.length || 0,
-          executionTime: endTime - startTime
-        });
-      } else {
-        const endTime = performance.now();
-        setResult({
-          data: data || [],
-          columns: data && data.length > 0 ? Object.keys(data[0]) : [],
-          rowCount: data?.length || 0,
-          executionTime: endTime - startTime
-        });
+        throw new Error(`SQL query failed: ${queryError.message}. Verify that execute_safe_query is deployed and your account has permission to run this query.`);
       }
-    } catch (err: any) {
-      setError(err.message || 'Query execution failed');
+
+      if (!Array.isArray(data) || data.some(row => row === null || typeof row !== 'object' || Array.isArray(row))) {
+        throw new Error('SQL query returned an unexpected response. The execute_safe_query function must return an array of rows.');
+      }
+
+      setResult({
+        data,
+        columns: data.length > 0 ? Object.keys(data[0]) : [],
+        rowCount: data.length,
+        executionTime: performance.now() - startTime
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Query execution failed');
     } finally {
       setLoading(false);
     }

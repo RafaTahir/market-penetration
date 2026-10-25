@@ -24,7 +24,8 @@ const MarketClock: React.FC<MarketClockProps> = ({ status, marketData }) => {
   const formattedTime = marketHoursService.formatTimeRemaining(timeRemaining);
   const progressPercent = status.isOpen ? calculateProgressPercent(status) : 0;
 
-  const formatNumber = (num: number, decimals: number = 2) => {
+  const formatNumber = (num: number | null, decimals: number = 2) => {
+    if (num === null || !Number.isFinite(num)) return 'Unavailable';
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals
@@ -127,9 +128,9 @@ const MarketClock: React.FC<MarketClockProps> = ({ status, marketData }) => {
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-slate-400">{marketData.symbol}</span>
             <div className={`flex items-center space-x-1 ${
-              marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+              marketData.change === null ? 'text-slate-400' : marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
             }`}>
-              {marketData.change >= 0 ?
+              {marketData.change === null ? <span>—</span> : marketData.change >= 0 ?
                 <TrendingUp className="h-3 w-3" /> :
                 <TrendingDown className="h-3 w-3" />
               }
@@ -140,12 +141,13 @@ const MarketClock: React.FC<MarketClockProps> = ({ status, marketData }) => {
               {formatNumber(marketData.price)}
             </div>
             <div className={`text-sm font-medium ${
-              marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+              marketData.change === null ? 'text-slate-400' : marketData.change >= 0 ? 'text-emerald-400' : 'text-red-400'
             }`}>
-              {marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.change)}
-              ({marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.changePercent)}%)
+              {marketData.change !== null && marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.change)}
+              ({marketData.change !== null && marketData.change >= 0 ? '+' : ''}{formatNumber(marketData.changePercent)}%)
             </div>
           </div>
+          <p className="text-xs text-slate-400 mt-2">Stored quote; source and observation time unverified.</p>
         </div>
       )}
     </div>

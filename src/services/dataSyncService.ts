@@ -1,9 +1,7 @@
-import { supabase } from './supabaseClient';
-import { MarketDataService } from './marketDataService';
+import { supabase, isSupabaseConfigured, SUPABASE_UNAVAILABLE_MESSAGE } from './supabaseClient';
 import { WorldBankService } from './worldBankService';
 import { IMFService } from './imfService';
 import { OECDService } from './oecdService';
-import { AlphaVantageService } from './alphaVantageService';
 import { TradeDataService } from './tradeDataService';
 import { CaseStudyService } from './caseStudyService';
 
@@ -20,12 +18,10 @@ export interface DataSyncStatus {
 export class DataSyncService {
   private static instance: DataSyncService;
   private syncInProgress = false;
-  private syncIntervals: { [key: string]: NodeJS.Timeout | number } = {};
-  private pendingTimeouts: NodeJS.Timeout[] = [];
-  private lastSyncTimes: { [source: string]: number } = {};
+  private syncIntervals: Record<string, ReturnType<typeof setInterval>> = {};
   private hasStarted = false;
 
-  private readonly SYNC_SCHEDULES = {
+  private readonly SYNC_SCHEDULES: Record<string, { frequency: DataSyncStatus['frequency']; intervalMs: number }> = {
     'market_data': { frequency: 'hourly' as const, intervalMs: 3600000 },
     'currency_rates': { frequency: 'hourly' as const, intervalMs: 3600000 },
     'world_bank': { frequency: 'daily' as const, intervalMs: 86400000 },
@@ -45,8 +41,7 @@ export class DataSyncService {
   }
 
   async startAutomaticSync(): Promise<void> {
-    // Guard against StrictMode double-mount and repeated calls
-    if (this.hasStarted) {
+    if (!isSupabaseConfigured || this.hasStarted) {
       return;
     }
     this.hasStarted = true;
@@ -55,35 +50,21 @@ export class DataSyncService {
 
     const sources = Object.entries(this.SYNC_SCHEDULES);
 
-    // Set up recurring intervals first (without immediate fire)
+    // Scheduling is explicit and never triggers an initial remote write.
     sources.forEach(([source, schedule]) => {
       if (this.syncIntervals[source]) {
-        clearInterval(this.syncIntervals[source] as NodeJS.Timeout);
+        clearInterval(this.syncIntervals[source]);
       }
+      let nextSyncAt = Date.now() + schedule.intervalMs;
       this.syncIntervals[source] = setInterval(
-        () => this.syncDataSource(source),
-        schedule.intervalMs
-      ) as unknown as number;
-    });
-
-    // Stagger initial syncs to avoid bursting 20+ external API calls at once.
-    // Skip a source entirely if it was synced recently (within 50% of its interval),
-    // so a page reload doesn't re-hit APIs that are already fresh.
-    const STAGGER_MS = 8000; // 8s between each source's initial sync
-    sources.forEach(([source, schedule], index) => {
-      const lastSync = this.lastSyncTimes[source];
-      const minAge = schedule.intervalMs * 0.5;
-      if (lastSync && Date.now() - lastSync < minAge) {
-        return; // data still fresh, skip initial sync
-      }
-
-      const timeoutId = setTimeout(() => {
-        if (this.syncIntervals[source]) {
-          this.syncDataSource(source);
-        }
-      }, index * STAGGER_MS) as unknown as NodeJS.Timeout;
-
-      this.pendingTimeouts.push(timeoutId);
+        () => {
+          if (Date.now() < nextSyncAt) return;
+          nextSyncAt = Date.now() + schedule.intervalMs;
+          void this.syncDataSource(source);
+        },
+        // Monthly delays exceed the browser's signed 32-bit timer limit.
+        Math.min(schedule.intervalMs, 86400000)
+      );
     });
   }
 
@@ -91,17 +72,16 @@ export class DataSyncService {
     console.log('Stopping automatic data synchronization...');
     Object.keys(this.syncIntervals).forEach(source => {
       if (this.syncIntervals[source]) {
-        clearInterval(this.syncIntervals[source] as NodeJS.Timeout);
+        clearInterval(this.syncIntervals[source]);
         delete this.syncIntervals[source];
       }
     });
-    // Clear any pending staggered initial-sync timeouts so they don't fire after unmount
-    this.pendingTimeouts.forEach(id => clearTimeout(id as NodeJS.Timeout));
-    this.pendingTimeouts = [];
     this.hasStarted = false;
   }
 
   async syncDataSource(source: string): Promise<DataSyncStatus> {
+    if (!isSupabaseConfigured) return this.unavailableStatus(source);
+
     if (this.syncInProgress) {
       return {
         source,
@@ -175,6 +155,10 @@ export class DataSyncService {
         }
       }
 
+      if (recordsUpdated === 0) {
+        throw new Error('No source records were available to synchronize. Check the provider connection and data coverage before retrying.');
+      }
+
       status = {
         ...status,
         status: 'success',
@@ -182,18 +166,21 @@ export class DataSyncService {
         lastSync: new Date()
       };
 
-      this.lastSyncTimes[source] = Date.now();
-
       await this.updateRefreshLog(source, 'success', recordsUpdated);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       status = {
         ...status,
         status: 'failed',
+        lastSync: null,
+        nextSync: null,
+        recordsUpdated: 0,
         errorMessage
       };
 
-      await this.updateRefreshLog(source, 'failed', 0, errorMessage);
+      await this.updateRefreshLog(source, 'failed', 0, errorMessage).catch(logError => {
+        console.error('Could not record sync failure:', logError);
+      });
       console.error(`Error syncing ${source}:`, error);
     } finally {
       this.syncInProgress = false;
@@ -203,6 +190,10 @@ export class DataSyncService {
   }
 
   async getSyncStatus(): Promise<DataSyncStatus[]> {
+    if (!isSupabaseConfigured) {
+      return Object.keys(this.SYNC_SCHEDULES).map(source => this.unavailableStatus(source));
+    }
+
     try {
       const { data, error } = await supabase
         .from('data_refresh_log')
@@ -218,15 +209,27 @@ export class DataSyncService {
         source: record.data_source,
         lastSync: record.last_refresh ? new Date(record.last_refresh) : null,
         nextSync: record.next_refresh ? new Date(record.next_refresh) : null,
-        status: record.refresh_status as any,
+        status: record.refresh_status as DataSyncStatus['status'],
         recordsUpdated: record.records_updated || 0,
         errorMessage: record.error_message,
-        frequency: record.refresh_frequency as any
+        frequency: record.refresh_frequency as DataSyncStatus['frequency']
       }));
     } catch (error) {
       console.error('Error in getSyncStatus:', error);
       return [];
     }
+  }
+
+  private unavailableStatus(source: string): DataSyncStatus {
+    return {
+      source,
+      lastSync: null,
+      nextSync: null,
+      status: 'failed',
+      recordsUpdated: 0,
+      errorMessage: SUPABASE_UNAVAILABLE_MESSAGE,
+      frequency: this.SYNC_SCHEDULES[source]?.frequency || 'daily',
+    };
   }
 
   async forceSync(source?: string): Promise<DataSyncStatus[]> {
@@ -245,26 +248,11 @@ export class DataSyncService {
   }
 
   private async syncMarketData(): Promise<number> {
-    try {
-      const marketService = MarketDataService.getInstance();
-      const symbols = ['SET.BK', 'STI.SI', 'KLSE.KL', 'JCI.JK', 'PSEI.PS', 'VN-INDEX.HM'];
-      await marketService.getStockData(symbols);
-      return symbols.length;
-    } catch (error) {
-      console.error('Error syncing market data:', error);
-      return 0;
-    }
+    throw new Error('Market quote refresh is unavailable. Browsing reads stored quotes only; cached records are not newly synchronized provider observations.');
   }
 
   private async syncCurrencyRates(): Promise<number> {
-    try {
-      const marketService = MarketDataService.getInstance();
-      const rates = await marketService.getCurrencyRates();
-      return rates.length;
-    } catch (error) {
-      console.error('Error syncing currency rates:', error);
-      return 0;
-    }
+    throw new Error('Currency synchronization is unavailable. Browsing may reuse provider cache; a cache read cannot establish a successful source refresh.');
   }
 
   private async syncWorldBankData(): Promise<number> {
@@ -282,7 +270,7 @@ export class DataSyncService {
       return gdp.length + inflation.length + unemployment.length + population.length;
     } catch (error) {
       console.error('Error syncing World Bank data:', error);
-      return 0;
+      throw error;
     }
   }
 
@@ -300,7 +288,7 @@ export class DataSyncService {
       return gdpGrowth.length + inflation.length + gdpPerCapita.length;
     } catch (error) {
       console.error('Error syncing IMF data:', error);
-      return 0;
+      throw error;
     }
   }
 
@@ -309,11 +297,13 @@ export class DataSyncService {
       const oecdService = OECDService.getInstance();
       const countries = ['indonesia', 'thailand', 'singapore', 'malaysia', 'philippines', 'vietnam'];
 
-      await oecdService.getAllIndicators(countries);
-      return countries.length * 4;
+      const indicators: Record<string, Record<string, unknown>> = await oecdService.getAllIndicators(countries);
+      return Object.values(indicators).reduce((total, country) => total + Object.values(country).filter(value =>
+        value !== null && typeof value === 'object' && 'value' in value
+      ).length, 0);
     } catch (error) {
       console.error('Error syncing OECD data:', error);
-      return 0;
+      throw error;
     }
   }
 
@@ -325,13 +315,13 @@ export class DataSyncService {
       let total = 0;
       for (const country of countries) {
         const balance = await tradeService.getTradeBalance(country, 2023);
-        total += balance.topExports.length + balance.topImports.length;
+        if (balance) total += balance.topExports.length + balance.topImports.length;
       }
 
       return total;
     } catch (error) {
       console.error('Error syncing trade data:', error);
-      return 0;
+      throw error;
     }
   }
 
@@ -342,7 +332,7 @@ export class DataSyncService {
       return studies.length;
     } catch (error) {
       console.error('Error syncing case studies:', error);
-      return 0;
+      throw error;
     }
   }
 
@@ -373,10 +363,11 @@ export class DataSyncService {
       });
 
       if (error) {
-        console.error('Error updating refresh log:', error);
+        throw new Error(`Could not update the sync log: ${error.message}`);
       }
     } catch (error) {
       console.error('Error in updateRefreshLog:', error);
+      throw error;
     }
   }
 

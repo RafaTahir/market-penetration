@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TrendingUp, Factory, Zap, DollarSign, Users, Globe, BarChart3, AlertCircle } from 'lucide-react';
-import { TradeDataService } from '../services/tradeDataService';
-import { OECDService } from '../services/oecdService';
 
 interface IndustryData {
   sector: string;
@@ -21,34 +19,6 @@ interface EnhancedIndustryAnalysisProps {
 
 const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ selectedCountries }) => {
   const [selectedSector, setSelectedSector] = useState<string>('technology');
-  const [loading, setLoading] = useState(false);
-  const [tradeData, setTradeData] = useState<any>(null);
-  const [economicData, setEconomicData] = useState<any>(null);
-
-  useEffect(() => {
-    loadRealData();
-  }, [selectedCountries]);
-
-  const loadRealData = async () => {
-    setLoading(true);
-    try {
-      const tradeService = TradeDataService.getInstance();
-      const oecdService = OECDService.getInstance();
-
-      const [tradeMatrix, indicators] = await Promise.all([
-        tradeService.getRegionalTradeMatrix(selectedCountries, 2023),
-        oecdService.getAllIndicators(selectedCountries)
-      ]);
-
-      setTradeData(tradeMatrix);
-      setEconomicData(indicators);
-    } catch (error) {
-      console.error('Error loading industry data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const industryData: IndustryData[] = [
     {
       sector: 'technology',
@@ -266,15 +236,16 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
             Enhanced Industry Analysis
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Real-time data from credible sources updated daily
+            Static industry reference examples
           </p>
         </div>
-        {loading && (
-          <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            Loading latest data...
-          </div>
-        )}
+
+      </div>
+
+
+      <div role="note" className="rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-900/20 dark:text-amber-200">
+        <p className="font-semibold">Unverified static industry reference</p>
+        <p>Figures, company examples, and narratives are hardcoded and have not been verified against the named publications. Observation dates are unavailable; year labels are unverified. These regional examples do not change with the {selectedCountries.length} selected markets and are excluded from the entry planner.</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -317,7 +288,7 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
           <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">
             ${(currentIndustry.marketSize / 1000000000).toFixed(1)}B
           </div>
-          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Regional market value 2024</p>
+          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Unverified regional reference • labelled 2024</p>
         </div>
 
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-lg p-6 border border-emerald-200 dark:border-emerald-800">
@@ -328,18 +299,18 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
           <div className="text-3xl font-bold text-emerald-900 dark:text-emerald-100">
             {currentIndustry.growthRate.toFixed(1)}%
           </div>
-          <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">YoY growth 2023-2024</p>
+          <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Unverified growth reference • labelled 2023–2024</p>
         </div>
 
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-6 border border-purple-200 dark:border-purple-800">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-purple-900 dark:text-purple-300">Market Leaders</span>
+            <span className="text-sm font-medium text-purple-900 dark:text-purple-300">Listed Company Examples</span>
             <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">
             {currentIndustry.topPlayers.length}
           </div>
-          <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">Top players in region</p>
+          <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">Count of listed examples</p>
         </div>
       </div>
 
@@ -392,7 +363,7 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            Top Market Players
+            Listed Company Examples
           </h3>
           <div className="space-y-3">
             {currentIndustry.topPlayers.map((player, index) => (
@@ -400,7 +371,7 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {index + 1}. {player}
                 </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">Market Leader</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Unverified example</span>
               </div>
             ))}
           </div>
@@ -408,7 +379,7 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
       </div>
 
       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-        <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Data Sources</h4>
+        <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Unverified Reference Labels</h4>
         <div className="flex flex-wrap gap-2">
           {currentIndustry.dataSources.map((source, index) => (
             <span
@@ -420,7 +391,7 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
           ))}
         </div>
         <p className="text-xs text-blue-700 dark:text-blue-400 mt-2">
-          Last updated: {new Date().toLocaleDateString()} • Data refreshed daily
+          Observation date unavailable • Publication labels have not been checked against these figures
         </p>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle, XCircle, Clock, Database, AlertTriangle } from 'lucide-react';
 import { DataSyncService, DataSyncStatus } from '../services/dataSyncService';
+import { isSupabaseConfigured } from '../services/supabaseClient';
 
 const DataRefreshDashboard: React.FC = () => {
   const [syncStatuses, setSyncStatuses] = useState<DataSyncStatus[]>([]);
@@ -90,7 +91,7 @@ const DataRefreshDashboard: React.FC = () => {
     return (
       <span className={`text-xs ${colorClass} flex items-center gap-1`}>
         {status === 'stale' && <AlertTriangle className="h-3 w-3" />}
-        {ageFormatted}
+        Check {ageFormatted}
       </span>
     );
   };
@@ -137,18 +138,20 @@ const DataRefreshDashboard: React.FC = () => {
             Data Refresh Status
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Real-time monitoring of data source synchronization
+            Connection and check history; successful checks do not verify observation dates or current facts
           </p>
         </div>
         <button
           onClick={() => handleForceSync()}
-          disabled={syncing !== null || loading}
+          disabled={!isSupabaseConfigured || syncing !== null || loading}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RefreshCw className={`h-4 w-4 ${syncing === 'all' ? 'animate-spin' : ''}`} />
           {syncing === 'all' ? 'Syncing...' : 'Sync All Data'}
         </button>
       </div>
+
+      {!isSupabaseConfigured && <p role="status" className="rounded-lg border border-slate-600 p-4 text-sm text-slate-300">Source connections are unavailable in this guest workspace. Refresh is disabled; no automatic synchronization is running. The entry planner remains available for your research.</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
@@ -163,7 +166,7 @@ const DataRefreshDashboard: React.FC = () => {
 
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-lg p-6 border border-emerald-200 dark:border-emerald-800">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-emerald-900 dark:text-emerald-300">Up to Date</span>
+            <span className="text-sm font-medium text-emerald-900 dark:text-emerald-300">Last Check Succeeded</span>
             <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="text-3xl font-bold text-emerald-900 dark:text-emerald-100">
@@ -258,8 +261,9 @@ const DataRefreshDashboard: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
+                      aria-label={`Refresh ${getSourceDisplayName(status.source)}`}
                       onClick={() => handleForceSync(status.source)}
-                      disabled={syncing !== null}
+                      disabled={!isSupabaseConfigured || syncing !== null}
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <RefreshCw className={`h-4 w-4 ${syncing === status.source ? 'animate-spin' : ''}`} />

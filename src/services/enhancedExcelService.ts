@@ -1,6 +1,38 @@
 import * as XLSX from 'xlsx';
 import { UnifiedDataService } from './unifiedDataService';
+import type { UnifiedEconomicData } from './unifiedDataService';
 import { MarketDataService } from './marketDataService';
+import type { CurrencyRate, MarketData } from './marketDataService';
+
+type EconomicReference = Omit<UnifiedEconomicData, 'source' | 'lastUpdated'> & { source?: string; lastUpdated?: string };
+type StockReference = MarketData;
+type CurrencyReference = Omit<CurrencyRate, 'lastUpdated'> & { lastUpdated?: string };
+type SheetRows = Array<Array<string | number>>;
+const REFERENCE_NOTICE = 'Unverified reference; observation dates/current applicability unverified. Missing data is unavailable; see Data Provenance.';
+const EXAMPLE_NOTICE = REFERENCE_NOTICE + ' Illustrative example data from src/services/enhancedExcelService.ts, not observed market facts.';
+
+// Missing values remain missing, including in aggregates and derived scenarios.
+const numeric = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN;
+const display = (value: unknown, digits = 1, divisor = 1, prefix = '', suffix = ''): string => {
+  const number = numeric(value) / divisor;
+  return Number.isFinite(number) ? `${prefix}${number.toFixed(digits)}${suffix}` : 'Unavailable';
+};
+const completeTotal = (values: unknown[]): number => values.length && values.every(value => Number.isFinite(numeric(value)))
+  ? values.reduce<number>((sum, value) => sum + numeric(value), 0) : Number.NaN;
+const completeAverage = (values: unknown[]): number => completeTotal(values) / values.length;
+const ratio = (numerator: unknown, denominator: unknown): number => numeric(denominator) > 0
+  ? numeric(numerator) / numeric(denominator) : Number.NaN;
+
+// Unattributed payload values do not become factual report numbers.
+const sourced = <T extends { source?: string; metricEvidence?: Record<string, { source?: string; status?: string }> }>(records: T[], fields: string[]): T[] => records.map(record => ({
+  ...record,
+  ...Object.fromEntries(fields.map(field => {
+    const evidence = record.metricEvidence?.[field];
+    const source = evidence?.source || record.source;
+    const available = typeof source === 'string' && source.trim().length > 0 && !/^(unavailable|unknown|n\/a)$/i.test(source.trim()) && evidence?.status !== 'unavailable';
+    return [field, available ? Reflect.get(record, field) : Number.NaN];
+  }))
+}));
 
 export interface ExcelReportData {
   selectedCountries: string[];
@@ -28,51 +60,46 @@ export class EnhancedExcelService {
     try {
       const workbook = XLSX.utils.book_new();
 
-      let economicData: any[] = [];
-      let stockIndices: any[] = [];
-      let currencies: any[] = [];
+      let economicData: EconomicReference[] = [];
+      let stockIndices: StockReference[] = [];
+      let currencies: CurrencyReference[] = [];
 
       try {
         economicData = await this.unifiedDataService.getUnifiedEconomicData(data.selectedCountries);
-        if (!economicData || economicData.length === 0) {
-          throw new Error('No economic data available');
-        }
+        economicData = sourced(economicData || [], ['gdp', 'gdpGrowth', 'inflation', 'unemployment', 'population', 'gdpPerCapita', 'internetUsers', 'exchangeRate', 'interestRate']);
       } catch (error) {
-        console.error('Error loading economic data, using fallback:', error);
-        economicData = this.getFallbackEconomicData();
+        console.error('Economic data unavailable for export:', error);
+        economicData = [];
       }
 
       try {
         stockIndices = await this.marketDataService.getStockData([
           'JCI', 'SET', 'KLSE', 'PSEI', 'VNI', 'STI'
         ]);
-        if (!stockIndices || stockIndices.length === 0) {
-          throw new Error('No stock data available');
-        }
+        stockIndices = sourced(stockIndices || [], ['price', 'change', 'changePercent', 'volume', 'marketCap']);
       } catch (error) {
-        console.error('Error loading stock data, using fallback:', error);
-        stockIndices = this.getFallbackStockData();
+        console.error('Stock data unavailable for export:', error);
+        stockIndices = [];
       }
 
       try {
         currencies = await this.marketDataService.getCurrencyRates();
-        if (!currencies || currencies.length === 0) {
-          throw new Error('No currency data available');
-        }
+        currencies = sourced(currencies || [], ['rate', 'change', 'changePercent']);
       } catch (error) {
-        console.error('Error loading currency data, using fallback:', error);
-        currencies = this.getFallbackCurrencyData();
+        console.error('Currency data unavailable for export:', error);
+        currencies = [];
       }
 
       this.createDashboardSheet(workbook, economicData, stockIndices, currencies);
       this.createMarketOverviewSheet(workbook, economicData);
-      this.createLiveDataSheet(workbook, stockIndices, currencies);
+      this.createMarketReferenceSheet(workbook, stockIndices, currencies);
       this.createEconomicIndicatorsSheet(workbook, economicData);
       this.createDigitalEconomySheet(workbook, economicData);
       this.createIndustryAnalysisSheet(workbook);
       this.createConsumerInsightsSheet(workbook);
       this.createCompetitiveLandscapeSheet(workbook);
       this.createInvestmentAnalysisSheet(workbook, economicData);
+      this.createProvenanceSheet(workbook, data, economicData, stockIndices, currencies);
 
       const fileName = `SEA-Market-Intelligence-${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(workbook, fileName);
@@ -82,71 +109,39 @@ export class EnhancedExcelService {
     }
   }
 
-  private getFallbackEconomicData(): any[] {
-    return [
-      { country: 'Indonesia', gdp: 1319000000000, gdpGrowth: 5.2, inflation: 3.2, unemployment: 5.8, population: 273500000, gdpPerCapita: 4822, internetUsers: 199800000, exchangeRate: 15750, interestRate: 6.00 },
-      { country: 'Thailand', gdp: 543500000000, gdpGrowth: 2.8, inflation: 1.2, unemployment: 1.1, population: 69800000, gdpPerCapita: 7786, internetUsers: 59200000, exchangeRate: 35.42, interestRate: 2.50 },
-      { country: 'Singapore', gdp: 397000000000, gdpGrowth: 2.6, inflation: 2.1, unemployment: 2.0, population: 5900000, gdpPerCapita: 67298, internetUsers: 5400000, exchangeRate: 1.35, interestRate: 3.50 },
-      { country: 'Malaysia', gdp: 432000000000, gdpGrowth: 4.5, inflation: 2.8, unemployment: 3.3, population: 32700000, gdpPerCapita: 13215, internetUsers: 27500000, exchangeRate: 4.68, interestRate: 3.00 },
-      { country: 'Vietnam', gdp: 409000000000, gdpGrowth: 6.8, inflation: 3.6, unemployment: 2.3, population: 97300000, gdpPerCapita: 4202, internetUsers: 72900000, exchangeRate: 24350, interestRate: 4.50 },
-      { country: 'Philippines', gdp: 394000000000, gdpGrowth: 6.2, inflation: 4.1, unemployment: 4.5, population: 109600000, gdpPerCapita: 3595, internetUsers: 74500000, exchangeRate: 56.25, interestRate: 6.50 }
-    ];
-  }
-
-  private getFallbackStockData(): any[] {
-    return [
-      { symbol: 'JCI', name: 'Jakarta Composite Index', price: 7245.50, change: 45.30, changePercent: 0.63, volume: 8450000000 },
-      { symbol: 'SET', name: 'Stock Exchange of Thailand', price: 1432.25, change: -12.45, changePercent: -0.86, volume: 82340000000 },
-      { symbol: 'KLSE', name: 'Bursa Malaysia', price: 1545.80, change: 8.25, changePercent: 0.54, volume: 3240000000 },
-      { symbol: 'PSEI', name: 'Philippine Stock Exchange', price: 6542.15, change: 32.80, changePercent: 0.50, volume: 4580000000 },
-      { symbol: 'VNI', name: 'Vietnam Stock Index', price: 1245.60, change: 18.90, changePercent: 1.54, volume: 12340000000 },
-      { symbol: 'STI', name: 'Straits Times Index', price: 3285.40, change: -5.20, changePercent: -0.16, volume: 1240000000 }
-    ];
-  }
-
-  private getFallbackCurrencyData(): any[] {
-    return [
-      { pair: 'USD/IDR', rate: 15750, change: 25, changePercent: 0.16 },
-      { pair: 'USD/THB', rate: 35.42, change: 0.12, changePercent: 0.34 },
-      { pair: 'USD/MYR', rate: 4.68, change: 0.03, changePercent: 0.64 },
-      { pair: 'USD/PHP', rate: 56.25, change: -0.15, changePercent: -0.27 },
-      { pair: 'USD/VND', rate: 24350, change: 50, changePercent: 0.21 },
-      { pair: 'USD/SGD', rate: 1.35, change: -0.002, changePercent: -0.15 }
-    ];
-  }
-
-  private createDashboardSheet(workbook: XLSX.WorkBook, economicData: any[], stockIndices: any[], currencies: any[]): void {
-    const data: any[][] = [];
+  private createDashboardSheet(workbook: XLSX.WorkBook, economicData: EconomicReference[], stockIndices: StockReference[], currencies: CurrencyReference[]): void {
+    const data: SheetRows = [[REFERENCE_NOTICE]];
 
     data.push(['SOUTHEAST ASIAN MARKET INTELLIGENCE DASHBOARD']);
     data.push(['Generated: ' + new Date().toLocaleString()]);
     data.push([]);
 
     data.push(['KEY METRICS SUMMARY']);
+    data.push(['Coverage', 'Totals require complete metrics for supplied rows; requested markets without observations may be absent. See Data Provenance.']);
     data.push([]);
 
-    const totalGdp = economicData.reduce((sum, c) => sum + (c.gdp || 0), 0);
-    const totalPopulation = economicData.reduce((sum, c) => sum + (c.population || 0), 0);
-    const avgGrowth = economicData.reduce((sum, c) => sum + (c.gdpGrowth || 0), 0) / economicData.length;
-    const totalInternetUsers = economicData.reduce((sum, c) => sum + (c.internetUsers || 0), 0);
+    const totalGdp = completeTotal(economicData.map(country => country.gdp));
+    const totalPopulation = completeTotal(economicData.map(country => country.population));
+    const avgGrowth = completeAverage(economicData.map(country => country.gdpGrowth));
+    const totalInternetUsers = completeTotal(economicData.map(country => country.internetUsers));
 
-    data.push(['Metric', 'Value', 'Growth/Change']);
-    data.push(['Combined GDP', `$${(totalGdp / 1e12).toFixed(2)}T`, '+5.2%']);
-    data.push(['Total Population', `${(totalPopulation / 1e6).toFixed(0)}M`, '+1.8%']);
-    data.push(['Average GDP Growth', `${avgGrowth.toFixed(1)}%`, 'Annual']);
-    data.push(['Internet Users', `${(totalInternetUsers / 1e6).toFixed(0)}M`, '+12.4%']);
+    data.push(['Metric', 'Value', 'Data status']);
+    data.push(['Combined GDP', display(totalGdp, 2, 1e12, '$', 'T'), 'Unverified reference']);
+    data.push(['Total Population', display(totalPopulation, 0, 1e6, '', 'M'), 'Unverified reference']);
+    data.push(['Average GDP Growth', display(avgGrowth, 1, 1, '', '%'), 'Unverified reference']);
+    data.push(['Internet Users', display(totalInternetUsers, 0, 1e6, '', 'M'), 'Unverified reference']);
     data.push([]);
 
-    data.push(['LIVE MARKET STATUS']);
+    data.push(['MARKET REFERENCE STATUS']);
     data.push([]);
-    data.push(['Index', 'Current Value', 'Change', 'Change %', 'Status']);
+    data.push(['Index', 'Reference Value', 'Change', 'Change %', 'Status']);
     stockIndices.forEach(stock => {
-      const status = (stock.changePercent || 0) >= 0 ? '📈 UP' : '📉 DOWN';
+      const status = !Number.isFinite(numeric(stock.changePercent)) ? 'Unavailable' : numeric(stock.changePercent) > 0 ? 'Reference increase' : numeric(stock.changePercent) < 0 ? 'Reference decrease' : 'No change';
       data.push([
         stock.symbol || 'N/A',
-        (stock.price || 0).toFixed(2),
-        (stock.change || 0).toFixed(2),
-        `${(stock.changePercent || 0).toFixed(2)}%`,
+        display(stock.price, 2),
+        display(stock.change, 2),
+        display(stock.changePercent, 2, 1, '', '%'),
         status
       ]);
     });
@@ -156,28 +151,30 @@ export class EnhancedExcelService {
     data.push([]);
     data.push(['Pair', 'Rate', 'Change', 'Change %', 'Trend']);
     currencies.forEach(currency => {
-      const trend = (currency.changePercent || 0) >= 0 ? '▲ Strengthening' : '▼ Weakening';
+      const trend = !Number.isFinite(numeric(currency.changePercent)) ? 'Unavailable' : numeric(currency.changePercent) > 0 ? 'Rate increase' : numeric(currency.changePercent) < 0 ? 'Rate decrease' : 'No change';
       data.push([
         currency.pair || 'N/A',
-        (currency.rate || 0).toFixed(4),
-        (currency.change || 0).toFixed(4),
-        `${(currency.changePercent || 0).toFixed(2)}%`,
+        display(currency.rate, 4),
+        display(currency.change, 4),
+        display(currency.changePercent, 2, 1, '', '%'),
         trend
       ]);
     });
     data.push([]);
 
+    if (stockIndices.length === 0) data.push(['Stock quotes', 'Unavailable: no supplied observations']);
+    if (currencies.length === 0) data.push(['FX rates', 'Unavailable: no supplied observations']);
     data.push(['TOP MARKETS BY GDP']);
     data.push([]);
-    const topMarkets = [...economicData].sort((a, b) => (b.gdp || 0) - (a.gdp || 0)).slice(0, 5);
+    const topMarkets = economicData.filter(country => Number.isFinite(numeric(country.gdp))).sort((a, b) => numeric(b.gdp) - numeric(a.gdp)).slice(0, 5);
     data.push(['Rank', 'Country', 'GDP (Billions)', 'GDP per Capita', 'Growth Rate']);
     topMarkets.forEach((country, index) => {
       data.push([
         (index + 1).toString(),
         country.country || 'N/A',
-        ((country.gdp || 0) / 1e9).toFixed(2),
-        `$${(country.gdpPerCapita || 0).toFixed(0)}`,
-        `${(country.gdpGrowth || 0).toFixed(1)}%`
+        display(country.gdp, 2, 1e9),
+        display(country.gdpPerCapita, 0, 1, '$'),
+        display(country.gdpGrowth, 1, 1, '', '%')
       ]);
     });
 
@@ -203,12 +200,12 @@ export class EnhancedExcelService {
             fill: { fgColor: { rgb: "DBEAFE" } },
             alignment: { horizontal: "center" }
           };
-        } else if (data[R] && typeof data[R][0] === 'string' && data[R][0].includes('SUMMARY') || data[R][0].includes('STATUS') || data[R][0].includes('RATES') || data[R][0].includes('MARKETS')) {
+        } else if (typeof data[R]?.[0] === 'string' && ['SUMMARY', 'STATUS', 'RATES', 'MARKETS'].some(section => String(data[R][0]).includes(section))) {
           ws[cellAddress].s = {
             font: { bold: true, sz: 12, color: { rgb: "1E40AF" } },
             fill: { fgColor: { rgb: "EFF6FF" } }
           };
-        } else if (R > 0 && data[R] && ['Metric', 'Index', 'Pair', 'Rank'].includes(data[R][0])) {
+        } else if (R > 0 && data[R] && ['Metric', 'Index', 'Pair', 'Rank'].includes(String(data[R][0]))) {
           ws[cellAddress].s = {
             font: { bold: true, sz: 11 },
             fill: { fgColor: { rgb: "F1F5F9" } },
@@ -221,11 +218,11 @@ export class EnhancedExcelService {
     XLSX.utils.book_append_sheet(workbook, ws, 'Dashboard');
   }
 
-  private createMarketOverviewSheet(workbook: XLSX.WorkBook, economicData: any[]): void {
-    const data: any[][] = [];
+  private createMarketOverviewSheet(workbook: XLSX.WorkBook, economicData: EconomicReference[]): void {
+    const data: SheetRows = [[REFERENCE_NOTICE]];
 
     data.push(['MARKET OVERVIEW - COMPREHENSIVE DATA']);
-    data.push(['Data as of: ' + new Date().toLocaleDateString()]);
+    data.push(['Observation dates: unknown; see Data Provenance for supplied metadata.']);
     data.push([]);
 
     data.push([
@@ -240,47 +237,48 @@ export class EnhancedExcelService {
       'Internet Users (Millions)',
       'Internet Penetration (%)',
       'Exchange Rate (vs USD)',
-      'Market Opportunity Score'
+      'Illustrative Heuristic (not calibrated)'
     ]);
 
     economicData.forEach(country => {
-      const population = (country.population || 0) / 1e6;
-      const internetPenetration = population > 0 ? ((country.internetUsers || 0) / country.population) * 100 : 0;
+      const population = numeric(country.population) / 1e6;
+      const internetPenetration = ratio(country.internetUsers, country.population) * 100;
       const opportunityScore = this.calculateOpportunityScore(country);
 
       data.push([
         country.country || 'N/A',
-        population.toFixed(1),
-        ((country.gdp || 0) / 1e9).toFixed(2),
-        (country.gdpPerCapita || 0).toLocaleString(),
-        (country.gdpGrowth || 0).toFixed(1),
-        (country.inflation || 0).toFixed(1),
-        (country.unemployment || 0).toFixed(1),
-        (country.interestRate || 0).toFixed(2),
-        ((country.internetUsers || 0) / 1e6).toFixed(1),
-        internetPenetration.toFixed(1),
-        (country.exchangeRate || 0).toFixed(2),
+        display(population, 1),
+        display(country.gdp, 2, 1e9),
+        display(country.gdpPerCapita, 0),
+        display(country.gdpGrowth, 1),
+        display(country.inflation, 1),
+        display(country.unemployment, 1),
+        display(country.interestRate, 2),
+        display(country.internetUsers, 1, 1e6),
+        display(internetPenetration, 1),
+        display(country.exchangeRate, 2),
         opportunityScore
       ]);
     });
 
     data.push([]);
+    if (economicData.length === 0) data.push(['Economic observations', 'Unavailable for the requested markets']);
     data.push(['REGIONAL AGGREGATES']);
     data.push([]);
 
-    const totalPopulation = economicData.reduce((sum, c) => sum + (c.population || 0), 0) / 1e6;
-    const totalGdp = economicData.reduce((sum, c) => sum + (c.gdp || 0), 0) / 1e9;
-    const avgGrowth = economicData.reduce((sum, c) => sum + (c.gdpGrowth || 0), 0) / economicData.length;
-    const avgInflation = economicData.reduce((sum, c) => sum + (c.inflation || 0), 0) / economicData.length;
-    const totalInternetUsers = economicData.reduce((sum, c) => sum + (c.internetUsers || 0), 0) / 1e6;
+    const totalPopulation = completeTotal(economicData.map(country => country.population)) / 1e6;
+    const totalGdp = completeTotal(economicData.map(country => country.gdp)) / 1e9;
+    const avgGrowth = completeAverage(economicData.map(country => country.gdpGrowth));
+    const avgInflation = completeAverage(economicData.map(country => country.inflation));
+    const totalInternetUsers = completeTotal(economicData.map(country => country.internetUsers)) / 1e6;
 
     data.push(['Metric', 'Value']);
-    data.push(['Total Population', `${totalPopulation.toFixed(0)}M`]);
-    data.push(['Combined GDP', `$${totalGdp.toFixed(2)}B`]);
-    data.push(['Average GDP Growth', `${avgGrowth.toFixed(1)}%`]);
-    data.push(['Average Inflation', `${avgInflation.toFixed(1)}%`]);
-    data.push(['Total Internet Users', `${totalInternetUsers.toFixed(0)}M`]);
-    data.push(['Regional Internet Penetration', `${((totalInternetUsers / totalPopulation) * 100).toFixed(1)}%`]);
+    data.push(['Total Population', display(totalPopulation, 0, 1, '', 'M')]);
+    data.push(['Combined GDP', display(totalGdp, 2, 1, '$', 'B')]);
+    data.push(['Average GDP Growth', display(avgGrowth, 1, 1, '', '%')]);
+    data.push(['Average Inflation', display(avgInflation, 1, 1, '', '%')]);
+    data.push(['Total Internet Users', display(totalInternetUsers, 0, 1, '', 'M')]);
+    data.push(['Regional Internet Penetration', display(ratio(totalInternetUsers, totalPopulation) * 100, 1, 1, '', '%')]);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
 
@@ -289,28 +287,28 @@ export class EnhancedExcelService {
     XLSX.utils.book_append_sheet(workbook, ws, 'Market Overview');
   }
 
-  private createLiveDataSheet(workbook: XLSX.WorkBook, stockIndices: any[], currencies: any[]): void {
-    const data: any[][] = [];
+  private createMarketReferenceSheet(workbook: XLSX.WorkBook, stockIndices: StockReference[], currencies: CurrencyReference[]): void {
+    const data: SheetRows = [[REFERENCE_NOTICE]];
 
-    data.push(['⚡ LIVE MARKET DATA']);
-    data.push(['Last Updated: ' + new Date().toLocaleString()]);
-    data.push(['⚠️ Note: Data refreshes every 5 minutes during market hours']);
+    data.push(['MARKET REFERENCE SNAPSHOT']);
+    data.push(['Export generated: ' + new Date().toLocaleString()]);
+    data.push(['Observation dates unverified; this workbook does not refresh.']);
     data.push([]);
 
     data.push(['STOCK MARKET INDICES']);
     data.push([]);
-    data.push(['Symbol', 'Market Name', 'Current Price', 'Change', 'Change %', 'Volume', 'Market Cap', 'Status']);
+    data.push(['Symbol', 'Market Name', 'Reference Price', 'Change', 'Change %', 'Volume', 'Market Cap', 'Status']);
 
     stockIndices.forEach(stock => {
-      const status = (stock.changePercent || 0) >= 0 ? 'BULLISH' : 'BEARISH';
+      const status = !Number.isFinite(numeric(stock.changePercent)) ? 'Unavailable' : numeric(stock.changePercent) > 0 ? 'Reference increase' : numeric(stock.changePercent) < 0 ? 'Reference decrease' : 'No change';
       data.push([
         stock.symbol || 'N/A',
         stock.name || 'N/A',
-        (stock.price || 0).toFixed(2),
-        (stock.change || 0).toFixed(2),
-        `${(stock.changePercent || 0).toFixed(2)}%`,
-        (stock.volume || 0).toLocaleString(),
-        stock.marketCap ? (stock.marketCap / 1e9).toFixed(2) + 'B' : 'N/A',
+        display(stock.price, 2),
+        display(stock.change, 2),
+        display(stock.changePercent, 2, 1, '', '%'),
+        display(stock.volume, 0),
+        display(stock.marketCap, 2, 1e9, '', 'B'),
         status
       ]);
     });
@@ -318,95 +316,98 @@ export class EnhancedExcelService {
     data.push([]);
     data.push(['CURRENCY EXCHANGE RATES (vs USD)']);
     data.push([]);
-    data.push(['Currency Pair', 'Current Rate', 'Change', 'Change %', '52-Week Range', 'Trend']);
+    data.push(['Currency Pair', 'Reference Rate', 'Change', 'Change %', '52-Week Range', 'Trend']);
 
     currencies.forEach(currency => {
-      const trend = (currency.changePercent || 0) >= 0 ? 'APPRECIATING' : 'DEPRECIATING';
+      const trend = !Number.isFinite(numeric(currency.changePercent)) ? 'Unavailable' : numeric(currency.changePercent) > 0 ? 'Rate increase' : numeric(currency.changePercent) < 0 ? 'Rate decrease' : 'No change';
       data.push([
         currency.pair || 'N/A',
-        (currency.rate || 0).toFixed(4),
-        (currency.change || 0).toFixed(4),
-        `${(currency.changePercent || 0).toFixed(2)}%`,
+        display(currency.rate, 4),
+        display(currency.change, 4),
+        display(currency.changePercent, 2, 1, '', '%'),
         'N/A',
         trend
       ]);
     });
 
     data.push([]);
+    if (stockIndices.length === 0) data.push(['Stock quotes', 'Unavailable: no supplied observations']);
+    if (currencies.length === 0) data.push(['FX rates', 'Unavailable: no supplied observations']);
     data.push(['MARKET PERFORMANCE SUMMARY']);
     data.push([]);
 
-    const avgStockChange = stockIndices.reduce((sum, s) => sum + (s.changePercent || 0), 0) / stockIndices.length;
-    const bullishCount = stockIndices.filter(s => (s.changePercent || 0) >= 0).length;
+    const avgStockChange = completeAverage(stockIndices.map(stock => stock.changePercent));
+    const completeChanges = stockIndices.length > 0 && stockIndices.every(stock => Number.isFinite(numeric(stock.changePercent)));
+    const bullishCount = stockIndices.filter(stock => numeric(stock.changePercent) >= 0).length;
 
     data.push(['Metric', 'Value']);
-    data.push(['Average Index Performance', `${avgStockChange.toFixed(2)}%`]);
-    data.push(['Markets Up', `${bullishCount} of ${stockIndices.length}`]);
-    data.push(['Markets Down', `${stockIndices.length - bullishCount} of ${stockIndices.length}`]);
-    data.push(['Overall Market Sentiment', avgStockChange >= 0 ? '📈 POSITIVE' : '📉 NEGATIVE']);
+    data.push(['Average Index Performance', display(avgStockChange, 2, 1, '', '%')]);
+    data.push(['Markets Up', completeChanges ? `${bullishCount} of ${stockIndices.length}` : 'Unavailable']);
+    data.push(['Markets Down', completeChanges ? `${stockIndices.length - bullishCount} of ${stockIndices.length}` : 'Unavailable']);
+    data.push(['Direction of reference changes', !completeChanges ? 'Unavailable' : avgStockChange > 0 ? 'Increase' : avgStockChange < 0 ? 'Decrease' : 'No change']);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!cols'] = Array(8).fill({ wch: 18 });
 
-    XLSX.utils.book_append_sheet(workbook, ws, 'Live Market Data');
+    XLSX.utils.book_append_sheet(workbook, ws, 'Market Reference');
   }
 
-  private createEconomicIndicatorsSheet(workbook: XLSX.WorkBook, economicData: any[]): void {
-    const data: any[][] = [];
+  private createEconomicIndicatorsSheet(workbook: XLSX.WorkBook, economicData: EconomicReference[]): void {
+    const data: SheetRows = [[REFERENCE_NOTICE]];
 
     data.push(['ECONOMIC INDICATORS - DETAILED ANALYSIS']);
     data.push([]);
 
-    data.push(['Country', 'GDP Growth 2024 (%)', 'Inflation Rate (%)', 'Unemployment (%)', 'Interest Rate (%)', 'Fiscal Balance (% GDP)', 'Current Account (% GDP)', 'Debt to GDP (%)', 'Credit Rating']);
+    data.push(['Country', 'Reference GDP Growth (%)', 'Inflation Rate (%)', 'Unemployment (%)', 'Interest Rate (%)', 'Fiscal Balance (% GDP)', 'Current Account (% GDP)', 'Debt to GDP (%)', 'Credit Rating']);
 
     economicData.forEach(country => {
       data.push([
         country.country || 'N/A',
-        (country.gdpGrowth || 0).toFixed(1),
-        (country.inflation || 0).toFixed(1),
-        (country.unemployment || 0).toFixed(1),
-        (country.interestRate || 0).toFixed(2),
+        display(country.gdpGrowth, 1),
+        display(country.inflation, 1),
+        display(country.unemployment, 1),
+        display(country.interestRate, 2),
         'N/A',
         'N/A',
         'N/A',
-        'BBB+'
+        'Unavailable'
       ]);
     });
 
     data.push([]);
-    data.push(['GROWTH COMPARISON']);
+    data.push(['ILLUSTRATIVE GROWTH SCENARIOS - NOT HISTORICAL DATA OR FORECASTS']);
     data.push([]);
-    data.push(['Country', '2022 Growth', '2023 Growth', '2024 Growth (Est)', '2025 Forecast', '5-Year CAGR']);
+    data.push(['Country', 'Reference minus 1pp', 'Reference minus 0.5pp', 'Reference Growth', 'Reference plus 0.3pp', 'CAGR (unavailable)']);
 
     economicData.forEach(country => {
-      const growth = country.gdpGrowth || 0;
+      const growth = numeric(country.gdpGrowth);
       data.push([
         country.country || 'N/A',
-        (growth - 1).toFixed(1) + '%',
-        (growth - 0.5).toFixed(1) + '%',
-        growth.toFixed(1) + '%',
-        (growth + 0.3).toFixed(1) + '%',
-        growth.toFixed(1) + '%'
+        display(growth - 1, 1, 1, '', '%'),
+        display(growth - 0.5, 1, 1, '', '%'),
+        display(growth, 1, 1, '', '%'),
+        display(growth + 0.3, 1, 1, '', '%'),
+        'Unavailable'
       ]);
     });
 
     data.push([]);
-    data.push(['INFLATION ANALYSIS']);
+    data.push(['ILLUSTRATIVE INFLATION SCENARIO - ASSUMED 2.5% TARGET']);
     data.push([]);
-    data.push(['Country', 'Current Inflation', 'Target Rate', 'Variance', 'Trend', 'Central Bank Action']);
+    data.push(['Country', 'Reference Inflation', 'Assumed Target', 'Variance', 'Scenario', 'Illustrative Action (not policy)']);
 
     economicData.forEach(country => {
-      const inflation = country.inflation || 0;
+      const inflation = numeric(country.inflation);
       const target = 2.5;
       const variance = inflation - target;
-      const trend = variance > 0 ? 'ABOVE TARGET' : 'BELOW TARGET';
-      const action = variance > 1 ? 'TIGHTENING' : variance < -1 ? 'EASING' : 'NEUTRAL';
+      const trend = !Number.isFinite(variance) ? 'Unavailable' : variance > 0 ? 'ABOVE TARGET' : variance < 0 ? 'BELOW TARGET' : 'AT TARGET';
+      const action = !Number.isFinite(variance) ? 'Unavailable' : variance > 1 ? 'TIGHTENING' : variance < -1 ? 'EASING' : 'NEUTRAL';
 
       data.push([
         country.country || 'N/A',
-        inflation.toFixed(1) + '%',
+        display(inflation, 1, 1, '', '%'),
         target.toFixed(1) + '%',
-        variance.toFixed(1) + '%',
+        display(variance, 1, 1, '', '%'),
         trend,
         action
       ]);
@@ -418,38 +419,38 @@ export class EnhancedExcelService {
     XLSX.utils.book_append_sheet(workbook, ws, 'Economic Indicators');
   }
 
-  private createDigitalEconomySheet(workbook: XLSX.WorkBook, economicData: any[]): void {
-    const data: any[][] = [];
+  private createDigitalEconomySheet(workbook: XLSX.WorkBook, economicData: EconomicReference[]): void {
+    const data: SheetRows = [[REFERENCE_NOTICE]];
 
     data.push(['DIGITAL ECONOMY METRICS']);
     data.push([]);
 
-    data.push(['Country', 'Internet Users (M)', 'Penetration %', 'Mobile Users (M)', 'Social Media Users (M)', 'E-commerce Users (M)', 'Digital Payment Adoption %', 'Cloud Adoption %']);
+    data.push(['Country', 'Internet Users (M)', 'Penetration %', 'Assumed Mobile Users (92% of internet users)', 'Assumed Social Users (75%)', 'Assumed E-commerce Users (55%)', 'Digital Payment Adoption %', 'Cloud Adoption %']);
 
     economicData.forEach(country => {
-      const population = (country.population || 0) / 1e6;
-      const internetUsers = (country.internetUsers || 0) / 1e6;
-      const penetration = population > 0 ? (internetUsers / population) * 100 : 0;
+      const population = numeric(country.population) / 1e6;
+      const internetUsers = numeric(country.internetUsers) / 1e6;
+      const penetration = ratio(internetUsers, population) * 100;
 
       data.push([
         country.country || 'N/A',
-        internetUsers.toFixed(1),
-        penetration.toFixed(1),
-        (internetUsers * 0.92).toFixed(1),
-        (internetUsers * 0.75).toFixed(1),
-        (internetUsers * 0.55).toFixed(1),
-        ((50 + Math.random() * 40).toFixed(0)),
-        ((40 + Math.random() * 35).toFixed(0))
+        display(internetUsers, 1),
+        display(penetration, 1),
+        display(internetUsers * 0.92, 1),
+        display(internetUsers * 0.75, 1),
+        display(internetUsers * 0.55, 1),
+        'Unavailable',
+        'Unavailable'
       ]);
     });
 
     data.push([]);
-    data.push(['DIGITAL ECONOMY SIZE (Billions USD)']);
+    data.push(['ILLUSTRATIVE DIGITAL ECONOMY SCENARIO (USD Billions): 8% of GDP; split 45/25/15/10/5%.']);
     data.push([]);
     data.push(['Country', 'E-commerce', 'Digital Financial Services', 'Online Media', 'Ride-hailing', 'Online Travel', 'Total Digital Economy']);
 
     economicData.forEach(country => {
-      const gdp = (country.gdp || 0) / 1e9;
+      const gdp = numeric(country.gdp) / 1e9;
       const digitalEconomy = gdp * 0.08;
       const ecommerce = digitalEconomy * 0.45;
       const fintech = digitalEconomy * 0.25;
@@ -459,28 +460,28 @@ export class EnhancedExcelService {
 
       data.push([
         country.country || 'N/A',
-        ecommerce.toFixed(2),
-        fintech.toFixed(2),
-        media.toFixed(2),
-        rideHailing.toFixed(2),
-        travel.toFixed(2),
-        digitalEconomy.toFixed(2)
+        display(ecommerce, 2),
+        display(fintech, 2),
+        display(media, 2),
+        display(rideHailing, 2),
+        display(travel, 2),
+        display(digitalEconomy, 2)
       ]);
     });
 
     data.push([]);
-    data.push(['DIGITAL GROWTH RATES (Annual %)']);
+    data.push(['DIGITAL GROWTH RATES (Annual %) - NOT AVAILABLE']);
     data.push([]);
     data.push(['Country', 'E-commerce Growth', 'Fintech Growth', 'Internet User Growth', 'Mobile Payment Growth', 'Social Commerce Growth']);
 
     economicData.forEach(country => {
       data.push([
         country.country || 'N/A',
-        (15 + Math.random() * 20).toFixed(1) + '%',
-        (12 + Math.random() * 18).toFixed(1) + '%',
-        (8 + Math.random() * 10).toFixed(1) + '%',
-        (20 + Math.random() * 25).toFixed(1) + '%',
-        (25 + Math.random() * 30).toFixed(1) + '%'
+        'Unavailable',
+        'Unavailable',
+        'Unavailable',
+        'Unavailable',
+        'Unavailable'
       ]);
     });
 
@@ -491,9 +492,9 @@ export class EnhancedExcelService {
   }
 
   private createIndustryAnalysisSheet(workbook: XLSX.WorkBook): void {
-    const data: any[][] = [];
+    const data: SheetRows = [[EXAMPLE_NOTICE]];
 
-    data.push(['INDUSTRY SECTOR ANALYSIS']);
+    data.push(['ILLUSTRATIVE INDUSTRY EXAMPLES - NOT MARKET OBSERVATIONS']);
     data.push([]);
 
     data.push(['Industry', 'Market Size (B USD)', 'Growth Rate %', 'Competition Level', 'Entry Barriers', 'Opportunity Score', 'Key Trends', 'Market Leaders']);
@@ -525,7 +526,7 @@ export class EnhancedExcelService {
     });
 
     data.push([]);
-    data.push(['SECTOR ATTRACTIVENESS MATRIX']);
+    data.push(['ILLUSTRATIVE SECTOR HEURISTIC - NOT CALIBRATED']);
     data.push([]);
     data.push(['Sector', 'Market Size Score', 'Growth Score', 'Competition Score', 'Entry Score', 'Overall Score', 'Investment Priority']);
 
@@ -564,9 +565,9 @@ export class EnhancedExcelService {
   }
 
   private createConsumerInsightsSheet(workbook: XLSX.WorkBook): void {
-    const data: any[][] = [];
+    const data: SheetRows = [[EXAMPLE_NOTICE]];
 
-    data.push(['CONSUMER BEHAVIOR & INSIGHTS']);
+    data.push(['ILLUSTRATIVE CONSUMER EXAMPLES - NOT SURVEY RESULTS']);
     data.push([]);
 
     data.push(['Behavior Category', 'Penetration %', 'Growth Rate %', 'Age Group', 'Income Level', 'Urban vs Rural', 'Key Insight']);
@@ -629,12 +630,12 @@ export class EnhancedExcelService {
   }
 
   private createCompetitiveLandscapeSheet(workbook: XLSX.WorkBook): void {
-    const data: any[][] = [];
+    const data: SheetRows = [[EXAMPLE_NOTICE]];
 
-    data.push(['COMPETITIVE LANDSCAPE ANALYSIS']);
+    data.push(['ILLUSTRATIVE COMPETITOR EXAMPLES - NOT VERIFIED MARKET SHARES']);
     data.push([]);
 
-    data.push(['Category', 'Market Leader', 'Market Share %', '2nd Player', 'Share %', '3rd Player', 'Share %', 'Market Concentration']);
+    data.push(['Category', 'Market Leader', 'Example Share %', '2nd Player', 'Example Share %', '3rd Player', 'Example Share %', 'Market Concentration']);
 
     const categories = [
       ['E-commerce', 'Shopee', 68, 'Lazada', 22, 'Tokopedia', 15, 'High'],
@@ -677,13 +678,13 @@ export class EnhancedExcelService {
     companies.forEach(company => {
       const scores = [
         company[0],
-        (75 + Math.random() * 20).toFixed(0),
-        (70 + Math.random() * 25).toFixed(0),
-        (75 + Math.random() * 20).toFixed(0),
-        (80 + Math.random() * 15).toFixed(0),
-        (85 + Math.random() * 10).toFixed(0),
-        (70 + Math.random() * 25).toFixed(0),
-        (75 + Math.random() * 15).toFixed(0)
+        'Unavailable',
+        'Unavailable',
+        'Unavailable',
+        'Unavailable',
+        'Unavailable',
+        'Unavailable',
+        'Unavailable'
       ];
       data.push(scores);
     });
@@ -703,23 +704,23 @@ export class EnhancedExcelService {
     XLSX.utils.book_append_sheet(workbook, ws, 'Competitive Landscape');
   }
 
-  private createInvestmentAnalysisSheet(workbook: XLSX.WorkBook, economicData: any[]): void {
-    const data: any[][] = [];
+  private createInvestmentAnalysisSheet(workbook: XLSX.WorkBook, economicData: EconomicReference[]): void {
+    const data: SheetRows = [[EXAMPLE_NOTICE]];
 
-    data.push(['INVESTMENT ANALYSIS & RECOMMENDATIONS']);
+    data.push(['ILLUSTRATIVE INVESTMENT SCENARIOS - NOT RECOMMENDATIONS OR FORECASTS']);
     data.push([]);
 
     data.push(['MARKET ENTRY STRATEGY BY COUNTRY']);
     data.push([]);
-    data.push(['Country', 'Market Priority', 'Entry Mode', 'Timeline', 'Investment Required', 'Expected ROI', 'Risk Level', 'Key Success Factors']);
+    data.push(['Country', 'Assumed Priority', 'Assumed Entry Mode', 'Assumed Timeline', 'Assumed Investment', 'Illustrative ROI', 'Assumed Risk', 'Example Success Factors']);
 
     economicData.forEach(country => {
-      const gdp = (country.gdp || 0) / 1e9;
-      const growth = country.gdpGrowth || 0;
-      const priority = gdp > 800 ? 'HIGH' : gdp > 400 ? 'MEDIUM' : 'LOW';
-      const investment = gdp > 800 ? '$15-25M' : gdp > 400 ? '$8-15M' : '$5-10M';
-      const roi = growth > 6 ? '30-35%' : growth > 4 ? '25-30%' : '20-25%';
-      const risk = growth > 6 ? 'Medium' : 'Low';
+      const gdp = numeric(country.gdp) / 1e9;
+      const growth = numeric(country.gdpGrowth);
+      const priority = !Number.isFinite(gdp) ? 'Unavailable' : gdp > 800 ? 'HIGH' : gdp > 400 ? 'MEDIUM' : 'LOW';
+      const investment = !Number.isFinite(gdp) ? 'Unavailable' : gdp > 800 ? '$15-25M' : gdp > 400 ? '$8-15M' : '$5-10M';
+      const roi = !Number.isFinite(growth) ? 'Unavailable' : growth > 6 ? '30-35%' : growth > 4 ? '25-30%' : '20-25%';
+      const risk = !Number.isFinite(growth) ? 'Unavailable' : growth > 6 ? 'Medium' : 'Low';
 
       data.push([
         country.country || 'N/A',
@@ -734,7 +735,7 @@ export class EnhancedExcelService {
     });
 
     data.push([]);
-    data.push(['INVESTMENT ALLOCATION RECOMMENDATION']);
+    data.push(['ILLUSTRATIVE INVESTMENT ALLOCATION EXAMPLE']);
     data.push([]);
     data.push(['Phase', 'Duration', 'Total Investment', 'Market Development', 'Technology', 'Marketing', 'Operations', 'Working Capital']);
 
@@ -750,7 +751,7 @@ export class EnhancedExcelService {
     });
 
     data.push([]);
-    data.push(['FINANCIAL PROJECTIONS (USD Millions)']);
+    data.push(['ILLUSTRATIVE FINANCIAL SCENARIO (USD Millions) - UNVERIFIED ASSUMPTIONS']);
     data.push([]);
     data.push(['Year', 'Revenue', 'Gross Profit', 'Operating Expenses', 'EBITDA', 'Net Income', 'Cash Flow', 'Cumulative Investment']);
 
@@ -769,7 +770,7 @@ export class EnhancedExcelService {
     data.push([]);
     data.push(['KEY PERFORMANCE INDICATORS']);
     data.push([]);
-    data.push(['Metric', 'Year 1 Target', 'Year 2 Target', 'Year 3 Target', 'Industry Benchmark', 'Competitive Position']);
+    data.push(['Metric', 'Year 1 Target', 'Year 2 Target', 'Year 3 Target', 'Assumed Benchmark', 'Competitive Position']);
 
     const kpis = [
       ['Customer Acquisition Cost', '$45', '$38', '$32', '$40', 'Better'],
@@ -791,12 +792,56 @@ export class EnhancedExcelService {
     XLSX.utils.book_append_sheet(workbook, ws, 'Investment Analysis');
   }
 
-  private calculateOpportunityScore(country: any): number {
-    const gdpScore = Math.min(100, ((country.gdp || 0) / 1e12) * 100);
-    const growthScore = Math.min(100, (country.gdpGrowth || 0) * 15);
-    const internetScore = Math.min(100, ((country.internetUsers || 0) / (country.population || 1)) * 100);
+  private createProvenanceSheet(
+    workbook: XLSX.WorkBook,
+    selection: ExcelReportData,
+    economicData: EconomicReference[],
+    stockIndices: StockReference[],
+    currencies: CurrencyReference[]
+  ): void {
+    const data: SheetRows = [
+      [REFERENCE_NOTICE],
+      ['generatedAt', new Date().toISOString()],
+      ['observedAt', 'Unavailable unless explicitly supplied below; generatedAt is only the export time.'],
+      ['Requested countries', selection.selectedCountries.join(', ') || 'All supplied markets'],
+      ['Requested cities', selection.selectedCities.join(', ') || 'None; national data does not establish city applicability.'],
+      ['Scope', 'Economic totals cover supplied rows only and require every listed row to have that metric. Requested markets without observations may be absent; compare the requested and supplied market lists. Quotes/FX are regional. No fallback observations are generated.'],
+      ['Supplied economic markets', economicData.map(record => record.country).join(', ') || 'Unavailable'],
+      ['Static example source', 'src/services/enhancedExcelService.ts: Industry Analysis, Consumer Insights, Competitive Landscape and Investment Analysis example tables; no independently verified external provenance.'],
+      ['Applicability', 'Current laws, sector permissions, market shares and suitability for a business are unverified.'],
+      ['Illustrative calculations', 'Growth offsets, assumed 2.5% inflation target, internet-user proxies (92/75/55%), digital economy (8% GDP split 45/25/15/10/5%), financial scenarios and heuristic scores are examples, not observations or forecasts.'],
+      ['Country heuristic', 'Mean of capped GDP/1T*100, GDP growth*15, internet users/population*100, and assumed stability=75. Missing inputs make the heuristic unavailable.'],
+      ['Sector heuristic', 'Mean of size/5, growth*3 (each capped at 100), assumed competition and entry scores; not calibrated.'],
+      [],
+      ['Category', 'Series / field', 'Data status', 'Supplied source', 'observedAt / observation period', 'retrievedAt / storedAt (not observation)', 'Limitation']
+    ];
+    economicData.forEach(record => {
+      data.push(['Economics', record.country, 'Supplied; verification required', record.source || 'Unavailable', 'See field evidence; no observation date inferred', '']);
+      for (const [field, evidence] of Object.entries(record.metricEvidence || {})) {
+        data.push(['Economic field', `${record.country} / ${field}`, evidence.status, evidence.source || 'Unavailable', evidence.observationPeriod || 'Unavailable', evidence.retrievedAt || 'Unavailable', evidence.limitation || 'Verification required']);
+      }
+    });
+    stockIndices.forEach(record => data.push([
+      'Stock quote', record.symbol, record.sourceStatus || 'Stored/supplied; unverified', record.source || 'Unavailable', record.observedAt || 'Unavailable', record.storedAt || record.retrievedAt || 'Unavailable'
+    ]));
+    currencies.forEach(record => data.push([
+      'FX rate', record.pair, record.sourceStatus || 'Supplied; verification required', record.source || 'Unavailable', record.observedAt || 'Unavailable', record.retrievedAt || 'Unavailable'
+    ]));
+    if (!economicData.length) data.push(['Economics', 'Requested markets', 'Unavailable', 'No supplied observations']);
+    if (!stockIndices.length) data.push(['Stock quote', 'Regional series', 'Unavailable', 'No supplied observations']);
+    if (!currencies.length) data.push(['FX rate', 'Regional series', 'Unavailable', 'No supplied observations']);
+    const sheet = XLSX.utils.aoa_to_sheet(data);
+    sheet['!cols'] = [{ wch: 28 }, { wch: 48 }, { wch: 38 }, { wch: 70 }, { wch: 40 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Data Provenance');
+  }
+
+  private calculateOpportunityScore(country: EconomicReference): number | string {
+    const gdpScore = Math.min(100, (numeric(country.gdp) / 1e12) * 100);
+    const growthScore = Math.min(100, numeric(country.gdpGrowth) * 15);
+    const internetScore = Math.min(100, ratio(country.internetUsers, country.population) * 100);
     const stabilityScore = 75;
 
-    return Math.round((gdpScore + growthScore + internetScore + stabilityScore) / 4);
+    const score = (gdpScore + growthScore + internetScore + stabilityScore) / 4;
+    return Number.isFinite(score) ? Math.round(score) : 'Unavailable';
   }
 }

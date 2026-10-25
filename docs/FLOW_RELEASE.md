@@ -4,6 +4,14 @@ Prepared 2026-10-25 in the existing cloud `market-penetration` checkout, based o
 
 Read [the before/after explanation](FLOW_EXPERIENCE_REVIEW.md) for the product correction and [the snapshot provenance](FLOW_MARKET_SNAPSHOT.md) for the new historical data. This proposal restores country discovery as Flow's starting point, with research, comparison and reporting reachable before optional notebook work. It does not launch an AI consultant or certify current market/regulatory facts.
 
+## Compare navigation follow-up
+
+The parent's hosted review found that Compare revealed its table below the viewport while hash navigation reset scrolling to the hero. Repeated Compare clicks also did not trigger another scroll. The focused follow-up waits for route navigation to commit, then moves keyboard focus and the viewport to `#market-comparison` on every explicit Compare action. The destination clears the sticky research tabs, has a visible keyboard focus indicator, and uses immediate scrolling to respect reduced motion and avoid interrupted browser scroll animations. Country selection does not steal focus. Header actions in retained modules share the same behavior; direct comparison links and the optional planner's Compare route are preserved. Other navigation retains its existing behavior.
+
+The targeted regression is `tests/flow-comparison-browser.py`, run with `FLOW_TEST_URL=http://127.0.0.1:4173`. It exercises actual viewport placement and focus, keyboard continuation, initial/repeated/shortlist/research/shortcut actions, secondary views and planner/direct routes, in both themes at 390/1440px with both motion preferences. Data, provenance, exports, storage keys, dependencies and hosting/access settings are unchanged.
+
+Follow-up validation passed: app/Vite type checks, zero-warning lint, all 63 Node tests, production build, all 88 targeted Compare destinations and the full exploration browser suite. Market Data's known public-provider requests were blocked in the test browser without synthetic responses; no external provider transport or uncaught browser errors occurred. The broader six-suite restoration checks below describe the preceding restoration release, not a claim that every suite was rerun for this narrow follow-up.
+
 ## Changes ready for review
 
 - Restored navy/blue/emerald identity, original Flow emblem/gradient wordmark, clear product promise and visible research tools.

@@ -83,7 +83,8 @@
 
 /* Research modes stay within reach instead of below six stacked country cards. */
 .explorer-main>.explorer-mode-tabs { position: sticky; top: 0; z-index: 25; margin-top: 22px; margin-bottom: 0; box-shadow: 0 8px 20px #070f1b44; }
-.explorer-research { scroll-margin-top: 82px; }
+.explorer-research, .explorer-comparison { scroll-margin-top: 82px; }
+.explorer-comparison:focus-visible { outline: 2px solid var(--ex-blue); outline-offset: 4px; }
 .reference-research, .reference-research>* { min-width: 0; max-width: 100%; }
 .reference-research .grid>* { min-width: 0; }
-@media(max-width:720px) { .explorer-main>.explorer-mode-tabs { margin-top: 17px; }.explorer-research { scroll-margin-top: 77px; } }
+@media(max-width:720px) { .explorer-main>.explorer-mode-tabs { margin-top: 17px; }.explorer-research, .explorer-comparison { scroll-margin-top: 77px; } }

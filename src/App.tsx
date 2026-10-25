@@ -40,7 +40,7 @@ function loadShortlist(): string[] {
   return ['singapore', 'thailand'];
 }
 
-function ResearchWorkspace({ initialView = 'main', initialAction }: { initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
+function ResearchWorkspace({ route, initialView = 'main', initialAction }: { route: string; initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
   const [selectedCountries, setSelectedCountries] = useState<string[]>(loadShortlist);
   const [shortlistSaved, setShortlistSaved] = useState(false);
   useEffect(() => {
@@ -60,22 +60,45 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
   const [selectedCaseStudy, setSelectedCaseStudy] = useState<string>('grab-success');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showComparison, setShowComparison] = useState(false);
+  const [comparisonRequest, setComparisonRequest] = useState(0);
+  const completedComparisonRequest = useRef(0);
   const [showSearch, setShowSearch] = useState(false);
   const [showReferenceExamples, setShowReferenceExamples] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (initialAction === 'compare') setShowComparison(true);
+    if (initialAction === 'compare') {
+      setShowComparison(true);
+      setComparisonRequest(request => request + 1);
+    }
     if (initialAction === 'search') setShowSearch(true);
   }, [initialAction]);
   useEffect(() => {
     if (showSearch && currentView === 'main') requestAnimationFrame(() => searchInput.current?.focus());
   }, [showSearch, currentView]);
   const focusSearch = () => { setCurrentView('main'); setShowSearch(true); requestAnimationFrame(() => searchInput.current?.focus()); };
-  const openComparison = () => { setCurrentView('main'); setShowComparison(true); };
+  const openComparison = () => {
+    // Reassigning the same fragment can interrupt scrolling without a hashchange.
+    if (window.location.hash === '#/research') setView('main');
+    else setCurrentView('main');
+    setShowComparison(true);
+    setComparisonRequest(request => request + 1);
+  };
   useEffect(() => {
-    if (showComparison && currentView === 'main') requestAnimationFrame(() => document.getElementById('market-comparison')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  }, [showComparison, currentView]);
+    // Wait until the hash navigation (including its scroll reset) has committed.
+    // Each explicit action gets one focus/scroll, even if the table is already open.
+    if (!showComparison || currentView !== 'main' || route !== window.location.hash || comparisonRequest === completedComparisonRequest.current) return;
+    const frame = requestAnimationFrame(() => {
+      const comparison = document.getElementById('market-comparison');
+      if (!comparison) return;
+      comparison.focus({ preventScroll: true });
+      // An immediate destination avoids interrupted browser scroll animations and
+      // honors reduced motion without changing navigation elsewhere.
+      comparison.scrollIntoView({ behavior: 'instant', block: 'start' });
+      completedComparisonRequest.current = comparisonRequest;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [showComparison, currentView, comparisonRequest, route]);
   const openPlan = () => { window.location.hash = '/plan'; };
   const showMode = (mode: ResearchMode) => { setActiveTab(mode); requestAnimationFrame(() => document.getElementById('research-modes')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
@@ -208,7 +231,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -235,7 +258,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -268,7 +291,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -301,7 +324,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -328,7 +351,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -357,7 +380,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -386,7 +409,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -415,7 +438,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -444,7 +467,7 @@ function ResearchWorkspace({ initialView = 'main', initialAction }: { initialVie
           onLiveDataClick={() => setCurrentView('live-data')}
           onAnalyticsClick={() => setCurrentView('analytics')}
           onSearchClick={() => { setCurrentView('main'); setShowSearch(true); }}
-          onComparisonClick={() => { setCurrentView('main'); setShowComparison(true); }}
+          onComparisonClick={openComparison}
           notifications={notifications}
           onMarkNotificationAsRead={handleMarkNotificationAsRead}
           onClearAllNotifications={handleClearAllNotifications}
@@ -545,7 +568,7 @@ export default function App() {
     const requested = route.split('/')[2] as ResearchView;
     const initialView = researchViews.has(requested) ? requested : 'main';
     const initialAction = requested === ('search' as string) || requested === ('compare' as string) ? requested as 'search' | 'compare' : undefined;
-    return <ResearchWorkspace initialView={initialView} initialAction={initialAction} />;
+    return <ResearchWorkspace route={route} initialView={initialView} initialAction={initialAction} />;
   }
   return <div className="min-h-screen flow-planner-shell">
     <Header

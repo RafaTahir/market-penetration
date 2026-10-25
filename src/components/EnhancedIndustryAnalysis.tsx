@@ -243,7 +243,7 @@ const EnhancedIndustryAnalysis: React.FC<EnhancedIndustryAnalysisProps> = ({ sel
       </div>
 
 
-      <div role="note" className="rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-900/20 dark:text-amber-200">
+      <div role="note" className="rounded-lg border source-warning p-4 text-sm">
         <p className="font-semibold">Unverified static industry reference</p>
         <p>Figures, company examples, and narratives are hardcoded and have not been verified against the named publications. Observation dates are unavailable; year labels are unverified. These regional examples do not change with the {selectedCountries.length} selected markets and are excluded from the entry planner.</p>
       </div>

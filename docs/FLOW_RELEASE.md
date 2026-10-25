@@ -26,13 +26,14 @@ Type checking covers application and Vite configuration. Lint has **zero errors 
 
 The build now runs type checking before Vite. Existing nonfatal large-bundle and mixed XLSX import warnings remain; they are not hidden by relaxed budgets.
 
-All four production-preview browser suites pass:
+All five production-preview browser suites pass:
 
 ```bash
 FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-browser.py
 python tests/flow-quality-browser.py
 python tests/flow-integrity-browser.py
 FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-visual-browser.py
+FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-contrast-browser.py
 ```
 
 They check the real planner journey, local persistence/export, scope changes, unsaved edits, guest access, navigation/history, themes/storage denial, mobile layouts, ten retained library routes, explicit reference mode, absent-source behavior and actual PDF/PPTX/XLSX button downloads. External provider requests are blocked or explicitly mocked. Visual checks also cover geographic label bounds, qualified rating 1 versus Unknown, genuine aggregate zero, incomplete/stale/profile-invalid records, source traceability, keyboard drawers and four responsive widths in both themes. No uncaught browser errors occurred. The zero-valued/2023 provider response is a test fixture, not newly researched evidence.
@@ -59,3 +60,9 @@ Build output is `dist/`, a static client application with no required environmen
 No market/regulatory dataset was independently fact-checked. See [the dataset inventory](FLOW_INTEGRITY_AUDIT.md), [screen inventory](FLOW_INTEGRITY_SCREENS.md) and [export inventory](FLOW_INTEGRITY_EXPORTS.md). Live provider availability/entitlements, deployed Supabase schema/RLS, scheduled delivery, sharing and current legal applicability remain unverified. Legacy search/save remains explicitly unavailable; full product expansion is a separate stage.
 
 Private comparison notes are retained in the task workspace for review and are not part of the public source release. No credentials were created, rotated, copied from the README or supplied to live providers during validation.
+
+## Source-warning contrast patch
+
+The Market Data provenance banner and ten related reference notices now share explicit application-theme colors and opaque warning surfaces. The Market Data coverage badge and inline provider/observation limitations use readable theme colors too. Warning copy, data and provenance behavior are unchanged. Existing enterprise and competitive notices were also reviewed without code changes.
+
+Browser regression coverage measures rendered text contrast in light and dark app themes against the opposite operating-system preference, at phone and desktop widths, and retains the reference-content opt-in. The old Market Data banner measured 1.15:1 in light mode; the patched banners measure 8.75:1 in light and 13.45:1 in dark. This validates the targeted warning styles, not a full-site accessibility certification.

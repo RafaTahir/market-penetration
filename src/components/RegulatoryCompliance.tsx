@@ -65,7 +65,7 @@ export default function RegulatoryCompliance() {
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className="text-2xl font-bold mb-4">Regulatory Compliance</h2>
 
-        <div role="note" className="mb-6 rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-900/20 dark:text-amber-200">
+        <div role="note" className="mb-6 rounded-lg border source-warning p-4 text-sm">
           <p className="font-semibold">Unverified connected reference records</p>
           <p>Connected regulatory records are unverified and may include seeded reference content or database defaults. Observation dates and source attribution have not been verified; effective dates are record claims. Excluded from the entry planner. Confirm current requirements with the relevant authority before use.</p>
         </div>

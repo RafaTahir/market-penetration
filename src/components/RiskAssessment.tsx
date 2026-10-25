@@ -58,7 +58,7 @@ export default function RiskAssessment() {
       <div className={`p-6 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className="text-2xl font-bold mb-4">Risk Assessment</h2>
 
-        <div role="note" className="mb-6 rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-900/20 dark:text-amber-200">
+        <div role="note" className="mb-6 rounded-lg border source-warning p-4 text-sm">
           <p className="font-semibold">Unverified connected risk reference</p>
           <p>Connected records may include seeded reference content or database defaults. Observation dates and source attribution have not been verified. Scores and severity labels are unverified, are not calibrated likelihoods, and do not establish an investment recommendation. Zero scores may be defaults rather than measured values. Excluded from the entry planner.</p>
         </div>

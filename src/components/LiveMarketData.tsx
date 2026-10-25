@@ -111,7 +111,7 @@ const LiveMarketData: React.FC = () => {
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="px-2 py-1 rounded text-xs font-medium bg-amber-400/20 text-amber-400">
+                <div className="px-2 py-1 rounded text-xs font-medium source-warning">
                   Reference coverage
                 </div>
                 <div className="text-left sm:text-right">
@@ -126,7 +126,7 @@ const LiveMarketData: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-lg border border-amber-700/50 bg-amber-900/10 p-4 text-sm text-amber-100">
+        <div className="rounded-lg border source-warning p-4 text-sm">
           Quotes are stored observations when a connected source is available. Economic rows contain available provider-reported series or explicitly derived values; missing records are not filled with reference estimates. A successful check does not verify
           freshness; observation dates and source limitations are shown below.
         </div>
@@ -291,7 +291,7 @@ const LiveMarketData: React.FC = () => {
                   <div className="text-xs text-slate-400">
                     Record timestamp: {formatObservationDate(stock.storedAt)}
                   </div>
-                  <div className="text-xs text-amber-200">
+                  <div className="text-xs source-warning-text">
                     Provider and observation date unverified
                   </div>
                 </div>
@@ -356,7 +356,7 @@ const LiveMarketData: React.FC = () => {
             </div>
           </div>
           
-          <p className="text-sm text-amber-200 mb-4">
+          <p className="text-sm source-warning-text mb-4">
             Periods shown are source-reported annual periods, not retrieval dates or proof of current conditions. Missing metrics remain unavailable; no macroeconomic constants are substituted.
           </p>
           <div className="overflow-x-auto">

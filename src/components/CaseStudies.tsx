@@ -70,7 +70,7 @@ const CaseStudies: React.FC<CaseStudiesProps> = ({ selectedCountries, onCaseStud
 
   return (
     <div className="space-y-6">
-      <div role="note" className="rounded-xl border border-amber-700/60 bg-amber-900/20 p-4 text-sm text-amber-100">
+      <div role="note" className="rounded-xl border source-warning p-4 text-sm">
         <p className="font-semibold">Unverified case-study references</p>
         <p className="mt-1">{caseStudies.some(study => study.provenance === 'stored-record') ? 'This view contains stored database records, which may include seed material.' : 'This view contains bundled static fallback material.'} Company narratives, investment figures, ROI, and listed references have not been verified. Observation dates are unknown; listed reference dates do not establish when a claim was observed. These case studies are excluded from the entry planner.</p>
       </div>

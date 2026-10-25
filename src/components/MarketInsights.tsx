@@ -209,7 +209,7 @@ const MarketInsights: React.FC<MarketInsightsProps> = ({ selectedCountries, onIn
 
   return (
     <div className="space-y-6">
-      <div role="note" className="rounded-xl border border-amber-700/60 bg-amber-900/20 p-4 text-sm text-amber-100">
+      <div role="note" className="rounded-xl border source-warning p-4 text-sm">
         <p className="font-semibold">Unverified static market references</p>
         <p className="mt-1">Figures, narratives, and source attributions are bundled reference material with unknown observation dates and have not been verified. Scores are illustrative, not calibrated probabilities. These figures are excluded from the entry planner.</p>
         <p className="mt-2">Country selection filters only the regulatory cards. Overview totals, consumer figures, and competitive figures describe the fixed regional sample.</p>

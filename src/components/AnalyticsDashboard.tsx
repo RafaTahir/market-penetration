@@ -213,7 +213,7 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
           </div>
           
-          <div role="note" className="mb-6 rounded-lg border border-amber-700/60 bg-amber-900/20 p-4 text-sm text-amber-100">
+          <div role="note" className="mb-6 rounded-lg border source-warning p-4 text-sm">
             <p className="font-semibold">Unverified static reference data</p>
             <p className="mt-1">These charts use bundled figures with unknown observation dates. Historical years and projections are labels from the reference material; their accuracy has not been verified. Opportunity scores are illustrative and are not calibrated probabilities. These figures are excluded from the entry planner.</p>
           </div>

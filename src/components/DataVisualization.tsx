@@ -375,7 +375,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({ selectedCountries
 
   return (
     <div className="space-y-6">
-      <div role="note" className="rounded-xl border border-amber-700/60 bg-amber-900/20 p-4 text-sm text-amber-100">
+      <div role="note" className="rounded-xl border source-warning p-4 text-sm">
         <p className="font-semibold">Unverified static reference charts</p>
         <p className="mt-1">All figures are bundled reference material with unknown observation dates. Listed source names are unverified attributions, not checked citations. Historical years and projections do not establish current accuracy; scores are illustrative, not calibrated likelihoods. These figures are excluded from the entry planner.</p>
         <p className="mt-2">Country filters apply to country charts and tables. Industry, consumer, competition, investment, and regional summaries describe the full static sample.</p>

@@ -129,3 +129,25 @@
               border-color var(--transition-speed) ease-in-out,
               color var(--transition-speed) ease-in-out;
 }
+
+/* Explicit app-theme colors keep source limitations readable in both appearances.
+   Solid banner surfaces preserve contrast independently of the page background. */
+.source-warning {
+  color: #fef3c7;
+  background-color: #451a03;
+  border-color: #b45309;
+}
+
+.light .source-warning {
+  color: #78350f;
+  background-color: #fffbeb;
+  border-color: #d97706;
+}
+
+.source-warning-text {
+  color: #fde68a;
+}
+
+.light .source-warning-text {
+  color: #92400e;
+}

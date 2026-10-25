@@ -1,9 +1,10 @@
 # Flow release validation
 
-Validated 2026-10-25 on the existing `market-penetration` base, retaining React 18, Vite 5, Tailwind 3 and the original Flow assets. This release introduces a business-profile/evidence workspace and repairs the existing library's reliability and data-integrity boundaries. It does not certify underlying market figures or launch an AI consultant.
+Validated 2026-10-25 on the existing `market-penetration` base, retaining React 18, Vite 5, Tailwind 3 and the original Flow assets. This release introduces a visual business-profile/evidence workspace and repairs the existing library's reliability and data-integrity boundaries. It does not certify underlying market figures or launch an AI consultant.
 
 ## Resulting behavior
 
+- The workspace opens with a geographic city view, qualified-only preparation tracks, documentation coverage and focused next actions. Overview, Compare cities and Evidence views replace the long reading sequence. Profile, evidence and methodology are available in accessible native drawers. Fresh workspaces use a light palette; existing theme preferences remain.
 - Founders, SMEs and enterprises can record business phase, industry, offering and runway; compare documented preparation for Jakarta province and the City of Manila; preserve research locally; and export its exact saved evidence and methodology.
 - Missing sources and metrics remain unavailable. Genuine zero values survive. Observation periods, retrieval/storage time and report generation time stay separate. Provider failures cannot create substitute economic, quote or FX observations.
 - Legacy static/unverified views require explicit reference-mode opt-in and carry persistent source/date limitations. Examples never supply planner evidence or calibrated survival probabilities.
@@ -25,15 +26,16 @@ Type checking covers application and Vite configuration. Lint has **zero errors 
 
 The build now runs type checking before Vite. Existing nonfatal large-bundle and mixed XLSX import warnings remain; they are not hidden by relaxed budgets.
 
-All three production-preview browser suites pass:
+All four production-preview browser suites pass:
 
 ```bash
 FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-browser.py
 python tests/flow-quality-browser.py
 python tests/flow-integrity-browser.py
+FLOW_TEST_URL=http://127.0.0.1:4173 python tests/flow-visual-browser.py
 ```
 
-They check the real planner journey, local persistence/export, scope changes, unsaved edits, guest access, navigation/history, themes/storage denial, mobile layouts, ten retained library routes, explicit reference mode, absent-source behavior and actual PDF/PPTX/XLSX button downloads. External provider requests are blocked or explicitly mocked. No uncaught browser errors occurred. The zero-valued/2023 provider response is a test fixture, not newly researched evidence.
+They check the real planner journey, local persistence/export, scope changes, unsaved edits, guest access, navigation/history, themes/storage denial, mobile layouts, ten retained library routes, explicit reference mode, absent-source behavior and actual PDF/PPTX/XLSX button downloads. External provider requests are blocked or explicitly mocked. Visual checks also cover geographic label bounds, qualified rating 1 versus Unknown, genuine aggregate zero, incomplete/stale/profile-invalid records, source traceability, keyboard drawers and four responsive widths in both themes. No uncaught browser errors occurred. The zero-valued/2023 provider response is a test fixture, not newly researched evidence.
 
 ## Reproduce
 
@@ -52,7 +54,7 @@ Run browser checks in separate sessions while preview is running. `FLOW_TEST_ART
 
 ## Deployment and limitations
 
-Build output is `dist/`. The intended existing public host is `https://flow-qx0x.bolt.host/`; no replacement hosting project or unrelated deployment is part of this release. A Git push is not proof of publishing. Repository inspection did not establish a Bolt publishing workflow or authenticated project linkage, and the current cloud proxy blocks verification of that hostname. Publish only through the existing authorized project and verify the expected build there.
+Build output is `dist/`, a static client application with no required environment variables or application server. The authorized destination is the existing owner-private ChatGPT Site. Its owner coordinates publication of the exact pushed revision; this code task does not create another Site, change sharing, or update the old Bolt site. A Git push is not proof of publishing. Verify the release in the authenticated private Site after publication. Guest research works without optional account or provider configuration; source availability and backend behavior remain subject to the limits below.
 
 No market/regulatory dataset was independently fact-checked. See [the dataset inventory](FLOW_INTEGRITY_AUDIT.md), [screen inventory](FLOW_INTEGRITY_SCREENS.md) and [export inventory](FLOW_INTEGRITY_EXPORTS.md). Live provider availability/entitlements, deployed Supabase schema/RLS, scheduled delivery, sharing and current legal applicability remain unverified. Legacy search/save remains explicitly unavailable; full product expansion is a separate stage.
 

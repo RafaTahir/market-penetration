@@ -4,8 +4,8 @@ import { ThemeContext, type Theme } from './themeContextValue';
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     try {
-      return localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
-    } catch { return 'dark'; }
+      return localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+    } catch { return 'light'; }
   });
 
   useEffect(() => {

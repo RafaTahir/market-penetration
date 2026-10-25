@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ArrowRight, BarChart3, Database, ShieldCheck } from 'lucide-react';
 import EntryPlanner from './components/EntryPlanner';
 import Header from './components/Header';
 import LiveMarketData from './components/LiveMarketData';
@@ -154,16 +155,23 @@ function ResearchWorkspace({ initialView = 'main' }: { initialView?: ResearchVie
   }
 
   if (!showReferenceExamples && (currentView === 'main' || currentView === 'analytics' || currentView === 'report-generator' || currentView === 'enterprise-intelligence')) {
-    return <div className="min-h-screen bg-slate-900 text-white">
+    return <div className="min-h-screen research-gate-shell">
       <Header referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)} onLogoClick={() => setCurrentView('main')} onLiveDataClick={() => setCurrentView('live-data')} onAnalyticsClick={() => setCurrentView('analytics')} onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')} />
-      <main className="max-w-3xl mx-auto px-4 py-16">
-        <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">Data integrity · reference content is optional</p>
-        <h2 className="text-3xl font-semibold mt-4">Current research data is unavailable</h2>
-        <p className="text-slate-300 mt-5 leading-relaxed">These legacy research views contain fixed reference figures, example scenarios and unverified records. Supporting citations and observation dates have not been established. They must not be treated as current market facts or business advice.</p>
-        <p className="text-slate-400 mt-4 leading-relaxed">You can inspect the reference examples explicitly. Their labels remain visible, and they never supply evidence or points to your entry assessment.</p>
-        <div className="flex flex-wrap gap-4 mt-7">
-          <button onClick={() => setShowReferenceExamples(true)} className="px-4 py-3 rounded-lg border border-amber-600 text-amber-200">View unverified reference examples</button>
-          <a href="#/plan" className="px-4 py-3 rounded-lg bg-blue-600 text-white">Use entry planner</a>
+      <main className="research-gate">
+        <div className="research-gate-heading"><span className="section-eyebrow">SOUTHEAST ASIA / RESEARCH LIBRARY</span><h1>Evidence before investment.</h1><p>Build a city comparison with research you can trace.</p></div>
+        <div className="research-gate-layout">
+          <section className="research-source-board" aria-label="Research availability">
+            <div className="source-board-title"><BarChart3 size={20} /><span>Market data coverage</span><span className="source-board-unavailable">Unavailable</span></div>
+            <div className="source-board-grid"><span>DATASET</span><span>SOURCE</span><span>OBSERVED</span>{['Market demand', 'Competition', 'Regulation', 'Operating costs', 'Talent & delivery'].map(label => <div key={label}><strong>{label}</strong><span>Unverified</span><span>—</span></div>)}</div>
+            <div className="source-board-note"><Database size={16} /><span>No verified current dataset connected</span></div>
+          </section>
+          <section className="research-gate-actions">
+            <span className="research-gate-icon"><ShieldCheck size={24} /></span><h2>Current research data is unavailable</h2>
+            <p>Use your own sources in the workspace, or explicitly inspect unverified reference examples.</p>
+            <a href="#/plan" className="workspace-primary">Use entry planner <ArrowRight size={16} /></a>
+            <button onClick={() => setShowReferenceExamples(true)} className="research-reference-button">View unverified reference examples <ArrowRight size={15} /></button>
+            <details className="research-gate-details"><summary>About the reference examples</summary><p>Fixed figures, example scenarios and unverified records have no established supporting citations or observation dates. They are not current market facts or business advice and never supply evidence or points to your entry assessment.</p></details>
+          </section>
         </div>
       </main>
     </div>;
@@ -879,7 +887,7 @@ export default function App() {
     const initialView = researchViews.has(requested) ? requested : 'main';
     return <ResearchWorkspace initialView={initialView} />;
   }
-  return <div className="min-h-screen bg-[#0c1526] flow-planner-shell">
+  return <div className="min-h-screen flow-planner-shell">
     <Header
       onLogoClick={() => { window.location.hash = '/plan'; }}
       onLiveDataClick={() => { window.location.hash = '/research/live-data'; }}

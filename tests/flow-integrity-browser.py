@@ -23,6 +23,11 @@ with sync_playwright() as playwright:
     expect(page.get_by_role('heading', name='Market Overview', exact=True)).to_have_count(0)
     page.screenshot(path=str(ARTIFACTS / 'research-unavailable-default.png'))
     page.get_by_role('button', name='View unverified reference examples').click()
+    # Integrity detail is disclosed from the persistent source-status badge.
+    reference_status = page.get_by_role('button', name='Data status: unverified reference examples enabled', exact=True)
+    expect(reference_status).to_be_visible()
+    reference_status.click()
+    expect(page.get_by_role('dialog', name='Reference examples enabled', exact=True)).to_be_visible()
     expect(page.get_by_text('Unverified reference examples enabled.', exact=True)).to_be_visible()
     expect(page.get_by_role('heading', name='Market Overview', exact=True)).to_be_visible()
     page.get_by_role('button', name='Hide examples', exact=True).click()

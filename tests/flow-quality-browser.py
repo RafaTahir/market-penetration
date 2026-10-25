@@ -87,7 +87,7 @@ with sync_playwright() as playwright:
     fresh = context.new_page()
     fresh.set_viewport_size({'width': 1440, 'height': 1000})
     fresh.goto(BASE + '/#/plan', wait_until='networkidle')
-    expect(fresh.get_by_role('heading', name='Find your foothold.')).to_be_visible()
+    expect(fresh.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
     fresh.screenshot(path=str(ARTIFACTS / 'flow-desktop.png'), full_page=True)
     fresh.screenshot(path=str(ARTIFACTS / 'flow-desktop-viewport.png'))
     fresh.set_viewport_size({'width': 390, 'height': 844})

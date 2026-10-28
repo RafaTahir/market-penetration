@@ -152,12 +152,25 @@
   .explorer-hero { padding: 32px; }
   .explorer-hero-copy { max-width: 65%; }
   .explorer-hero h1 { font-size: 45px; }
-  .explorer-atlas { right: -100px; opacity: .65; }
+  .explorer-atlas { opacity: .65; }
   .explorer-mode-tabs>button { flex: 1; font-size: 11px; gap: 5px; }
   .explorer-footer { width: calc(100% - 48px); }
 }
+@media (min-width: 761px) and (max-width: 1180px) {
+  .explorer-atlas { top: 0; bottom: 0; height: auto; right: 12px; width: 43%; max-width: 490px; }
+  .explorer-atlas>svg { max-width: 100%; height: auto; right: 0; }
+}
 @media (min-width: 761px) and (max-width: 1000px) {
   .explorer-research, .explorer-comparison, .mr-city { scroll-margin-top: 144px; }
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .explorer-hero-copy { max-width: 55%; }
+  .explorer-hero h1 { font-size: 38px; }
+  .explorer-atlas { width: 40%; }
+  .atlas-label { padding: 8px; }
+  .atlas-label-east { right: 0; }
+  .atlas-label-bottom { right: 8px; }
+  .atlas-caption { font-size: 10px; }
 }
 @media (max-width: 760px) {
   .explorer-main { padding: 18px 16px 105px; }

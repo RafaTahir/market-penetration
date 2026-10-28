@@ -118,7 +118,7 @@ with sync_playwright() as playwright:
                 expect(page.locator('.market-country-card')).to_have_count(1)
                 expect(page.locator('.market-rail-controls')).to_have_count(0)
                 assert selection(page) == initial
-                page.get_by_role('button', name='Explore Vietnam', exact=True).click()
+                page.get_by_role('button', name='Add Vietnam to shortlist and explore', exact=True).click()
                 city = page.locator('#city-research-vietnam')
                 expect(city).to_be_focused()
                 expect(city.get_by_role('heading', name='Ho Chi Minh City', exact=True)).to_be_visible()

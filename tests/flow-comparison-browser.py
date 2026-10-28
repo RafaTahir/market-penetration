@@ -134,6 +134,8 @@ with sync_playwright() as playwright:
                     # The optional plan uses Header's route fallback, including direct
                     # compare navigation on refresh. Saved notebook content stays intact.
                     header.get_by_role('link', name='Your plan', exact=True).click()
+                    expect(page.get_by_role('heading', name='Your market plan.', exact=True)).to_be_visible()
+                    page.get_by_role('link', name='Open city notebook', exact=True).click()
                     expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
                     notebook = page.evaluate('localStorage.getItem("flow-entry-planner-v1")')
                     compare.click()

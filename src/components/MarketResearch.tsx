@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowRight, ArrowUpRight, BarChart3, BookOpen, Building2, Check, ChevronRight, Compass, Database, Factory, Globe2, MapPin, Package, Scale, Search, ShieldCheck, ShoppingBag, Smartphone, Truck, Users, UtensilsCrossed, Wallet } from 'lucide-react';
 import { MARKETS, type MarketGuide } from '../data/marketCatalog';
+import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides';
 import MarketFundamentals from './MarketFundamentals';
 import MarketScene from './visual/MarketScene';
 import './MarketResearch.css';
@@ -18,7 +19,7 @@ interface MarketResearchProps {
 }
 
 type ResearchAngle = 'demand' | 'costs' | 'setup';
-type CityLens = 'customers' | 'location' | 'setup';
+type CityLens = CityResearchLens;
 type InsightLens = 'setup' | 'demand' | 'operations';
 
 interface IndustryGuide {
@@ -119,8 +120,8 @@ const DATASETS = [
   { name: 'Consumer inflation', code: 'FP.CPI.TOTL.ZG', unit: 'Annual %', icon: Wallet },
 ] as const;
 
-function SourceLink({ url, children, className = '' }: { url: string; children: ReactNode; className?: string }) {
-  return <a className={`mr-source-link ${className}`} href={url} target="_blank" rel="noopener noreferrer">{children}<ArrowUpRight size={15} aria-hidden="true" /></a>;
+function SourceLink({ url, children, className = '', label }: { url: string; children: ReactNode; className?: string; label?: string }) {
+  return <a className={`mr-source-link ${className}`} aria-label={label} href={url} target="_blank" rel="noopener noreferrer">{children}<ArrowUpRight size={15} aria-hidden="true" /></a>;
 }
 
 function Scope({ markets, all }: { markets: readonly MarketGuide[]; all: boolean }) {
@@ -152,8 +153,23 @@ export default function MarketResearch({ mode, selectedCountries, onPlan, onRefe
     {mode === 'cities' && <>
       <div className="mr-section-heading"><div><span className="mr-eyebrow">ZOOM IN ON THE OPERATING AREA</span><h2>Find the right city conversation.</h2><p>A city name starts the search. The customer catchment and operating address make it specific.</p></div><Scope markets={markets} all={!selectedCountries.length} /></div>
       <div className="mr-lens-tabs" role="group" aria-label="City research lens">{CITY_LENSES.map(lens => <button key={lens.id} aria-pressed={cityLens === lens.id} onClick={() => setCityLens(lens.id)}><lens.icon size={15} aria-hidden="true" />{lens.label}</button>)}</div>
-      <div className="mr-city-grid">{markets.map(market => <article className="mr-city" id={`city-research-${market.id}`} tabIndex={-1} aria-labelledby={`city-name-${market.id}`} key={market.id}><div className="mr-city-scene"><MarketScene marketId={market.id} /></div><div className="mr-city-top"><span className="mr-flag" aria-hidden="true">{market.flag}</span><span>{market.name}</span><MapPin size={17} aria-hidden="true" /></div><div className="mr-city-name"><h3 id={`city-name-${market.id}`}>{market.city}</h3>{market.id === 'indonesia' || market.id === 'philippines' ? <small>{market.id === 'indonesia' ? 'Province scope in your plan' : 'City of Manila scope in your plan'}</small> : <small>City research starting point</small>}</div><div className="mr-city-question"><currentCityLens.icon size={18} aria-hidden="true" /><div><strong>{currentCityLens.question}</strong><p>{currentCityLens.detail}</p></div></div><SourceLink url={market.cityPortal.url}>{market.cityPortal.name}</SourceLink></article>)}</div>
-      <div className="mr-inline-action"><span>Working through Jakarta or Manila?</span><button className="mr-text-button" onClick={onPlan}>Keep your research in an entry plan <ArrowRight size={14} aria-hidden="true" /></button></div>
+      <p className="mr-city-guide-note"><BookOpen size={14} aria-hidden="true" /><span>Research guidance, not verified findings. Source publication dates unknown.</span></p>
+      <div className="mr-city-grid">{markets.map(market => {
+        const guide = CITY_RESEARCH_GUIDES[market.id];
+        const prompt = guide?.prompts[cityLens] ?? currentCityLens;
+        const source = cityLens === 'customers' ? market.statistics : cityLens === 'setup' ? market.setup : market.cityPortal;
+        return <article className="mr-city" id={`city-research-${market.id}`} tabIndex={-1} aria-labelledby={`city-name-${market.id}`} key={market.id}>
+          <div className="mr-city-scene"><MarketScene marketId={market.id} /></div>
+          <div className="mr-city-top"><span className="mr-flag" aria-hidden="true">{market.flag}</span><span>{market.name}</span><MapPin size={17} aria-hidden="true" /></div>
+          <div className="mr-city-name"><h3 id={`city-name-${market.id}`}>{market.city}</h3><small>{guide?.scope ?? 'City research starting point'}</small></div>
+          <div className="mr-city-question"><currentCityLens.icon size={18} aria-hidden="true" /><div><strong>{prompt.question}</strong><p>{prompt.detail}</p></div></div>
+          <div className="mr-city-sources">
+            <SourceLink url={source.url} label={source.name}><span>{source.name}<small>{cityLens === 'customers' ? 'Dataset geography & dates · discovery link' : cityLens === 'setup' ? 'National setup enquiries · discovery link' : 'Address & local authority · discovery link'}</small></span></SourceLink>
+            {cityLens === 'setup' && <SourceLink url={market.cityPortal.url} label={market.cityPortal.name}><span>{market.cityPortal.name}<small>Premises & address enquiries · discovery link</small></span></SourceLink>}
+          </div>
+        </article>;
+      })}</div>
+      <div className="mr-inline-action"><span>Keep the next step for your shortlisted markets.</span><button className="mr-text-button" onClick={onPlan}>Open your market plan <ArrowRight size={14} aria-hidden="true" /></button></div>
     </>}
 
     {mode === 'industries' && <>

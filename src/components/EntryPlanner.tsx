@@ -69,7 +69,7 @@ export default function EntryPlanner() {
       if (link && !link.getAttribute('href')?.startsWith('#') && link.getAttribute('target') !== '_blank' && !window.confirm('You have unsaved evidence changes. Discard them and follow this link?')) event.preventDefault();
     };
     const beforeAppNavigate = (event: Event) => {
-      if (!(event as CustomEvent<string>).detail.startsWith('#/plan') && !window.confirm('You have unsaved evidence changes. Discard them and leave the planner?')) event.preventDefault();
+      if ((event as CustomEvent<string>).detail !== '#/plan/notebook' && !window.confirm('You have unsaved evidence changes. Discard them and leave the planner?')) event.preventDefault();
     };
     window.addEventListener('beforeunload', beforeUnload);
     window.addEventListener('flow:before-navigate', beforeAppNavigate);

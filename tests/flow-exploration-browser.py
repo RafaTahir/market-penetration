@@ -214,9 +214,9 @@ with sync_playwright() as playwright:
         expect(cities.filter(has=page.get_by_role('heading', name='Bangkok', exact=True))).to_be_visible()
         lens = page.get_by_role('group', name='City research lens', exact=True)
         lens.get_by_role('button', name='Location', exact=True).click()
-        expect(cities.first).to_contain_text('Which operating area fits the business?')
+        expect(cities.first).to_contain_text('Which Bangkok address supports the operating model?')
         lens.get_by_role('button', name='Setup', exact=True).click()
-        expect(cities.first).to_contain_text('Which authority covers the intended activity and address?')
+        expect(cities.first).to_contain_text('Investment support or operating at a Bangkok address?')
         safe_source(cities.first.get_by_role('link', name='Bangkok city portal', exact=True), 'https://www.bangkok.go.th/')
         capture(page, 'city-discovery-dark-desktop')
         open_mode(page, 'Industry Deep Dive')
@@ -276,6 +276,10 @@ with sync_playwright() as playwright:
 
         assert_three_market_shortlist()
         header.get_by_role('link', name='Your plan', exact=True).click()
+        expect(page.get_by_role('heading', name='Your market plan.', exact=True)).to_be_visible()
+        for country_name in ['Thailand', 'Singapore', 'Indonesia']:
+            expect(page.get_by_role('heading', name=country_name, exact=True)).to_be_visible()
+        page.get_by_role('link', name='Open city notebook', exact=True).click()
         expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
         page.get_by_role('button', name='Edit business profile', exact=True).click()
         description = 'Synthetic browser profile only; no market observation or recommendation.'

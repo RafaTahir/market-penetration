@@ -63,7 +63,9 @@
 .market-gdp-trend { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 13px 0 12px; min-height: 30px; }
 .market-gdp-trend>span { color: var(--market-muted); font-size: 11px; line-height: 1.5; }
 .market-gdp-trend small { display: block; color: var(--market-muted); font-size: 11px; }
-.market-gdp-sparkline { display: block; width: 112px; height: 28px; flex-shrink: 0; overflow: visible; }
+.market-gdp-plot { width: 112px; flex-shrink: 0; }
+.market-gdp-sparkline { display: block; width: 100%; height: 28px; overflow: visible; }
+.market-gdp-plot .market-gdp-scale-note { margin-top: 3px; text-align: right; line-height: 1.4; }
 .market-gdp-line { fill: none; stroke: var(--country-accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .market-gdp-baseline { fill: none; stroke: var(--market-line); stroke-width: 1; }
 .market-gdp-endpoint { fill: var(--country-accent); }
@@ -111,7 +113,7 @@
   .market-country-actions { min-height: 52px; }
   .market-snapshot-metrics dd { font-size: 25px; }
   .market-gdp-trend { gap: 10px; }
-  .market-gdp-sparkline { width: 105px; }
+  .market-gdp-plot { width: 105px; }
   .market-source-panel dl>div { grid-template-columns: 86px minmax(0,1fr); gap: 8px; }
 }
 .market-rail-controls { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }

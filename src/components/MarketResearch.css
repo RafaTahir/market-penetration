@@ -74,6 +74,11 @@ html.light .mr-lens-tabs>button[aria-pressed='true'], html.light .mr-industry-ta
 .mr-city-question strong { display: block; font-size: 14px; line-height: 1.6; font-weight: 550; }
 .mr-city-question p { color: var(--mr-muted); font-size: 13px; line-height: 1.8; margin-top: 9px; }
 .mr-city>.mr-source-link { width: 100%; font-size: 12px; border-top: 1px solid var(--mr-border); padding-top: 17px; margin-top: 21px; }
+.market-research .mr-city-guide-note { display: flex; align-items: start; gap: 8px; color: var(--mr-muted); font-size: 12px; line-height: 1.6; margin: -6px 0 20px; }
+.mr-city-guide-note>svg { flex-shrink: 0; margin-top: 3px; }
+.mr-city-sources { display: grid; gap: 8px; border-top: 1px solid var(--mr-border); margin-top: 20px; padding-top: 12px; }
+.mr-city-sources .mr-source-link { width: 100%; min-height: 44px; font-size: 13px; }
+.mr-city-sources .mr-source-link small { display: block; font-size: 11px; line-height: 1.5; margin-top: 3px; color: var(--mr-muted); }
 .mr-inline-action { display: flex; justify-content: space-between; align-items: center; gap: 20px; border-top: 1px solid var(--mr-border); padding-top: 16px; margin-top: 23px; color: var(--mr-muted); font-size: 13px; }
 .mr-industry-intro { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 24px; padding: 30px; margin-bottom: 22px; border: 1px solid var(--mr-border); border-radius: 18px; background: radial-gradient(ellipse at 0% 100%, #20516e66, transparent 60%), linear-gradient(105deg, #142f4c, #111f35); }
 .mr-industry-intro::after { content: ""; position: absolute; z-index: -1; width: 230px; height: 230px; right: -60px; top: -100px; border-radius: 50%; border: 35px solid #7eb6ff08; outline: 1px solid #7eb6ff12; pointer-events: none; }

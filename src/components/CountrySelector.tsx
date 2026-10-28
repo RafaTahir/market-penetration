@@ -33,13 +33,16 @@ function GDPHistory({ country, id, series }: { country: string; id: string; seri
   return (
     <div className="market-gdp-trend">
       <span>Nominal GDP<small>2014–{MARKET_SNAPSHOT_META.observationYear} · US$</small></span>
-      <svg className="market-gdp-sparkline" viewBox="0 0 140 32" role="img" aria-labelledby={`gdp-title-${id}`} aria-describedby={`gdp-description-${id}`}>
-        <title id={`gdp-title-${id}`}>{country} nominal GDP, 2014–{MARKET_SNAPSHOT_META.observationYear}</title>
-        <desc id={`gdp-description-${id}`}>Historical current US dollar observations from World Bank series via DataHub. This line uses its own vertical range and does not show real growth or a forecast. {observations.map(point => `${point.year}: ${fullNumberFormat.format(point.value)} US dollars`).join('; ')}. Missing years are not connected.</desc>
-        <path className="market-gdp-baseline" d="M3 30H137" />
-        <path className="market-gdp-line" d={path} />
-        <circle className="market-gdp-endpoint" cx={last.x} cy={last.y} r="2.5" />
-      </svg>
+      <div className="market-gdp-plot">
+        <svg className="market-gdp-sparkline" viewBox="0 0 140 32" role="img" aria-labelledby={`gdp-title-${id}`} aria-describedby={`gdp-description-${id}`}>
+          <title id={`gdp-title-${id}`}>{country} nominal GDP, 2014–{MARKET_SNAPSHOT_META.observationYear}</title>
+          <desc id={`gdp-description-${id}`}>Historical current US dollar observations from World Bank series via DataHub. This line uses its own vertical range and does not show real growth or a forecast. {observations.map(point => `${point.year}: ${fullNumberFormat.format(point.value)} US dollars`).join('; ')}. Missing years are not connected.</desc>
+          <path className="market-gdp-baseline" d="M3 30H137" />
+          <path className="market-gdp-line" d={path} />
+          <circle className="market-gdp-endpoint" cx={last.x} cy={last.y} r="2.5" />
+        </svg>
+        <small className="market-gdp-scale-note">Own scale</small>
+      </div>
     </div>
   );
 }
@@ -117,6 +120,10 @@ export default function CountrySelector({
             const population = fundamentals?.population;
             const gdp = fundamentals?.gdpUsd;
             const panelId = `market-sources-${market.id}`;
+            const addsToShortlist = Boolean(onExploreCountry) && !selected;
+            const exploreLabel = onExploreCountry
+              ? addsToShortlist ? `Add ${market.name} to shortlist and explore` : `Explore ${market.name}`
+              : `Explore sources for ${market.name}`;
             return (
               <article className={`market-country-card${selected ? ' is-selected' : ''}`} key={market.id} data-market={market.id} aria-labelledby={`market-name-${market.id}`}>
                 <MarketScene marketId={market.id} />
@@ -135,7 +142,7 @@ export default function CountrySelector({
                 </div>
 
                 <div className="market-country-actions">
-                  <button type="button" className="market-explore-button" aria-label={`Explore ${market.name}`} onClick={() => exploreMarket(market.id)}>Explore market <ArrowRight size={13} aria-hidden="true" /></button>
+                  <button type="button" className="market-explore-button" aria-label={exploreLabel} title={exploreLabel} onClick={() => exploreMarket(market.id)}>{onExploreCountry ? addsToShortlist ? 'Add & explore' : 'Explore market' : 'Explore sources'} <ArrowRight size={13} aria-hidden="true" /></button>
                   <button type="button" className="market-source-button" aria-label={`Sources for ${market.name}`} aria-expanded={expanded} aria-controls={expanded ? panelId : undefined} onClick={() => setExpandedMarket(previous => previous === market.id ? null : market.id)}>Sources {expanded ? <X size={11} aria-hidden="true" /> : <ChevronDown size={11} aria-hidden="true" />}</button>
                 </div>
                 {expanded && (

@@ -113,7 +113,7 @@ def new_case(browser, fixture=None):
         }}
     """)
     page = context.new_page()
-    page.goto(BASE + '/#/plan', wait_until='networkidle')
+    page.goto(BASE + '/#/plan/notebook', wait_until='networkidle')
     expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_be_visible()
     return context, page
 

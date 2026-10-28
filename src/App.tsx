@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { ArrowRight, ArrowUpRight, ArrowLeftRight, BarChart3, BookOpen, Compass, Globe2, Layers3, MapPin, Search, Sparkles, X } from 'lucide-react';
 import EntryPlanner from './components/EntryPlanner';
 import Header from './components/Header';
@@ -22,6 +22,7 @@ import { useAuth } from './contexts/AuthContext';
 import MarketResearch, { type ResearchMode } from './components/MarketResearch';
 import ReferenceResearch from './components/ReferenceResearch';
 import MarketComparison from './components/MarketComparison';
+import MarketPlanHub from './components/MarketPlanHub';
 import { MARKETS } from './data/marketCatalog';
 import { SEA_COUNTRIES } from './components/visual/seaGeography';
 import './components/MarketExplorer.css';
@@ -40,13 +41,7 @@ function loadShortlist(): string[] {
   return ['singapore', 'thailand'];
 }
 
-function ResearchWorkspace({ route, initialView = 'main', initialAction }: { route: string; initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
-  const [selectedCountries, setSelectedCountries] = useState<string[]>(loadShortlist);
-  const [shortlistSaved, setShortlistSaved] = useState(false);
-  useEffect(() => {
-    try { localStorage.setItem(SHORTLIST_KEY, JSON.stringify({ version: 1, countries: selectedCountries })); setShortlistSaved(true); }
-    catch { setShortlistSaved(false); }
-  }, [selectedCountries]);
+function ResearchWorkspace({ route, selectedCountries, setSelectedCountries, shortlistSaved, initialView = 'main', initialAction }: { route: string; selectedCountries: string[]; setSelectedCountries: Dispatch<SetStateAction<string[]>>; shortlistSaved: boolean; initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<ResearchMode>('overview');
   const [currentView, setView] = useState<ResearchView>(initialView);
@@ -567,6 +562,12 @@ const researchViews = new Set<ResearchView>(['main', 'live-data', 'analytics', '
 
 export default function App() {
   const [route, setRoute] = useState(() => window.location.hash);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(loadShortlist);
+  const [shortlistSaved, setShortlistSaved] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem(SHORTLIST_KEY, JSON.stringify({ version: 1, countries: selectedCountries })); setShortlistSaved(true); }
+    catch { setShortlistSaved(false); }
+  }, [selectedCountries]);
   useEffect(() => {
     const onHashChange = (event: HashChangeEvent) => {
       if (window.location.hash === '' || window.location.hash.startsWith('#/')) {
@@ -586,15 +587,16 @@ export default function App() {
     const requested = route.split('/')[2] as ResearchView;
     const initialView = researchViews.has(requested) ? requested : 'main';
     const initialAction = requested === ('search' as string) || requested === ('compare' as string) ? requested as 'search' | 'compare' : undefined;
-    return <ResearchWorkspace route={route} initialView={initialView} initialAction={initialAction} />;
+    return <ResearchWorkspace route={route} selectedCountries={selectedCountries} setSelectedCountries={setSelectedCountries} shortlistSaved={shortlistSaved} initialView={initialView} initialAction={initialAction} />;
   }
-  return <div className="min-h-screen flow-planner-shell">
+  const isNotebook = route === '#/plan/notebook';
+  return <div className={isNotebook ? 'min-h-screen flow-planner-shell' : 'flow-explore-shell'}>
     <Header
       onLogoClick={() => { window.location.hash = '/research'; }}
       onLiveDataClick={() => { window.location.hash = '/research/live-data'; }}
       onAnalyticsClick={() => { window.location.hash = '/research/analytics'; }}
       onEnterpriseIntelligenceClick={() => { window.location.hash = '/research/enterprise-intelligence'; }}
     />
-    <EntryPlanner />
+    {isNotebook ? <EntryPlanner /> : <MarketPlanHub selectedCountries={selectedCountries} />}
   </div>;
 }

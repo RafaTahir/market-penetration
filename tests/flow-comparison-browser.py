@@ -121,7 +121,12 @@ with sync_playwright() as playwright:
 
                     # Returning from normal/retained module views also changes the hash.
                     for name in ['Market Data', 'Analytics']:
-                        header.get_by_role('button', name=name, exact=True).click()
+                        destination = header.get_by_role('button', name=name, exact=True)
+                        if destination.is_visible():
+                            destination.click()
+                        else:
+                            header.get_by_role('button', name='More options', exact=True).click()
+                            page.get_by_role('menuitem', name=name, exact=True).click()
                         expect(page.locator('#market-comparison')).to_have_count(0)
                         compare.click()
                         assert_comparison_destination(page, motion, f'{theme}: Compare from {name}')

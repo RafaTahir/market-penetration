@@ -88,3 +88,112 @@
 .reference-research, .reference-research>* { min-width: 0; max-width: 100%; }
 .reference-research .grid>* { min-width: 0; }
 @media(max-width:720px) { .explorer-main>.explorer-mode-tabs { margin-top: 17px; }.explorer-research, .explorer-comparison { scroll-margin-top: 77px; } }
+
+/* A more generous exploration canvas, retaining Flow's navy and teal identity. */
+.flow-explore-shell { background: radial-gradient(ellipse at 85% 0%, #17375e55, transparent 45%), var(--ex-bg); }
+.explorer-main { width: min(1440px, 100%); padding: 30px 48px 48px; }
+.explorer-eyebrow { font-size: 11px; letter-spacing: .12em; }
+.explorer-hero { min-height: 370px; padding: 40px; border-radius: 24px; background: radial-gradient(ellipse at 85% 20%, #126b6b55, transparent 60%), linear-gradient(115deg, #152d4c, #0e1e34 70%); }
+.explorer-hero::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background-image: radial-gradient(#92c3e71a .6px, transparent .6px); background-size: 18px 18px; mask-image: linear-gradient(90deg, transparent, #000); }
+.explorer-hero .explorer-eyebrow { font-size: 10px; }
+.explorer-hero h1 { font-size: clamp(38px, 4vw, 58px); line-height: 1.06; letter-spacing: -.055em; margin: 20px 0 18px; }
+.explorer-hero-copy>p { font-size: 15px; max-width: 450px; line-height: 1.65; margin-bottom: 24px; }
+.explorer-search { width: min(475px, 100%); padding: 6px 6px 6px 16px; border-radius: 13px; background: #0b182acc; box-shadow: 0 8px 24px #030e2029; }
+.explorer-search input { font-size: 13px; min-height: 36px; }
+.explorer-search>button { width: 42px; height: 42px; border-radius: 9px; }
+.explorer-search .explorer-search-submit { background: #256bb9; }
+.explorer-hero-actions { gap: 16px; margin-top: 20px; }
+.explorer-plan-link { font-size: 13px; min-height: 36px; }
+.explorer-hero-actions>span { font-size: 11px; max-width: 215px; line-height: 1.5; }
+.explorer-atlas { width: 490px; height: 440px; top: -15px; right: 3px; opacity: 1; }
+.explorer-atlas>svg { width: 420px; height: 360px; right: 24px; top: -5px; opacity: .9; }
+.atlas-orbit { width: 350px; height: 350px; top: 35px; left: 50px; border-color: #73cfda22; border-radius: 50%; }
+.atlas-country { fill: #203f56; }
+.atlas-country[data-market] { fill: #285b72; stroke: #7ac1d399; }
+.atlas-label { font-size: 11px; padding: 9px 12px; border-radius: 9px; backdrop-filter: blur(8px); }
+.atlas-label-north { top: 85px; left: 0; }.atlas-label-east { top: 155px; right: 8px; }.atlas-label-south { top: 250px; left: 0; }.atlas-label-bottom { top: 318px; right: 35px; }
+.atlas-caption { bottom: 16px; font-size: 12px; }.atlas-caption>small { font-size: 10px; }
+.explorer-main>.explorer-mode-tabs { margin-top: 24px; padding: 7px; border-radius: 14px; box-shadow: 0 10px 28px #070f1b33; }
+.explorer-mode-tabs>button { min-height: 48px; font-size: 12px; padding: 11px 8px; border-radius: 9px; }
+.mode-name-short { display: none; }
+.explorer-markets { padding-top: 32px; }
+.explorer-section-heading { margin-bottom: 20px; }
+.explorer-section-heading h2 { font-size: 30px; letter-spacing: -.04em; }
+.explorer-selection-actions { font-size: 12px; gap: 12px; }
+.explorer-selection-actions>button { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 13px; background: #245caa; color: #fff; border-color: #508cda; }
+.explorer-selection-actions>button>span { font-size: 11px; width: 22px; height: 22px; background: #ffffff22; }
+.explorer-shortlist { font-size: 12px; gap: 12px; padding-top: 18px; }
+.explorer-shortlist button { min-height: 36px; font-size: 12px; padding: 7px 11px; }
+.explorer-shortlist small, .explorer-search-count { font-size: 12px; }
+.explorer-research { padding-top: 36px; }
+.explorer-research, .explorer-comparison, .mr-city { scroll-margin-top: 92px; }
+.explorer-reference-callout { padding: 24px; border-radius: 14px; }
+.explorer-reference-callout strong { font-size: 15px; }.explorer-reference-callout small { font-size: 13px; line-height: 1.65; }
+.explorer-reference-callout>button { min-height: 44px; font-size: 12px; padding: 12px 16px; }
+.explorer-next-step { padding: 36px; border-radius: 20px; background: radial-gradient(ellipse at 100% 0%, #137e7733, transparent), linear-gradient(110deg, #17457555, #12605c22); }
+.explorer-next-step h2 { font-size: 34px; }.explorer-next-step p { font-size: 14px; line-height: 1.7; max-width: 570px; }
+.explorer-next-step>a { min-height: 48px; font-size: 14px; padding: 14px 20px; }
+.explorer-footer { width: min(1344px, calc(100% - 96px)); font-size: 12px; padding-bottom: 32px; }.explorer-footer small { font-size: 11px; }
+.explorer-reference-strip { font-size: 12px; }.explorer-reference-strip button { min-height: 44px; }
+.explorer-mobile-shortlist { display: none; }
+.explorer-comparison { padding: 30px; border-radius: 18px; }
+.explorer-comparison-heading h2 { font-size: 32px; }.explorer-comparison-heading>button { width: 44px; height: 44px; }
+.explorer-comparison-intro { font-size: 14px; line-height: 1.7; }
+.explorer-comparison table { font-size: 13px; }.explorer-comparison th,.explorer-comparison td { padding: 18px; }
+.explorer-comparison th:first-child { position: sticky; left: 0; z-index: 1; min-width: 145px; width: 145px; background: var(--ex-panel); box-shadow: 3px 0 8px #00000012; font-size: 12px; }
+.explorer-comparison thead th { font-size: 16px; }
+.explorer-comparison-scroll:focus-visible { outline: 2px solid var(--ex-blue); outline-offset: 4px; }
+.comparison-scroll-hint { display: flex; align-items: center; gap: 7px; font-size: 12px; line-height: 1.5; color: var(--ex-muted); margin-top: 16px; }
+.explorer-comparison-footer, .explorer-comparison-limits, .explorer-comparison-limits p { font-size: 12px; }
+.explorer-comparison-footer>button { font-size: 13px; min-height: 44px; }
+.explorer-comparison-limits summary { min-height: 44px; padding-top: 10px; }
+@media (max-width: 1180px) {
+  .explorer-main { padding: 24px; }
+  .explorer-hero { padding: 32px; }
+  .explorer-hero-copy { max-width: 65%; }
+  .explorer-hero h1 { font-size: 45px; }
+  .explorer-atlas { right: -100px; opacity: .65; }
+  .explorer-mode-tabs>button { flex: 1; font-size: 11px; gap: 5px; }
+  .explorer-footer { width: calc(100% - 48px); }
+}
+@media (min-width: 761px) and (max-width: 1000px) {
+  .explorer-research, .explorer-comparison, .mr-city { scroll-margin-top: 144px; }
+}
+@media (max-width: 760px) {
+  .explorer-main { padding: 18px 16px 105px; }
+  .explorer-hero { padding: 26px 22px; min-height: 0; border-radius: 18px; }
+  .explorer-hero-copy { max-width: 100%; }
+  .explorer-hero .explorer-eyebrow { font-size: 9px; letter-spacing: .09em; }
+  .explorer-hero h1 { font-size: clamp(26px, 7.2vw, 34px); margin: 15px 0 13px; line-height: 1.08; }
+  .explorer-hero-copy>p { font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+  .explorer-search { margin-top: 0; gap: 8px; padding-left: 10px; }
+  .explorer-search input { font-size: 12px; }
+  .explorer-hero-actions { display: none; }
+  .explorer-plan-link { white-space: nowrap; font-size: 12px; }
+  .explorer-hero-actions>span { font-size: 10px; }
+  .explorer-atlas { right: -90px; top: -5px; opacity: .12; pointer-events: none; }
+  .explorer-main>.explorer-mode-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; padding: 5px; gap: 4px; margin-top: 18px; }
+  .explorer-mode-tabs>button { flex-direction: row; min-height: 46px; padding: 9px 4px; gap: 6px; font-size: 11px; }
+  .explorer-mode-tabs>button>svg { width: 16px; }
+  .mode-name-full { display: none; }.mode-name-short { display: inline; }
+  .explorer-markets { padding-top: 28px; }
+  .explorer-section-heading { gap: 12px; align-items: center; margin-bottom: 17px; }
+  .explorer-section-heading h2 { font-size: 25px; }
+  .explorer-eyebrow { font-size: 10px; }
+  .explorer-selection-actions>button { min-height: 44px; font-size: 11px; padding: 10px 12px; white-space: nowrap; gap: 5px; }
+  .explorer-selection-actions>button>span { display: none; }
+  .explorer-shortlist { padding-top: 14px; font-size: 11px; gap: 8px; }.explorer-shortlist button { min-height: 36px; font-size: 11px; }
+  .explorer-research, .explorer-comparison, .mr-city { scroll-margin-top: 128px; }
+  .explorer-research { padding-top: 28px; }
+  .explorer-reference-callout { padding: 20px; }.explorer-reference-callout strong { font-size: 14px; }.explorer-reference-callout small { font-size: 12px; }
+  .explorer-next-step { padding: 25px; }.explorer-next-step h2 { font-size: 28px; }.explorer-next-step p { font-size: 13px; }
+  .explorer-footer { width: calc(100% - 32px); padding-bottom: 100px; font-size: 12px; }.explorer-footer small { font-size: 11px; }
+  .explorer-comparison { padding: 20px; }.explorer-comparison-heading h2 { font-size: 27px; }.explorer-comparison-intro { font-size: 13px; }
+  .explorer-comparison th:first-child { min-width: 112px; width: 112px; font-size: 11px; }
+  .explorer-comparison th,.explorer-comparison td { padding: 15px 12px; min-width: 165px; }
+  .explorer-comparison-footer, .explorer-comparison-limits { font-size: 11px; }
+  .explorer-mobile-shortlist { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: fixed; z-index: 30; left: 16px; right: 16px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 10px 12px 10px 16px; background: var(--ex-panel); border: 1px solid var(--ex-border); border-radius: 15px; box-shadow: 0 10px 40px #02091677; }
+  .explorer-mobile-shortlist>div { display: grid; gap: 4px; }.explorer-mobile-shortlist>div>span { font-size: 17px; line-height: 1.2; max-width: 160px; white-space: nowrap; overflow: hidden; }
+  .explorer-mobile-shortlist strong { font-size: 11px; font-weight: 500; color: var(--ex-muted); }
+  .explorer-mobile-shortlist button { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; padding: 10px 13px; border-radius: 9px; background: #245caa; color: #fff; font-size: 12px; font-weight: 600; }
+}

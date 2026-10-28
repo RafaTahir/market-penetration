@@ -65,6 +65,7 @@ function ResearchWorkspace({ route, initialView = 'main', initialAction }: { rou
   const [showSearch, setShowSearch] = useState(false);
   const [showReferenceExamples, setShowReferenceExamples] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [requestedCity, setRequestedCity] = useState<string | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (initialAction === 'compare') {
@@ -100,7 +101,23 @@ function ResearchWorkspace({ route, initialView = 'main', initialAction }: { rou
     return () => cancelAnimationFrame(frame);
   }, [showComparison, currentView, comparisonRequest, route]);
   const openPlan = () => { window.location.hash = '/plan'; };
-  const showMode = (mode: ResearchMode) => { setActiveTab(mode); requestAnimationFrame(() => document.getElementById('research-modes')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
+  const showMode = (mode: ResearchMode) => { setActiveTab(mode); requestAnimationFrame(() => document.getElementById('research-modes')?.scrollIntoView({ behavior: 'instant', block: 'start' })); };
+  const exploreCountry = (countryId: string) => {
+    setSelectedCountries(previous => previous.includes(countryId) ? previous : [...previous, countryId]);
+    if (showReferenceExamples) showMode('cities');
+    else { setActiveTab('cities'); setRequestedCity(countryId); }
+  };
+  useEffect(() => {
+    if (!requestedCity || activeTab !== 'cities' || showReferenceExamples) return;
+    const frame = requestAnimationFrame(() => {
+      const city = document.getElementById(`city-research-${requestedCity}`);
+      if (!city) return;
+      city.focus({ preventScroll: true });
+      city.scrollIntoView({ behavior: 'instant', block: 'start' });
+      setRequestedCity(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [requestedCity, activeTab, showReferenceExamples]);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [showCollaboration, setShowCollaboration] = useState(false);
   const [collaborationTarget] = useState({ type: '', id: '' });
@@ -485,16 +502,16 @@ function ResearchWorkspace({ route, initialView = 'main', initialAction }: { rou
       </div>
     );
   }
-  const tabs: { id: ResearchMode; name: string; icon: typeof Globe2 }[] = [
-    { id: 'overview', name: 'Market Overview', icon: Globe2 },
-    { id: 'cities', name: 'City Analysis', icon: MapPin },
-    { id: 'industries', name: 'Industry Deep Dive', icon: Layers3 },
-    { id: 'insights', name: 'Market Intelligence', icon: Sparkles },
-    { id: 'cases', name: 'Case Studies', icon: BookOpen },
-    { id: 'data', name: 'Data Visualization', icon: BarChart3 },
+  const tabs: { id: ResearchMode; name: string; shortName: string; icon: typeof Globe2 }[] = [
+    { id: 'overview', name: 'Market Overview', shortName: 'Overview', icon: Globe2 },
+    { id: 'cities', name: 'City Analysis', shortName: 'Cities', icon: MapPin },
+    { id: 'industries', name: 'Industry Deep Dive', shortName: 'Industries', icon: Layers3 },
+    { id: 'insights', name: 'Market Intelligence', shortName: 'Intelligence', icon: Sparkles },
+    { id: 'cases', name: 'Case Studies', shortName: 'Case studies', icon: BookOpen },
+    { id: 'data', name: 'Data Visualization', shortName: 'Charts', icon: BarChart3 },
   ];
   const selectedMarkets = MARKETS.filter(market => selectedCountries.includes(market.id));
-  const matchingMarkets = MARKETS.filter(market => `${market.name} ${market.city}`.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+  const matchingMarkets = MARKETS.filter(market => [market.name, market.city, market.id, market.countryCode].some(value => value.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase())));
   const referenceCountries = selectedCountries.length ? selectedCountries : MARKETS.map(market => market.id);
   const countryShapes: Record<string, string> = { tha: 'thailand', sgp: 'singapore', mys: 'malaysia', idn: 'indonesia', phl: 'philippines', vnm: 'vietnam' };
   return <div className="flow-explore-shell">
@@ -518,19 +535,19 @@ function ResearchWorkspace({ route, initialView = 'main', initialAction }: { rou
         </div>
       </section>
 
-      <nav className="explorer-mode-tabs" aria-label="Research modes">{tabs.map(({ id, name, icon: Icon }) => <button key={id} aria-current={activeTab === id ? 'page' : undefined} onClick={() => showMode(id)}><Icon size={16} /><span>{name}</span></button>)}</nav>
+      <nav className="explorer-mode-tabs" aria-label="Research modes">{tabs.map(({ id, name, shortName, icon: Icon }) => <button key={id} aria-label={name} aria-current={activeTab === id ? 'page' : undefined} onClick={() => showMode(id)}><Icon size={18} /><span className="mode-name-full">{name}</span><span className="mode-name-short" aria-hidden="true">{shortName}</span></button>)}</nav>
 
       <section className="explorer-markets" id="explore-markets" aria-labelledby="markets-title">
         <div className="explorer-section-heading"><div><span className="explorer-eyebrow">EXPLORE THE REGION</span><h2 id="markets-title">Six markets. Your shortlist.</h2></div><div className="explorer-selection-actions"><span>{selectedCountries.length} selected</span><button onClick={openComparison}><ArrowLeftRight size={15} />Compare markets <span>{selectedCountries.length}</span></button></div></div>
         {searchQuery && <p role="status" className="explorer-search-count">{matchingMarkets.length} {matchingMarkets.length === 1 ? 'market' : 'markets'} matching “{searchQuery}” <button onClick={() => setSearchQuery('')}>Clear</button></p>}
-        <CountrySelector selectedCountries={selectedCountries} onCountryToggle={handleCountryToggle} referenceMode={showReferenceExamples} showHeading={false} searchQuery={searchQuery} onExploreCountry={countryId => { setSelectedCountries(previous => previous.includes(countryId) ? previous : [...previous, countryId]); showMode('cities'); }} />
+        <CountrySelector selectedCountries={selectedCountries} onCountryToggle={handleCountryToggle} referenceMode={showReferenceExamples} showHeading={false} searchQuery={searchQuery} onExploreCountry={exploreCountry} />
         <div className="explorer-shortlist"><span title={shortlistSaved ? 'Saved on this browser' : 'Session only; export your shortlist to keep it'}>Your shortlist · {shortlistSaved ? 'saved here' : 'session only'}</span><div>{selectedMarkets.length ? selectedMarkets.map(market => <button key={market.id} onClick={() => handleCountryToggle(market.id)} aria-label={`Remove ${market.name} from shortlist`}>{market.flag} {market.name}<X size={11} /></button>) : <small>Select a market to tailor the research below. All six remain available to explore.</small>}</div><a href="#/research/reports">Source directory <ArrowUpRight size={13} /></a></div>
       </section>
 
       {showComparison && <MarketComparison selectedCountries={selectedCountries} onClose={() => setShowComparison(false)} onReference={() => setShowReferenceExamples(true)} referenceMode={showReferenceExamples}>{showReferenceExamples && <ComparisonMode availableCountries={countryComparisonData} />}</MarketComparison>}
 
       <section className="explorer-research" id="research-modes" aria-labelledby="research-title">
-        <div className="explorer-research-heading"><div><span className="explorer-eyebrow">GO A LITTLE DEEPER</span><h2 id="research-title">From a place to a plan.</h2></div><span>{selectedMarkets.length ? selectedMarkets.map(market => market.name).join(' + ') : 'Explore all six markets'}</span></div>
+        <h2 id="research-title" className="sr-only">From a place to a plan.</h2>
 
         {showReferenceExamples ? <><div className="explorer-reference-strip"><span><BookOpen size={14} />Unverified reference examples · observation dates unknown</span><button onClick={() => setShowReferenceExamples(false)}>Return to research guides <X size={13} /></button></div><ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={selectedCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} /></> : <MarketResearch mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
       </section>
@@ -541,6 +558,7 @@ function ResearchWorkspace({ route, initialView = 'main', initialAction }: { rou
       <KeyboardShortcutsHelp isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
       <CollaborationPanel targetType={collaborationTarget.type} targetId={collaborationTarget.id} isOpen={showCollaboration} onClose={() => setShowCollaboration(false)} />
     </main>
+    {!showComparison && <aside className="explorer-mobile-shortlist" aria-label="Your market shortlist"><div><span>{selectedMarkets.map(market => market.flag).join(' ') || <Globe2 size={21} />}</span><strong>{selectedCountries.length} selected</strong></div><button onClick={openComparison}>Compare shortlist <ArrowRight size={17} /></button></aside>}
     <footer className="explorer-footer"><span>Flow <i>·</i> Find your next market.</span><div><a href="#/research/reports">Sources</a><a href="#/plan">Your plan</a><button onClick={() => setShowKeyboardHelp(true)}>Keyboard shortcuts</button></div><small>Curated research guides & optional reference examples. AI consulting is not enabled.</small></footer>
   </div>;
 }

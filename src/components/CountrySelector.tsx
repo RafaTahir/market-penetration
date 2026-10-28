@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { ArrowRight, ArrowUpRight, Check, ChevronDown, Globe2, MapPin, MoveHorizontal, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, Globe2, MapPin, MoveHorizontal, Plus, X } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
 import { MARKET_FUNDAMENTALS, MARKET_SNAPSHOT_META, type MarketFundamental } from '../data/marketSnapshot';
+import MarketScene from './visual/MarketScene';
 import './CountrySelector.css';
 
 const populationFormat = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
@@ -61,10 +62,35 @@ export default function CountrySelector({
   showHeading = true,
 }: CountrySelectorProps) {
   const [expandedMarket, setExpandedMarket] = useState<string | null>(null);
+  const rail = useRef<HTMLDivElement>(null);
+  const [railPosition, setRailPosition] = useState({ overflow: false, start: true, end: false });
   const query = searchQuery.trim().toLocaleLowerCase();
   const visibleMarkets = MARKETS.filter(market =>
     !query || [market.name, market.city, market.id, market.countryCode].some(value => value.toLocaleLowerCase().includes(query))
   );
+
+  useEffect(() => {
+    const element = rail.current;
+    if (!element) return;
+    const update = () => setRailPosition({
+      overflow: element.scrollWidth > element.clientWidth + 2,
+      start: element.scrollLeft <= 2,
+      end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 2,
+    });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    element.addEventListener('scroll', update, { passive: true });
+    return () => { observer.disconnect(); element.removeEventListener('scroll', update); };
+  }, [query]);
+
+  function moveRail(direction: number) {
+    const element = rail.current;
+    const card = element?.querySelector('article');
+    if (!element || !card) return;
+    const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0;
+    element.scrollBy({ left: direction * (card.getBoundingClientRect().width + gap), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  }
 
   function exploreMarket(id: string) {
     if (onExploreCountry) onExploreCountry(id);
@@ -75,12 +101,15 @@ export default function CountrySelector({
     <section className="market-selector" aria-labelledby={showHeading ? 'market-selection-title' : undefined} aria-label={showHeading ? undefined : 'Select markets'}>
       {showHeading && <div className="market-selector-bar">
         <div><h2 id="market-selection-title">Select markets</h2><span>{selectedCountries.length} selected</span></div>
-        <span className="market-swipe-hint">Swipe to explore <MoveHorizontal size={13} aria-hidden="true" /></span>
+      </div>}
+      {railPosition.overflow && visibleMarkets.length > 1 && <div className="market-rail-controls">
+        <span className="market-swipe-hint"><MoveHorizontal size={15} aria-hidden="true" />Swipe to explore</span>
+        <div><button type="button" aria-label="Previous markets" disabled={railPosition.start} onClick={() => moveRail(-1)}><ArrowLeft size={17} aria-hidden="true" /></button><button type="button" aria-label="Next markets" disabled={railPosition.end} onClick={() => moveRail(1)}><ArrowRight size={17} aria-hidden="true" /></button></div>
       </div>}
       {visibleMarkets.length === 0 ? (
         <div className="market-no-results" role="status"><Globe2 size={23} aria-hidden="true" /><strong>No markets match “{searchQuery}”</strong><span>Try a country or city, such as Thailand or Bangkok.</span></div>
       ) : (
-        <div className="market-country-grid" aria-label="Southeast Asian markets">
+        <div className="market-country-grid" aria-label="Southeast Asian markets" ref={rail}>
           {visibleMarkets.map(market => {
             const selected = selectedCountries.includes(market.id);
             const expanded = expandedMarket === market.id;
@@ -90,9 +119,10 @@ export default function CountrySelector({
             const panelId = `market-sources-${market.id}`;
             return (
               <article className={`market-country-card${selected ? ' is-selected' : ''}`} key={market.id} data-market={market.id} aria-labelledby={`market-name-${market.id}`}>
+                <MarketScene marketId={market.id} />
                 <div className="market-country-heading">
                   <div className="market-country-identity"><span className="market-country-flag" aria-hidden="true">{market.flag}</span><div><h3 id={`market-name-${market.id}`}>{market.name}</h3><span className="market-country-city"><MapPin size={10} aria-hidden="true" />{market.city}</span></div></div>
-                  <button type="button" className="market-country-toggle" aria-label={`${selected ? 'Deselect' : 'Select'} ${market.name}`} aria-pressed={selected} onClick={() => onCountryToggle(market.id)}><Check size={14} aria-hidden="true" /></button>
+                  <button type="button" className="market-country-toggle" aria-label={`${selected ? 'Deselect' : 'Select'} ${market.name}`} title={selected ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={selected} onClick={() => onCountryToggle(market.id)}>{selected ? <Check size={18} aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}</button>
                 </div>
 
                 <div className="market-snapshot">

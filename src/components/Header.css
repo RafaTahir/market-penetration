@@ -292,3 +292,18 @@ html.light .flow-header {
 @media (prefers-reduced-motion: reduce) {
   .flow-header-popover { animation: none; }
 }
+
+/* Keep everyday navigation visible, with secondary tools in the existing More menu. */
+.flow-header-nav a, .flow-header-nav button { min-height: 44px; }
+.flow-menu-heading, .flow-menu-footer { font-size: 11px; }
+.flow-more-menu [role='menuitem'] { min-height: 44px; font-size: 13px; }
+.flow-brand-tagline { font-size: 11px; }
+@media(max-width:760px) {
+  .flow-header-nav { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; overflow: visible; margin: 0; padding-bottom: 6px; }
+  .flow-header-nav a, .flow-header-nav button { min-height: 44px; padding: 0 5px; gap: 5px; font-size: 11px; }
+  .flow-header-nav button[aria-label='Market Data'], .flow-header-nav button[aria-label='Analytics'], .flow-header-nav button[aria-label='Enterprise Intelligence'], .flow-header-nav::after { display: none; }
+  .flow-header-nav .flow-plan-link { margin-left: 0; }
+  .flow-brand-tagline { font-size: 9px; }
+  .flow-more-button, .flow-sign-in { width: 44px; min-width: 44px; min-height: 44px; }
+  .flow-data-status { min-height: 38px; font-size: 10px; }
+}

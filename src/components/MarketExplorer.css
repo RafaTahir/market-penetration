@@ -210,3 +210,14 @@
   .explorer-mobile-shortlist strong { font-size: 11px; font-weight: 500; color: var(--ex-muted); }
   .explorer-mobile-shortlist button { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; padding: 10px 13px; border-radius: 9px; background: #245caa; color: #fff; font-size: 12px; font-weight: 600; }
 }
+
+/* Decorative sculpture rendered in Blender; the geographic overlay remains the map. */
+.explorer-atlas::before { content: ''; position: absolute; inset: -18px 0 24px; background: url('/art/flow-orbits.png') center / contain no-repeat; opacity: .8; pointer-events: none; }
+.atlas-orbit { display: none; }
+@media (max-width: 760px) {
+  .explorer-hero-actions { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .explorer-hero-actions>span { max-width: 190px; }
+}
+
+.explorer-markets { scroll-margin-top: 145px; }
+.explorer-markets:focus-visible { outline: 2px solid var(--ex-blue); outline-offset: 4px; }

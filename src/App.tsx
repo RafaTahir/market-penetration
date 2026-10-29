@@ -517,7 +517,7 @@ function ResearchWorkspace({ route, selectedCountries, setSelectedCountries, sho
           <div className="explorer-eyebrow"><span /> SOUTHEAST ASIA · MARKET INTELLIGENCE</div>
           <h1 id="explorer-title">Find your next market.<br /><em>Make your move.</em></h1>
           <p>Explore countries, discover cities and understand what to research before you launch or expand.</p>
-          <form className={`explorer-search${showSearch ? ' is-active' : ''}`} role="search" onSubmit={event => { event.preventDefault(); document.getElementById('explore-markets')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
+          <form className={`explorer-search${showSearch ? ' is-active' : ''}`} role="search" onSubmit={event => { event.preventDefault(); const results = document.getElementById('explore-markets'); results?.focus({ preventScroll: true }); results?.scrollIntoView({ behavior: 'instant', block: 'start' }); }}>
             <Search size={18} aria-hidden="true" /><label className="sr-only" htmlFor="market-search">Search markets or cities</label><input id="market-search" ref={searchInput} value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Try Singapore, Bangkok or Vietnam…" autoComplete="off" />{searchQuery && <button type="button" aria-label="Clear search" onClick={() => setSearchQuery('')}><X size={15} /></button>}<button type="submit" className="explorer-search-submit" aria-label="Search markets"><ArrowRight size={18} /></button>
           </form>
           <div className="explorer-hero-actions"><a href="#/plan" className="explorer-plan-link">Plan my entry <ArrowUpRight size={15} /></a><span>For founders, growing businesses & enterprises</span></div>
@@ -532,7 +532,7 @@ function ResearchWorkspace({ route, selectedCountries, setSelectedCountries, sho
 
       <nav className="explorer-mode-tabs" aria-label="Research modes">{tabs.map(({ id, name, shortName, icon: Icon }) => <button key={id} aria-label={name} aria-current={activeTab === id ? 'page' : undefined} onClick={() => showMode(id)}><Icon size={18} /><span className="mode-name-full">{name}</span><span className="mode-name-short" aria-hidden="true">{shortName}</span></button>)}</nav>
 
-      <section className="explorer-markets" id="explore-markets" aria-labelledby="markets-title">
+      <section className="explorer-markets" id="explore-markets" aria-labelledby="markets-title" tabIndex={-1}>
         <div className="explorer-section-heading"><div><span className="explorer-eyebrow">EXPLORE THE REGION</span><h2 id="markets-title">Six markets. Your shortlist.</h2></div><div className="explorer-selection-actions"><span>{selectedCountries.length} selected</span><button onClick={openComparison}><ArrowLeftRight size={15} />Compare markets <span>{selectedCountries.length}</span></button></div></div>
         {searchQuery && <p role="status" className="explorer-search-count">{matchingMarkets.length} {matchingMarkets.length === 1 ? 'market' : 'markets'} matching “{searchQuery}” <button onClick={() => setSearchQuery('')}>Clear</button></p>}
         <CountrySelector selectedCountries={selectedCountries} onCountryToggle={handleCountryToggle} referenceMode={showReferenceExamples} showHeading={false} searchQuery={searchQuery} onExploreCountry={exploreCountry} />

@@ -181,4 +181,21 @@ export const CITY_RESEARCH_GUIDES: Readonly<Record<string, CityResearchGuide>> =
       },
     },
   },
+  uk: {
+    scope: 'London · compare a City of London address with one in Southwark',
+    prompts: {
+      customers: {
+        question: 'Who would buy near Bank station and on the Southwark side of London Bridge?',
+        detail: 'Check whether local counts cover residents, workers or visitors. For retail, test the same offer at both sites at weekday lunch and on Saturday. Count passers-by and orders separately. For business sales, ask buyers who signs a purchase order and when they next review suppliers.',
+      },
+      location: {
+        question: 'What would it cost to operate from each London address?',
+        detail: 'Get written rent and service-charge quotes for each unit. Ask its council to check the rates estimate. Compare monthly totals and mark missing amounts. Time a delivery from kerb to stockroom during trading hours. For a second branch, include transfers from your existing site.',
+      },
+      setup: {
+        question: 'Who can confirm your proposed use at each London postcode?',
+        detail: 'Look up each postcode in the GOV.UK council finder. Send the council your activity, hours and delivery plan and ask what it needs to review before you sign a lease. For a subsidiary or branch, also confirm which entity would sign and who would handle any applications.',
+      },
+    },
+  },
 };

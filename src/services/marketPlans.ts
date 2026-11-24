@@ -65,7 +65,7 @@ function isSupportedQuestion(marketId: string, lens: unknown): lens is CityResea
 }
 
 export function getCityQuestionSources(market: MarketGuide, lens: CityResearchLens) {
-  if (lens === 'customers') return [market.statistics];
+  if (lens === 'customers') return market.cityStatistics ? [market.statistics, market.cityStatistics] : [market.statistics];
   if (lens === 'location') return [market.cityPortal];
   return [market.setup, market.cityPortal];
 }
@@ -214,6 +214,7 @@ export function buildMarketPlanExport(state: MarketPlansState, selectedCountries
         businessSetup: market.setup,
         countryStatistics: market.statistics,
         cityAndLocation: market.cityPortal,
+        ...(market.cityStatistics && { cityStatistics: market.cityStatistics }),
         sourcePublicationDate: null,
         sourceContentsVerified: false,
       },

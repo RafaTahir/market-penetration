@@ -1,6 +1,6 @@
 # Historical market snapshot
 
-`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM), Cambodia (KHM), Australia (AUS), New Zealand (NZL) and the United Arab Emirates (ARE).
+`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM), Cambodia (KHM), Australia (AUS), New Zealand (NZL), the United Arab Emirates (ARE) and the United Kingdom (GBR).
 
 ## Attribution and exact source files
 
@@ -17,7 +17,7 @@ The declarations above are recorded from the mirrors' pinned [population datapac
 
 - Both complete downloaded CSV hashes were independently recomputed and matched the pinned input hashes above. Headers are `Country Name,Country Code,Year,Value`.
 - Selection uses ISO alpha-3 codes and exact observation years. Each selected country/year occurs once, all values are finite and nonnegative, and population counts are integral. No missing value is filled, interpolated or copied from another year/country.
-- All ten countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
+- All eleven countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
 - GDP units and indicator are explicit in its datapackage. The population datapackage identifies total-population series `SP.POP.TOTL`; its numeric counts are people, with no millions multiplier. Display abbreviation is the UI's responsibility.
 - Raw CSV numeric literals are retained without deliberate decimal rounding. Runtime values use JavaScript numbers and their ordinary IEEE-754 precision limits. GDP series are not inflation-adjusted, and nominal changes also reflect exchange-rate and price movements.
 - `retrievedAt = 2026-10-25T17:48:56Z` records the latest local capture time of the two downloaded CSV inputs. Population was captured at 17:48:08 UTC; GDP at 17:48:56 UTC. Retrieval is separate from observation year and does not establish source publication or freshness.
@@ -29,6 +29,12 @@ New Zealand uses the same cached CSVs and the same retrieval timestamp. Both who
 The UAE selection uses country code `ARE`. After verifying both cached CSVs against their original hashes, extraction yielded a 2023 population of 10,483,751 and GDP of 504,173,451,327.43365 current US dollars. Each GDP year from 2014 through 2023 has one observation. These totals cover the UAE nationally. Dubai city and emirate figures require separate sources with explicit geographic coverage. The original CSV capture times apply to this selection.
 
 Cambodia’s national rows use country code `KHM`. Both whole-file hashes matched before extraction. The 2023 population count is 17,423,880 and GDP is 31,772,759,998.85713 current US dollars. Each GDP observation year from 2014 through 2023 occurs once. The figures describe national totals. Research about Phnom Penh or an individual district needs figures with the corresponding geographic scope.
+
+The United Kingdom series uses country code `GBR`. The original pinned CSVs contain one 2023 UK population observation of 68,526,000 people and one GDP observation for every year from 2014 through 2023. The 2023 GDP value is 3,340,032,380,668.0356 current US dollars. Both file hashes matched before extraction. These figures describe the entire UK. Comparing a London borough or the wider London region requires observations for that geography.
+
+## GDP per person
+
+Flow calculates 2023 national GDP per person by dividing each country's nominal GDP in current US dollars by its population for that year. The chart and comparison table round display values to whole dollars. The shortlist JSON includes the unrounded ratio, both inputs, the calculation method and their provenance. Missing inputs and a population of zero yield an unavailable value. A genuine zero GDP with a positive population yields zero. The ratio describes average output per resident. Measuring household income, purchasing power or sales potential requires other evidence.
 
 ## Verification limits
 

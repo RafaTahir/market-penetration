@@ -77,6 +77,7 @@ function IndustryDirectories({ markets }: { markets: readonly MarketGuide[] }) {
     </label>
     <div className="mr-directory-grid">
       <div><small>Customer and industry statistics</small><SourceLink url={market.statistics.url}>{market.statistics.name}</SourceLink></div>
+      {market.cityStatistics && <div><small>City datasets and geography</small><SourceLink url={market.cityStatistics.url}>{market.cityStatistics.name}</SourceLink></div>}
       <div><small>Business setup enquiries</small><SourceLink url={market.setup.url}>{market.setup.name}</SourceLink></div>
       <div><small>Location and premises enquiries</small><SourceLink url={market.cityPortal.url}>{market.cityPortal.name}</SourceLink></div>
     </div>
@@ -140,7 +141,7 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
       <div className="mr-city-grid">{markets.map(market => {
         const guide = CITY_RESEARCH_GUIDES[market.id];
         const prompt = guide?.prompts[cityLens] ?? currentCityLens;
-        const [source, premisesSource] = getCityQuestionSources(market, cityLens);
+        const [source, localSource] = getCityQuestionSources(market, cityLens);
         const selected = selectedCountries.includes(market.id);
         const saved = planSession.plans.questions[market.id]?.includes(cityLens) ?? false;
         const hasFinding = Boolean(planSession.plans.findings[market.id]?.[cityLens]);
@@ -153,7 +154,7 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
           <div className="mr-city-question"><currentCityLens.icon size={18} aria-hidden="true" /><div><strong>{prompt.question}</strong><p>{prompt.detail}</p></div></div>
           <div className="mr-city-sources">
             <SourceLink url={source.url} label={source.name}><span>{source.name}<small>{cityLens === 'customers' ? 'Dataset geography & dates · discovery link' : cityLens === 'setup' ? 'National setup enquiries · discovery link' : 'Address & local authority · discovery link'}</small></span></SourceLink>
-            {premisesSource && <SourceLink url={premisesSource.url} label={premisesSource.name}><span>{premisesSource.name}<small>Premises & address enquiries · discovery link</small></span></SourceLink>}
+            {localSource && <SourceLink url={localSource.url} label={localSource.name}><span>{localSource.name}<small>{cityLens === 'customers' ? 'City datasets & geography' : 'Premises & address enquiries'} · discovery link</small></span></SourceLink>}
           </div>
           {guide && <div className="mr-question-actions">
             {!(selected && hasFinding) && <button type="button" className="mr-save-question" aria-pressed={selected && saved} onClick={() => {

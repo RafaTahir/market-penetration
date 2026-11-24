@@ -183,6 +183,7 @@ export default function CountrySelector({
                       { label: 'Business setup', source: market.setup },
                       { label: 'Country statistics', source: market.statistics },
                       { label: 'City & locations', source: market.cityPortal },
+                      ...(market.cityStatistics ? [{ label: 'City statistics', source: market.cityStatistics }] : []),
                     ].map(({ label, source }) => <a key={label} href={source.url} target="_blank" rel="noopener noreferrer"><span><small>{label}</small>{source.name}</span><ArrowUpRight size={13} aria-hidden="true" /></a>)}
                   </div>
                 )}

@@ -2,11 +2,12 @@ import { ArrowDownToLine, ArrowRight, ArrowUpRight, Info, MoveHorizontal, X } fr
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import './MarketComparison.css';
 import { MARKETS } from '../data/marketCatalog';
-import { NOMINAL_GDP_CHANGE, nominalGdpChangePercent } from '../services/marketComparison';
+import { GDP_PER_PERSON, gdpPerPerson, NOMINAL_GDP_CHANGE, nominalGdpChangePercent } from '../services/marketComparison';
 import { MARKET_FUNDAMENTALS, MARKET_SNAPSHOT_META } from '../data/marketSnapshot';
 
 const populationFormat = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const gdpFormat = new Intl.NumberFormat('en', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 });
+const perPersonFormat = new Intl.NumberFormat('en', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const changeFormat = new Intl.NumberFormat('en', { signDisplay: 'exceptZero', maximumFractionDigits: 1 });
 
 function formatObservation(value: number | undefined, format: Intl.NumberFormat) {
@@ -26,7 +27,7 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
   const columns = markets.map(market => {
     const snapshot = MARKET_FUNDAMENTALS[market.countryCode];
-    return { market, snapshot, change: nominalGdpChangePercent(snapshot?.gdpSeries) };
+    return { market, snapshot, perPerson: gdpPerPerson(snapshot), change: nominalGdpChangePercent(snapshot?.gdpSeries) };
   });
   const tableScroll = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -46,12 +47,14 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
       limitation: 'Historical 2023 national series via pinned DataHub mirrors, not live/current observations, city statistics, market demand or business-fit rankings. Primary World Bank API was not cross-checked. Curated discovery links are not verified current business requirements.',
       historicalSnapshot: {
         provenance: MARKET_SNAPSHOT_META,
+        gdpPerPerson: GDP_PER_PERSON,
         nominalGdpChange: NOMINAL_GDP_CHANGE,
-        observations: columns.map(({ market, snapshot, change }) => ({
+        observations: columns.map(({ market, snapshot, perPerson, change }) => ({
           country: market.name,
           countryCode: market.countryCode,
           region: market.region,
           ...snapshot,
+          gdpPerPersonUsd: perPerson,
           nominalGdpChangePercent: change,
         })),
       },
@@ -78,6 +81,9 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
             )}</tr>
             <tr><th scope="row">GDP · 2023 · current US$</th>{columns.map(({ market, snapshot }) =>
               <td key={market.id}>{formatObservation(snapshot?.gdpUsd, gdpFormat)}</td>
+            )}</tr>
+            <tr><th scope="row" aria-describedby="gdp-per-person-scope">GDP per person · {GDP_PER_PERSON.year} · US$</th>{columns.map(({ market, perPerson }) =>
+              <td key={market.id}>{perPerson === null ? 'Unavailable' : perPersonFormat.format(perPerson)}</td>
             )}</tr>
             <tr><th scope="row" aria-describedby="nominal-gdp-change-scope">Nominal GDP change · 2014–2023</th>{columns.map(({ market, change }) =>
               <td key={market.id}>{change === null ? 'Unavailable' : `${changeFormat.format(change)}%`}</td>
@@ -106,8 +112,9 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
         </button>
       </div>
     )}
-    {markets.length > 0 && <p id="nominal-gdp-change-scope" className="explorer-comparison-intro">
-      GDP change covers the full 2014–2023 period in current US dollars. Prices and exchange rates affect the result.
+    {markets.length > 0 && <p className="explorer-comparison-intro">
+      <span id="gdp-per-person-scope">Flow divides GDP by population to show output per resident. Household income and spending power require separate evidence.</span>{' '}
+      <span id="nominal-gdp-change-scope">GDP change covers the full 2014–2023 period in current US dollars. Prices and exchange rates affect the result.</span>
     </p>}
     <div className="explorer-comparison-footer">
       <span><Info size={14} aria-hidden="true" />2023 historical snapshot · World Bank series via DataHub · not a market ranking</span>

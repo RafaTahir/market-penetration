@@ -3,7 +3,7 @@
  * Portal content, publication dates and current applicability are unverified.
  * City names identify a starting point for exploration, not a market ranking.
  */
-export type MarketRegion = 'Southeast Asia' | 'Oceania' | 'Middle East';
+export type MarketRegion = 'Southeast Asia' | 'Oceania' | 'Middle East' | 'Europe';
 
 export interface MarketGuide {
   region: MarketRegion;
@@ -16,6 +16,7 @@ export interface MarketGuide {
   setup: { name: string; url: string };
   statistics: { name: string; url: string };
   cityPortal: { name: string; url: string };
+  cityStatistics?: { name: string; url: string };
 }
 
 export const MARKETS: readonly MarketGuide[] = [
@@ -89,6 +90,15 @@ export const MARKETS: readonly MarketGuide[] = [
     setup: { name: 'UAE government business portal', url: 'https://u.ae/en/information-and-services/business' },
     statistics: { name: 'Federal Competitiveness and Statistics Centre', url: 'https://fcsc.gov.ae/' },
     cityPortal: { name: 'Dubai Department of Economy and Tourism', url: 'https://www.dubaidet.gov.ae/en/' },
+  },
+  {
+    region: 'Europe',
+    id: 'uk', name: 'United Kingdom', flag: '🇬🇧', city: 'London', countryCode: 'GBR',
+    aliases: ['UK', 'U.K.', 'Britain', 'Great Britain'],
+    setup: { name: 'GOV.UK · Set up a business', url: 'https://www.gov.uk/set-up-business' },
+    statistics: { name: 'Office for National Statistics', url: 'https://www.ons.gov.uk/' },
+    cityPortal: { name: 'GOV.UK · Find your local council', url: 'https://www.gov.uk/find-local-council' },
+    cityStatistics: { name: 'London Datastore', url: 'https://data.london.gov.uk/' },
   },
 ];
 

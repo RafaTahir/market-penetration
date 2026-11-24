@@ -1,5 +1,20 @@
 import { MARKET_SNAPSHOT_META, type MarketFundamental } from '../data/marketSnapshot.ts';
 
+export const GDP_PER_PERSON = {
+  year: MARKET_SNAPSHOT_META.observationYear,
+  unit: 'current US dollars per person',
+  method: 'Flow divides annual nominal GDP by the national population for the same year. A missing input or a zero population yields null.',
+  limitation: 'Average economic output per resident. Household income, spending and customer demand require separate evidence.',
+} as const;
+
+export function gdpPerPerson(snapshot: Pick<MarketFundamental, 'gdpUsd' | 'population'> | undefined): number | null {
+  if (!snapshot) return null;
+  const { gdpUsd, population } = snapshot;
+  if (!Number.isFinite(gdpUsd) || gdpUsd < 0 || !Number.isFinite(population) || population <= 0) return null;
+  const perPerson = gdpUsd / population;
+  return Number.isFinite(perPerson) ? perPerson : null;
+}
+
 export const NOMINAL_GDP_CHANGE = {
   fromYear: 2014,
   toYear: MARKET_SNAPSHOT_META.observationYear,

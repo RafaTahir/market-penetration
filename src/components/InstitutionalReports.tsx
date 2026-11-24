@@ -29,6 +29,7 @@ const marketGroups: DirectoryGroup[] = MARKETS.map(market => ({
     { portal: market.setup, purpose: 'Business setup' },
     { portal: market.statistics, purpose: 'National statistics' },
     { portal: market.cityPortal, purpose: 'City & premises' },
+    ...(market.cityStatistics ? [{ portal: market.cityStatistics, purpose: 'City statistics' }] : []),
   ].map(({ portal, purpose }) => ({ ...portal, purpose, institution: portal.name })),
 }));
 

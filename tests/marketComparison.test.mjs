@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { historicalGdpAtYear, nominalGdpChangePercent } from '../src/services/marketComparison.ts';
+import { gdpPerPerson, historicalGdpAtYear, nominalGdpChangePercent } from '../src/services/marketComparison.ts';
 
 function series(start, end) {
   return [{ year: 2014, value: start }, { year: 2023, value: end }];
@@ -29,4 +29,25 @@ test('annual GDP selects only the requested observation and preserves zero', () 
   assert.equal(historicalGdpAtYear(snapshot, 2023), 27);
   for (const year of [2013, 2015, 2016, 2019, 2024, 2017.5]) assert.equal(historicalGdpAtYear(snapshot, year), null);
   assert.equal(historicalGdpAtYear(undefined, 2014), null);
+});
+
+test('GDP per person divides the same-period national observations without display rounding', () => {
+  assert.equal(gdpPerPerson({ gdpUsd: 10, population: 3 }), 10 / 3);
+  assert.equal(gdpPerPerson({ gdpUsd: 3340032380668.0356, population: 68526000 }), 3340032380668.0356 / 68526000);
+  assert.equal(gdpPerPerson({ gdpUsd: 0, population: 100 }), 0);
+  assert.equal(gdpPerPerson({ gdpUsd: 100, population: 10, gdpSeries: [{ year: 2014, value: 999 }] }), 10);
+});
+
+test('GDP per person never coerces missing or malformed observations and rejects overflow', () => {
+  for (const input of [undefined, null, false, 0, 'snapshot', {},
+    { gdpUsd: 100 }, { population: 10 }, { gdpUsd: '100', population: 10 },
+    { gdpUsd: 100, population: '10' }, { gdpUsd: null, population: 10 },
+    { gdpUsd: 100, population: null }, { gdpUsd: false, population: 10 },
+    { gdpUsd: -1, population: 10 }, { gdpUsd: 100, population: -1 },
+    { gdpUsd: 100, population: 0 }, { gdpUsd: 0, population: 0 },
+    { gdpUsd: NaN, population: 10 }, { gdpUsd: Infinity, population: 10 },
+    { gdpUsd: 100, population: NaN }, { gdpUsd: 100, population: Infinity },
+    { gdpUsd: Number.MAX_VALUE, population: Number.MIN_VALUE }]) {
+    assert.equal(gdpPerPerson(input), null, `Rejected observation: ${JSON.stringify(input)}`);
+  }
 });

@@ -2,3 +2,5 @@
 .market-scene>svg { display: block; width: 100%; height: 100%; }
 .market-scene .market-scene-detail { fill: none; stroke: #d7edff; stroke-opacity: .45; stroke-width: 1; }
 .market-scene .market-scene-cutout { fill: #10253a; stroke: none; }
+
+.market-scene-unavailable { background: linear-gradient(120deg, #173247, #225155); }

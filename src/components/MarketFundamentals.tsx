@@ -51,7 +51,7 @@ export default function MarketFundamentals({ selectedCountries, onCompare }: Mar
       <div><div className="mf-snapshot-label"><CalendarDays size={13} aria-hidden="true" />{year} historical snapshot</div><h2 id={`${id}-title`}>Compare country fundamentals.</h2></div>
       <div className="mf-metric-switch" role="group" aria-label="Compare country fundamentals by metric"><button type="button" aria-pressed={metric === 'gdpUsd'} onClick={() => setMetric('gdpUsd')}><Wallet size={14} aria-hidden="true" />GDP</button><button type="button" aria-pressed={metric === 'population'} onClick={() => setMetric('population')}><Users size={14} aria-hidden="true" />Population</button></div>
     </figcaption>
-    <div className="mf-chart-context"><span>{unit}</span><span><span>{selectedCountries.length ? `${markets.length} selected markets` : 'All six markets'}</span><i aria-hidden="true" /><span>Shared linear scale</span></span></div>
+    <div className="mf-chart-context"><span>{unit}</span><span><span>{selectedCountries.length ? `${markets.length} selected markets` : `All ${MARKETS.length} markets`}</span><i aria-hidden="true" /><span>Shared linear scale</span></span></div>
     <div className="mf-axis" aria-hidden="true"><span /><div>{axis.ticks.map(tick => <span key={tick} style={{ left: `${tick / axis.maximum * 100}%` }}>{tick.toLocaleString('en-US', { maximumFractionDigits: 1 })}</span>)}</div><span /></div>
     <ul className="mf-rows" aria-label={`${year} ${metricName} comparison`}>
       {rows.map(({ market, value }) => <li className={`mf-row${value === null ? ' mf-row-missing' : ''}`} key={market.id} data-market={market.id}>
@@ -60,7 +60,7 @@ export default function MarketFundamentals({ selectedCountries, onCompare }: Mar
         <span className="mf-value">{value === null ? <span aria-label={`${market.name} ${metricName} unavailable`}>—</span> : <data value={String(value)} title={`${value.toLocaleString('en-US', { maximumFractionDigits: 20 })} ${metric === 'gdpUsd' ? 'current US dollars' : 'people'}, ${year}`} aria-label={`${value.toLocaleString('en-US', { maximumFractionDigits: 20 })} ${metric === 'gdpUsd' ? 'current US dollars' : 'people'}, ${year}`}>{compactValue(value, metric)}</data>}</span>
       </li>)}
     </ul>
-    {!rows.length && <p className="mf-empty">No matching markets in this snapshot. Choose one of the six supported countries.</p>}
+    {!rows.length && <p className="mf-empty">No matching markets in this snapshot. Choose a country from the explorer.</p>}
     <div className="mf-chart-footer"><span>World Bank via DataHub <i /> {year} observations</span>{onCompare && <button type="button" onClick={onCompare}>Compare research paths <ArrowRight size={13} aria-hidden="true" /></button>}</div>
     <div className="mf-limit"><Info size={13} aria-hidden="true" /><span>Country totals show scale, not customer demand, business fit or legal requirements.</span></div>
     <details className="mf-source-details"><summary>Sources, dates & limits <ChevronDown size={13} aria-hidden="true" /></summary><div>

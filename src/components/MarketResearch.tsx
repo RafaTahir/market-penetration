@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowRight, ArrowUpRight, BarChart3, Bookmark, BookOpen, Building2, Check, ChevronRight, Compass, Database, Factory, Globe2, MapPin, Package, Scale, Search, ShieldCheck, ShoppingBag, Smartphone, Truck, Users, UtensilsCrossed, Wallet } from 'lucide-react';
 import { MARKETS, type MarketGuide } from '../data/marketCatalog';
+import { INDUSTRIES, type ResearchAngle } from '../data/industryGuides';
 import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides';
 import type { MarketPlanSession } from '../hooks/useMarketPlans';
 import { getCityQuestionSources } from '../services/marketPlans';
@@ -22,82 +23,17 @@ interface MarketResearchProps {
   onOpenReports: () => void;
 }
 
-type ResearchAngle = 'demand' | 'costs' | 'setup';
 type CityLens = CityResearchLens;
 type InsightLens = 'setup' | 'demand' | 'operations';
 
-interface IndustryGuide {
-  id: string;
-  name: string;
-  shortName: string;
-  icon: typeof Smartphone;
-  question: string;
-  subtitle: string;
-  angles: Record<ResearchAngle, [string, string]>;
-}
-
-const INDUSTRIES: readonly IndustryGuide[] = [
-  {
-    id: 'technology', name: 'Technology & software', shortName: 'Technology', icon: Smartphone,
-    question: 'Who will buy first—and what needs to work locally?',
-    subtitle: 'Look beyond adoption headlines to customers, distribution and delivery.',
-    angles: {
-      demand: ['Which customer has a problem they will pay to solve?', 'Which language, sales channel and support model do they expect?'],
-      costs: ['What will local sales, support and cloud delivery cost?', 'Can the same product and payment flow serve both markets?'],
-      setup: ['Which data, payment or sector rules apply to the actual service?', 'Does selling remotely differ from employing or operating locally?'],
-    },
-  },
-  {
-    id: 'food-beverage', name: 'Food & beverage', shortName: 'Food & beverage', icon: UtensilsCrossed,
-    question: 'Does the location work as well as the concept?',
-    subtitle: 'Research the customer occasion, supply chain and specific premises together.',
-    angles: {
-      demand: ['Who buys, on which occasions and at what price?', 'What do nearby alternatives reveal about menu, format and demand?'],
-      costs: ['What do rent, fit-out, ingredients and delivery actually cost?', 'How do cold storage, wastage and staffing change the margin?'],
-      setup: ['Which food, premises and activity approvals need checking?', 'Which import, labelling and employment requirements fit this model?'],
-    },
-  },
-  {
-    id: 'retail', name: 'Retail & commerce', shortName: 'Retail', icon: ShoppingBag,
-    question: 'Where will customers find you—and what brings them back?',
-    subtitle: 'Compare a real route to the customer, not just the size of the market.',
-    angles: {
-      demand: ['Is the first route a store, marketplace, distributor or direct sales?', 'Which local competitors set expectations on price and service?'],
-      costs: ['What are the landed cost, fulfilment cost and return rate?', 'How do leases, inventory and payment terms affect cash needs?'],
-      setup: ['Which product, consumer and import requirements need review?', 'Do store operations and online sales have different obligations?'],
-    },
-  },
-  {
-    id: 'manufacturing', name: 'Manufacturing', shortName: 'Manufacturing', icon: Factory,
-    question: 'Can the operating site support the whole production model?',
-    subtitle: 'Bring demand, supplier access and site requirements into the same comparison.',
-    angles: {
-      demand: ['Who is the anchor customer, and where is the demand served?', 'What quality, certification and delivery standards do buyers need?'],
-      costs: ['What do site, power, labour and logistics quotes include?', 'Which imported inputs or supplier dependencies affect lead times?'],
-      setup: ['Which site, environmental and industrial approvals need review?', 'What customs, workforce and activity conditions fit the project?'],
-    },
-  },
-  {
-    id: 'professional-services', name: 'Professional services', shortName: 'Services', icon: Users,
-    question: 'How will trust turn into a repeatable client pipeline?',
-    subtitle: 'Test the buying relationship, delivery team and scope of the service.',
-    angles: {
-      demand: ['Which client segment buys the service, and who approves it?', 'Do clients expect a local team, partner or professional credential?'],
-      costs: ['What does the delivery team cost at the intended utilisation?', 'How do sales cycles, collections and travel affect working capital?'],
-      setup: ['Is the service or professional title subject to local regulation?', 'Which contracting, employment and tax questions need an adviser?'],
-    },
-  },
-  {
-    id: 'logistics', name: 'Logistics & delivery', shortName: 'Logistics', icon: Truck,
-    question: 'Where does the route make operational and commercial sense?',
-    subtitle: 'Research the actual lane, customer density and delivery commitments.',
-    angles: {
-      demand: ['Which route and customer segment have a clear service gap?', 'What delivery speed, reliability and returns service do buyers need?'],
-      costs: ['What do warehouse, vehicle, labour and last-mile quotes include?', 'How do utilisation, empty trips and border delays affect the model?'],
-      setup: ['Which transport, storage and cross-border permissions need review?', 'Are any goods subject to additional handling or customs conditions?'],
-    },
-  },
-];
+const INDUSTRY_ICONS = {
+  technology: Smartphone,
+  'food-beverage': UtensilsCrossed,
+  retail: ShoppingBag,
+  manufacturing: Factory,
+  'professional-services': Users,
+  logistics: Truck,
+};
 
 const ANGLES: readonly { id: ResearchAngle; title: string; icon: typeof Users; subtitle: string }[] = [
   { id: 'demand', title: 'Customer & demand', icon: Users, subtitle: 'Find the first reason to buy' },
@@ -128,6 +64,26 @@ function SourceLink({ url, children, className = '', label }: { url: string; chi
   return <a className={`mr-source-link ${className}`} aria-label={label} href={url} target="_blank" rel="noopener noreferrer">{children}<ArrowUpRight size={15} aria-hidden="true" /></a>;
 }
 
+function IndustryDirectories({ markets }: { markets: readonly MarketGuide[] }) {
+  const [chosenId, setChosenId] = useState('');
+  const market = markets.find(item => item.id === chosenId) ?? markets[0];
+  if (!market) return null;
+  return <details className="mr-industry-directories">
+    <summary>Official sources by market <ChevronRight size={15} aria-hidden="true" /></summary>
+    <label>Research in
+      <select value={market.id} onChange={event => setChosenId(event.target.value)}>
+        {markets.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+      </select>
+    </label>
+    <div className="mr-directory-grid">
+      <div><small>Customer and industry statistics</small><SourceLink url={market.statistics.url}>{market.statistics.name}</SourceLink></div>
+      <div><small>Business setup enquiries</small><SourceLink url={market.setup.url}>{market.setup.name}</SourceLink></div>
+      <div><small>Location and premises enquiries</small><SourceLink url={market.cityPortal.url}>{market.cityPortal.name}</SourceLink></div>
+    </div>
+    <p>Directory contents and publication dates are unverified. Check the activity, geography and period covered by each source.</p>
+  </details>;
+}
+
 function Scope({ markets, all }: { markets: readonly MarketGuide[]; all: boolean }) {
   return <div className="mr-scope"><span>{all ? 'All markets' : 'Your shortlist'}</span><div>{markets.map(market => <span key={market.id} title={market.name} aria-label={market.name}>{market.flag}</span>)}</div></div>;
 }
@@ -142,6 +98,7 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
   const [insightLens, setInsightLens] = useState<InsightLens>('setup');
   const markets = selectedCountries.length ? MARKETS.filter(market => selectedCountries.includes(market.id)) : MARKETS;
   const industry = INDUSTRIES.find(item => item.id === industryId)!;
+  const IndustryIcon = INDUSTRY_ICONS[industry.id];
   const currentCityLens = CITY_LENSES.find(item => item.id === cityLens)!;
   const currentInsightLens = INSIGHT_LENSES.find(item => item.id === insightLens)!;
 
@@ -193,9 +150,31 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
 
     {mode === 'industries' && <>
       <div className="mr-section-heading"><div><span className="mr-eyebrow">START WITH YOUR BUSINESS MODEL</span><h2>Different industries. Different questions.</h2></div><Scope markets={markets} all={!selectedCountries.length} /></div>
-      <div className="mr-industry-tabs" role="group" aria-label="Choose an industry">{INDUSTRIES.map(item => <button key={item.id} aria-pressed={industry.id === item.id} onClick={() => setIndustryId(item.id)}><item.icon size={17} aria-hidden="true" />{item.shortName}</button>)}</div>
-      <div className="mr-industry-intro"><span className="mr-industry-icon"><industry.icon size={27} aria-hidden="true" /></span><div><span className="mr-eyebrow">{industry.name}</span><h3>{industry.question}</h3><p>{industry.subtitle}</p></div></div>
-      <div className="mr-angle-grid">{ANGLES.map((angle, index) => <details className="mr-angle" key={angle.id}><summary><span className="mr-angle-step" aria-hidden="true">0{index + 1}</span><span className="mr-angle-icon"><angle.icon size={19} aria-hidden="true" /></span><span className="mr-angle-summary-text"><strong>{angle.title}</strong><small>{angle.subtitle}</small></span><ChevronRight size={15} aria-hidden="true" /></summary><ul>{industry.angles[angle.id].map(question => <li key={question}><span aria-hidden="true" /><span>{question}</span></li>)}</ul></details>)}</div>
+      <div className="mr-industry-tabs" role="group" aria-label="Choose an industry">
+        {INDUSTRIES.map(item => {
+          const Icon = INDUSTRY_ICONS[item.id];
+          return <button key={item.id} aria-pressed={industry.id === item.id} onClick={() => setIndustryId(item.id)}>
+            <Icon size={17} aria-hidden="true" />{item.shortName}
+          </button>;
+        })}
+      </div>
+      <div className="mr-industry-intro"><span className="mr-industry-icon"><IndustryIcon size={27} aria-hidden="true" /></span><div><span className="mr-eyebrow">{industry.name}</span><h3>{industry.question}</h3><p>{industry.subtitle}</p></div></div>
+      <div className="mr-angle-grid">{ANGLES.map(angle => {
+        const fieldwork = industry.angles[angle.id];
+        return <details className="mr-angle" key={angle.id}>
+          <summary>
+            <span className="mr-angle-icon"><angle.icon size={19} aria-hidden="true" /></span>
+            <span className="mr-angle-summary-text"><strong>{angle.title}</strong><small>{angle.subtitle}</small></span>
+            <ChevronRight size={15} aria-hidden="true" />
+          </summary>
+          <ul>{fieldwork.questions.map(question => <li key={question}><span aria-hidden="true" /><span>{question}</span></li>)}</ul>
+          <dl className="mr-fieldwork">
+            <dt>Evidence to collect</dt><dd>{fieldwork.evidence}</dd>
+            <dt>Decision to make</dt><dd>{fieldwork.decision}</dd>
+          </dl>
+        </details>;
+      })}</div>
+      <IndustryDirectories markets={markets} />
       <div className="mr-inline-action"><span>Turn these questions into a market comparison.</span><button className="mr-text-button" onClick={onCompare}>Compare your shortlist <ArrowRight size={14} aria-hidden="true" /></button></div>
     </>}
 

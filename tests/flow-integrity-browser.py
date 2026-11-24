@@ -15,7 +15,7 @@ ARTIFACTS.mkdir(parents=True, exist_ok=True)
 
 def expect_explorer_without_examples(page):
     expect(page.get_by_role('heading', name=re.compile(r'Find your next market'))).to_be_visible()
-    expect(page.locator('.market-country-card')).to_have_count(6)
+    expect(page.locator('.market-country-card')).to_have_count(7)
     expect(page.get_by_role('navigation', name='Research modes').get_by_role('button')).to_have_count(6)
     # Sourced historical snapshots are legitimate normal content. These checks
     # target opt-in legacy sections/figures, rather than banning every number.
@@ -61,7 +61,16 @@ with sync_playwright() as playwright:
 
     page.goto(BASE + '/#/research/reports', wait_until='networkidle')
     expect(page.get_by_role('heading', name='Institutional Reference Directory')).to_be_visible()
-    expect(page.get_by_text('Publication date: Unknown', exact=True)).to_have_count(3)
+    directory = page.get_by_role('main')
+    expect(directory.get_by_text('Publication dates are unknown.', exact=False)).to_be_visible()
+    expect(directory.get_by_role('status')).to_have_text('24 sources')
+    directory.get_by_label('Search sources').fill('Sydney')
+    expect(directory.get_by_role('status')).to_have_text('3 sources')
+    directory.get_by_label('Research purpose').select_option('City & premises')
+    expect(directory.get_by_role('link')).to_have_count(1)
+    expect(directory.get_by_role('link')).to_have_attribute('href', 'https://www.cityofsydney.nsw.gov.au/')
+    directory.get_by_role('button', name='Clear filters').click()
+    expect(directory.get_by_role('link', name='Cross-country data ASEANstats Data Portal')).to_be_visible()
     expect(page.get_by_text('Invalid Date', exact=True)).to_have_count(0)
     expect(page.get_by_text('ASEAN Investment Report 2024', exact=True)).to_have_count(0)
 

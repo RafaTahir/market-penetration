@@ -94,6 +94,7 @@ export function buildMarketPlanExport(state: MarketPlansState, selectedCountries
     markets: markets.map(market => ({
       id: market.id,
       country: market.name,
+      region: market.region,
       countryCode: market.countryCode,
       cityResearchStartingPoint: market.city,
       userNextStep: plans.notes[market.id]?.nextStep ?? '',

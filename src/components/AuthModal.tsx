@@ -74,7 +74,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
             </button>
           </div>
           <p className="text-slate-300 leading-relaxed">
-            This workspace is in guest mode. You can explore Southeast Asian markets and compare the included research.
+            This workspace is in guest mode. You can explore markets across Southeast Asia and Australia and compare the included research.
           </p>
           <p className="text-slate-400 text-sm mt-3 leading-relaxed">
             Sign in, saved accounts, and collaboration require connected services, which are not enabled in this workspace.

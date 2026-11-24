@@ -15,7 +15,7 @@ BASE = os.environ.get('FLOW_TEST_URL', 'http://127.0.0.1:4173').rstrip('/')
 ARTIFACTS = Path(os.environ.get('FLOW_TEST_ARTIFACTS', '/workspace/scratch/flow-polish/after'))
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 MODES = ['Market Overview', 'City Analysis', 'Industry Deep Dive', 'Market Intelligence', 'Case Studies', 'Data Visualization']
-COUNTRIES = ['thailand', 'singapore', 'malaysia', 'indonesia', 'philippines', 'vietnam']
+COUNTRIES = ['thailand', 'singapore', 'malaysia', 'indonesia', 'philippines', 'vietnam', 'australia']
 ERRORS, EXTERNAL, RESULTS = [], [], []
 
 
@@ -53,8 +53,8 @@ with sync_playwright() as playwright:
                 page.on('pageerror', lambda error: ERRORS.append(str(error)))
                 page.goto(BASE, wait_until='networkidle')
                 expect(page.locator('html')).to_have_class(theme)
-                expect(page.locator('.market-country-card')).to_have_count(6)
-                expect(page.locator('.market-country-card>.market-scene')).to_have_count(6)
+                expect(page.locator('.market-country-card')).to_have_count(7)
+                expect(page.locator('.market-country-card>.market-scene')).to_have_count(7)
                 expect(page.locator('.market-country-card>.market-scene').first).to_have_attribute('aria-hidden', 'true')
                 for country in COUNTRIES:
                     card = page.locator(f'.market-country-card[data-market="{country}"]')

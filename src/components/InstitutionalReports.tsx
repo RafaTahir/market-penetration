@@ -1,249 +1,104 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, ExternalLink, Calendar, Building2, FileText, Search, Filter } from 'lucide-react';
-import { UnifiedDataService } from '../services/unifiedDataService';
+import { useState } from 'react';
+import { ArrowUpRight, Globe2, Search } from 'lucide-react';
+import { MARKETS } from '../data/marketCatalog';
+import { INSTITUTIONAL_PORTALS } from '../services/unifiedDataService';
 
-interface Report {
-  title: string;
-  organization: string;
-  country: string;
-  summary: string;
-  publicationDate: string;
+interface DirectoryLink {
+  name: string;
   url: string;
-  type: string;
+  purpose: string;
+  institution: string;
 }
 
-const InstitutionalReports: React.FC = () => {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedOrg, setSelectedOrg] = useState<string>('all');
-  const [selectedType, setSelectedType] = useState<string>('all');
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+interface DirectoryGroup {
+  name: string;
+  area: string;
+  detail: string;
+  flag?: string;
+  links: DirectoryLink[];
+}
 
-  const unifiedService = UnifiedDataService.getInstance();
+const marketGroups: DirectoryGroup[] = MARKETS.map(market => ({
+  name: market.name,
+  area: market.region,
+  detail: market.city,
+  flag: market.flag,
+  links: [
+    { portal: market.setup, purpose: 'Business setup' },
+    { portal: market.statistics, purpose: 'National statistics' },
+    { portal: market.cityPortal, purpose: 'City & premises' },
+  ].map(({ portal, purpose }) => ({ ...portal, purpose, institution: portal.name })),
+}));
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    void unifiedService.getInstitutionalReports().then(data => {
-      if (active) { setReports(data); setLastUpdated(new Date()); }
-    }).catch(() => {
-      if (active) setReports([]);
-    }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [unifiedService]);
+const institutionalGroups: DirectoryGroup[] = [...new Set(INSTITUTIONAL_PORTALS.map(portal => portal.country))].map(country => ({
+  name: country,
+  area: country === 'ASEAN' ? 'Southeast Asia' : country,
+  detail: 'Cross-country data',
+  links: INSTITUTIONAL_PORTALS.filter(portal => portal.country === country).map(portal => ({
+    name: portal.title, url: portal.url, institution: portal.organization, purpose: 'Cross-country data',
+  })),
+}));
 
-  const filteredReports = useMemo(() => {
-    let filtered = [...reports];
+const groups = [...marketGroups, ...institutionalGroups];
+const areas = [...new Set(groups.map(group => group.area))];
+const purposes = [...new Set(groups.flatMap(group => group.links.map(link => link.purpose)))];
+const fieldStyle = 'mt-2 min-h-11 w-full rounded-lg border border-[var(--ex-border)] bg-[var(--ex-panel)] px-3 py-2 text-[var(--ex-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ex-blue)]';
 
-    if (searchTerm) {
-      filtered = filtered.filter(report =>
-        report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.country.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+export default function InstitutionalReports() {
+  const [query, setQuery] = useState('');
+  const [area, setArea] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const filtered = groups.filter(group => !area || group.area === area).map(group => ({
+    ...group,
+    links: group.links.filter(link => {
+      if (purpose && link.purpose !== purpose) return false;
+      const text = [group.name, group.area, group.detail, link.name, link.institution, link.purpose, new URL(link.url).hostname].join(' ').toLowerCase();
+      return terms.every(term => text.includes(term));
+    }),
+  })).filter(group => group.links.length > 0);
+  const count = filtered.reduce((sum, group) => sum + group.links.length, 0);
 
-    if (selectedOrg !== 'all') {
-      filtered = filtered.filter(report => report.organization === selectedOrg);
-    }
-
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(report => report.type === selectedType);
-    }
-
-    filtered.sort((a, b) => new Date(b.publicationDate).getTime() - new Date(a.publicationDate).getTime());
-
-    return filtered;
-  }, [reports, searchTerm, selectedOrg, selectedType]);
-
-  const organizations = ['all', ...Array.from(new Set(reports.map(r => r.organization)))];
-  const types = ['all', ...Array.from(new Set(reports.map(r => r.type)))];
-
-  const formatDate = (dateString: string) => {
-    if (!dateString || !Number.isFinite(Date.parse(dateString))) return 'Unknown';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
-
-  const getOrgColor = (org: string) => {
-    switch (org) {
-      case 'International Monetary Fund':
-        return 'bg-blue-900/20 border-blue-700/50 text-blue-400';
-      case 'World Bank':
-        return 'bg-emerald-900/20 border-emerald-700/50 text-emerald-400';
-      case 'ASEAN Secretariat':
-        return 'bg-purple-900/20 border-purple-700/50 text-purple-400';
-      default:
-        return 'bg-slate-900/20 border-slate-700/50 text-slate-400';
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-emerald-900/20 rounded-lg text-emerald-400">
-                <BookOpen className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Institutional Reference Directory</h1>
-                <p className="text-sm text-slate-400">Official source discovery links · contents and publication dates unverified</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-slate-400">Directory loaded on this device</div>
-              <div className="text-sm text-white">{lastUpdated.toLocaleTimeString()}</div>
-            </div>
-          </div>
-
-          {/* Search and Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search reports..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <select
-              value={selectedOrg}
-              onChange={(e) => setSelectedOrg(e.target.value)}
-              className="px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">All Organizations</option>
-              {organizations.slice(1).map((org) => (
-                <option key={org} value={org}>{org}</option>
-              ))}
-            </select>
-
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">All Types</option>
-              {types.slice(1).map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <FileText className="h-4 w-4 text-blue-400" />
-              <span className="text-sm font-medium text-blue-400">Directory Links</span>
-            </div>
-            <div className="text-2xl font-bold text-white">{reports.length}</div>
-          </div>
-
-          <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Building2 className="h-4 w-4 text-emerald-400" />
-              <span className="text-sm font-medium text-emerald-400">Organizations</span>
-            </div>
-            <div className="text-2xl font-bold text-white">{organizations.length - 1}</div>
-          </div>
-
-          <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Filter className="h-4 w-4 text-purple-400" />
-              <span className="text-sm font-medium text-purple-400">Filtered Results</span>
-            </div>
-            <div className="text-2xl font-bold text-white">{filteredReports.length}</div>
-          </div>
-
-          <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Calendar className="h-4 w-4 text-orange-400" />
-              <span className="text-sm font-medium text-orange-400">Publication Dates</span>
-            </div>
-            <div className="text-2xl font-bold text-white">
-              Unavailable
-            </div>
-          </div>
-        </div>
-
-        {/* Reports List */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-              <p className="text-slate-400 mt-4">Loading reports...</p>
-            </div>
-          ) : filteredReports.length === 0 ? (
-            <div className="text-center py-12 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50">
-              <BookOpen className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-400">No reports found matching your criteria</p>
-            </div>
-          ) : (
-            filteredReports.map((report, index) => (
-              <div
-                key={index}
-                className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
-              >
-                <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getOrgColor(report.organization)}`}>
-                        {report.organization}
-                      </span>
-                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-700/50 text-slate-300 border border-slate-600">
-                        {report.type}
-                      </span>
-                      <span className="text-xs text-slate-500">{report.country}</span>
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">{report.title}</h3>
-                    <p className="text-sm text-slate-300 leading-relaxed mb-3">{report.summary}</p>
-                    <div className="flex items-center space-x-4 text-xs text-slate-400">
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>Publication date: {formatDate(report.publicationDate)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="sm:ml-4 shrink-0 flex flex-col space-y-2">
-                    <a
-                      href={report.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors text-sm font-medium"
-                    >
-                      <span>Open source portal</span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Data Attribution */}
-        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-4 border border-slate-700/30">
-          <div className="text-center text-xs text-slate-400">
-            <p>
-              Directory of IMF, World Bank and ASEAN source portals, maintained in application code. These entries are not retrieved reports or verified publication records.
-              Listed reports, links, and publication details are an unverified reference directory. No automatic update is running; confirm current editions on the publisher’s website.
-            </p>
-            <p className="mt-2">
-              <strong className="text-slate-300">Directory links:</strong> IMF.org • WorldBank.org • ASEAN.org
-            </p>
-          </div>
-        </div>
+  return <main className="flow-explore-shell px-4 py-8 md:p-10">
+    <div className="mx-auto max-w-6xl">
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Institutional Reference Directory</h1>
+        <p className="mt-2 text-[var(--ex-muted)]">Find official starting points for business setup, national statistics and local premises research.</p>
+        <p className="mt-1 text-sm text-[var(--ex-muted)]">Publication dates are unknown. Check each portal for current guidance and local applicability.</p>
+      </header>
+      <div className="mt-7 grid gap-3 text-sm font-medium sm:grid-cols-2 md:grid-cols-[2fr_1fr_1fr]">
+        <label className="sm:col-span-2 md:col-span-1">Search sources
+          <span className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ex-muted)]" aria-hidden="true" />
+            <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Country, city, institution or topic" className={fieldStyle + ' pl-10'} />
+          </span>
+        </label>
+        <label>Geographic coverage<select className={fieldStyle} value={area} onChange={event => setArea(event.target.value)}>
+          <option value="">All areas</option>{areas.map(value => <option key={value}>{value}</option>)}
+        </select></label>
+        <label>Research purpose<select className={fieldStyle} value={purpose} onChange={event => setPurpose(event.target.value)}>
+          <option value="">All purposes</option>{purposes.map(value => <option key={value}>{value}</option>)}
+        </select></label>
       </div>
+      <div className="my-4 flex min-h-11 items-center justify-between gap-3 text-sm">
+        <p role="status" className="text-[var(--ex-muted)]">{count} {count === 1 ? 'source' : 'sources'}</p>
+        {(query || area || purpose) && <button type="button" className="min-h-11 px-2 text-[var(--ex-blue)]" onClick={() => { setQuery(''); setArea(''); setPurpose(''); }}>Clear filters</button>}
+      </div>
+      {count === 0 ? <p>No sources match your filters. Try a broader location or purpose.</p> : <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filtered.map(group => <section key={group.name} aria-label={group.name} className="min-w-0 overflow-hidden rounded-xl border border-[var(--ex-border)] bg-[var(--ex-panel)]">
+          <header className="flex items-center gap-3 border-b border-[var(--ex-border)] bg-[var(--ex-panel-soft)] px-4 py-3">
+            {group.flag ? <span className="text-2xl" aria-hidden="true">{group.flag}</span> : <Globe2 className="text-[var(--ex-teal)]" aria-hidden="true" />}
+            <div><h2 className="font-semibold">{group.name}</h2><p className="text-xs text-[var(--ex-muted)]">{group.detail}</p></div>
+          </header>
+          <ul className="divide-y divide-[var(--ex-border)] px-4">
+            {group.links.map(link => <li key={link.url}>
+              <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center justify-between gap-3 py-3 text-sm text-[var(--ex-blue)] hover:underline">
+                <span><small className="block text-xs text-[var(--ex-muted)]">{link.purpose}</small>{link.name}</span>
+                <ArrowUpRight size={16} className="shrink-0" aria-hidden="true" />
+              </a>
+            </li>)}
+          </ul>
+        </section>)}
+      </div>}
     </div>
-  );
-};
-
-export default InstitutionalReports;
+  </main>;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, Globe2, MapPin, MoveHorizontal, Plus, X } from 'lucide-react';
-import { MARKETS } from '../data/marketCatalog';
+import { MARKETS, filterMarketGuides, type MarketRegion } from '../data/marketCatalog';
 import { MARKET_FUNDAMENTALS, MARKET_SNAPSHOT_META, type MarketFundamental } from '../data/marketSnapshot';
 import MarketScene from './visual/MarketScene';
 import './CountrySelector.css';
@@ -52,6 +52,7 @@ interface CountrySelectorProps {
   onCountryToggle: (countryId: string) => void;
   referenceMode?: boolean;
   searchQuery?: string;
+  region?: MarketRegion;
   onExploreCountry?: (countryId: string) => void;
   showHeading?: boolean;
 }
@@ -61,6 +62,7 @@ export default function CountrySelector({
   onCountryToggle,
   referenceMode = false,
   searchQuery = '',
+  region,
   onExploreCountry,
   showHeading = true,
 }: CountrySelectorProps) {
@@ -68,9 +70,7 @@ export default function CountrySelector({
   const rail = useRef<HTMLDivElement>(null);
   const [railPosition, setRailPosition] = useState({ overflow: false, start: true, end: false });
   const query = searchQuery.trim().toLocaleLowerCase();
-  const visibleMarkets = MARKETS.filter(market =>
-    !query || [market.name, market.city, market.id, market.countryCode].some(value => value.toLocaleLowerCase().includes(query))
-  );
+  const visibleMarkets = filterMarketGuides(MARKETS, query, region);
 
   useEffect(() => {
     const element = rail.current;
@@ -80,12 +80,13 @@ export default function CountrySelector({
       start: element.scrollLeft <= 2,
       end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 2,
     });
+    element.scrollLeft = 0;
     update();
     const observer = new ResizeObserver(update);
     observer.observe(element);
     element.addEventListener('scroll', update, { passive: true });
     return () => { observer.disconnect(); element.removeEventListener('scroll', update); };
-  }, [query]);
+  }, [query, region]);
 
   function moveRail(direction: number) {
     const element = rail.current;
@@ -110,9 +111,9 @@ export default function CountrySelector({
         <div><button type="button" aria-label="Previous markets" disabled={railPosition.start} onClick={() => moveRail(-1)}><ArrowLeft size={17} aria-hidden="true" /></button><button type="button" aria-label="Next markets" disabled={railPosition.end} onClick={() => moveRail(1)}><ArrowRight size={17} aria-hidden="true" /></button></div>
       </div>}
       {visibleMarkets.length === 0 ? (
-        <div className="market-no-results" role="status"><Globe2 size={23} aria-hidden="true" /><strong>No markets match “{searchQuery}”</strong><span>Try a country or city, such as Thailand or Bangkok.</span></div>
+        <div className="market-no-results" role="status"><Globe2 size={23} aria-hidden="true" /><strong>No markets match “{searchQuery}”</strong><span>{region ? `Try another country or city in ${region}, or change the region filter.` : 'Try a country, city or region.'}</span></div>
       ) : (
-        <div className="market-country-grid" aria-label="Southeast Asian markets" ref={rail}>
+        <div className="market-country-grid" aria-label={region ? `${region} markets` : 'Available markets'} ref={rail}>
           {visibleMarkets.map(market => {
             const selected = selectedCountries.includes(market.id);
             const expanded = expandedMarket === market.id;
@@ -133,7 +134,7 @@ export default function CountrySelector({
                 </div>
 
                 <div className="market-snapshot">
-                  <p className="market-snapshot-label"><span />{MARKET_SNAPSHOT_META.observationYear} historical snapshot</p>
+                  <p className="market-snapshot-label"><span />{fundamentals ? `${MARKET_SNAPSHOT_META.observationYear} historical snapshot` : 'Historical observations unavailable'}</p>
                   <dl className="market-snapshot-metrics">
                     <div><dt>Population</dt><dd data-unavailable={!isObservation(population) || undefined} aria-label={isObservation(population) ? `${fullNumberFormat.format(population)} people, ${MARKET_SNAPSHOT_META.observationYear}` : 'Population unavailable'}>{isObservation(population) ? populationFormat.format(population) : 'Unavailable'}</dd></div>
                     <div><dt>Nominal GDP · US$</dt><dd data-unavailable={!isObservation(gdp) || undefined} aria-label={isObservation(gdp) ? `${fullNumberFormat.format(gdp)} current US dollars, ${MARKET_SNAPSHOT_META.observationYear}` : 'GDP unavailable'}>{isObservation(gdp) ? gdpFormat.format(gdp) : 'Unavailable'}</dd></div>
@@ -147,14 +148,14 @@ export default function CountrySelector({
                 </div>
                 {expanded && (
                   <div className="market-source-panel" id={panelId}>
-                    <div className="market-snapshot-provenance">
+                    {fundamentals && <div className="market-snapshot-provenance">
                       <strong>{MARKET_SNAPSHOT_META.source}</strong>
                       <p>Historical observations, not current conditions or market-demand estimates. Display figures are rounded. GDP lines use each country's own vertical range.</p>
                       <dl><div><dt>Card observations</dt><dd>{MARKET_SNAPSHOT_META.observationYear}</dd></div><div><dt>GDP history</dt><dd>2014–{MARKET_SNAPSHOT_META.observationYear} · current US dollars</dd></div><div><dt>Mirror retrieved</dt><dd><time dateTime={MARKET_SNAPSHOT_META.retrievedAt}>{MARKET_SNAPSHOT_META.retrievedAt.replace('T', ' ').replace('Z', ' UTC')}</time></dd></div><div><dt>Publication date</dt><dd>Unknown</dd></div></dl>
                       <p>Not cross-checked against the primary World Bank API. Mirror package metadata may lag the observation rows.</p>
                       {referenceMode && <p>Reference mode applies to the research examples below. These card figures remain the sourced historical snapshot.</p>}
-                    </div>
-                    {[
+                    </div>}
+                    {fundamentals && [
                       { label: 'Population', value: population, source: MARKET_SNAPSHOT_META.population },
                       { label: 'Nominal GDP', value: gdp, source: MARKET_SNAPSHOT_META.gdp },
                     ].map(({ label, value, source }) => <div className="market-dataset-source" key={label}>

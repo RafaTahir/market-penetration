@@ -18,7 +18,7 @@ BASE = os.environ.get('FLOW_TEST_URL', 'http://127.0.0.1:5173').rstrip('/')
 ARTIFACTS = Path(os.environ.get('FLOW_TEST_ARTIFACTS', '/tmp/flow-recovery-final-preview'))
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 ORIGIN = f'{urlsplit(BASE).scheme}://{urlsplit(BASE).netloc}'
-COUNTRIES = [('thailand', 'Thailand', '🇹🇭'), ('singapore', 'Singapore', '🇸🇬'), ('malaysia', 'Malaysia', '🇲🇾'), ('indonesia', 'Indonesia', '🇮🇩'), ('philippines', 'Philippines', '🇵🇭'), ('vietnam', 'Vietnam', '🇻🇳')]
+COUNTRIES = [('thailand', 'Thailand', '🇹🇭'), ('singapore', 'Singapore', '🇸🇬'), ('malaysia', 'Malaysia', '🇲🇾'), ('indonesia', 'Indonesia', '🇮🇩'), ('philippines', 'Philippines', '🇵🇭'), ('vietnam', 'Vietnam', '🇻🇳'), ('australia', 'Australia', '🇦🇺')]
 MODES = ['Market Overview', 'City Analysis', 'Industry Deep Dive', 'Market Intelligence', 'Case Studies', 'Data Visualization']
 CANONICAL = {'THA': {'population': 71702435, 'gdpUsd': 514944993833.5776}, 'SGP': {'population': 5917648, 'gdpUsd': 501427500080.05853}}
 POP_COMMIT = 'd4b1a4a9a17e2123baf0ef119de05bceced1ab1b'
@@ -79,7 +79,7 @@ def initial_discovery(page):
     expect(page.get_by_text('Explore countries, discover cities and understand what to research before you launch or expand.', exact=True)).to_be_visible()
     expect(page.get_by_role('heading', name='Market workspace', exact=True)).to_have_count(0)
     expect(page.get_by_role('heading', name='Current research data is unavailable', exact=True)).to_have_count(0)
-    expect(page.locator('.market-country-card')).to_have_count(6)
+    expect(page.locator('.market-country-card')).to_have_count(7)
     for country, name, flag in COUNTRIES:
         item = card(page, country)
         expect(item.get_by_role('heading', name=name, exact=True)).to_be_visible()
@@ -130,7 +130,7 @@ with sync_playwright() as playwright:
         expect(page.get_by_role('status').filter(has_text='No markets match')).to_be_visible()
         expect(page.locator('.market-country-card')).to_have_count(0)
         page.get_by_role('button', name='Clear search', exact=True).click()
-        expect(page.locator('.market-country-card')).to_have_count(6)
+        expect(page.locator('.market-country-card')).to_have_count(7)
         expect(card(page, 'singapore').get_by_role('button', name='Deselect Singapore', exact=True)).to_have_attribute('aria-pressed', 'true')
 
         # Country selection is native-keyboard operable and drives the comparison.

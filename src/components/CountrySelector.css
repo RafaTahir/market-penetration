@@ -29,6 +29,7 @@
 .market-country-card[data-market='indonesia'] { --country-accent: #f3ac75; }
 .market-country-card[data-market='philippines'] { --country-accent: #64cfef; }
 .market-country-card[data-market='vietnam'] { --country-accent: #ed919f; }
+.market-country-card[data-market='australia'] { --country-accent: #f2c688; }
 .market-country-card:hover { border-color: #4a688c; transform: translateY(-2px); box-shadow: 0 10px 28px #030d1d24; }
 .market-country-card.is-selected { border-color: #447ed2; box-shadow: inset 0 0 0 1px #447ed226; }
 .market-country-card.is-selected::before { opacity: 1; }
@@ -94,6 +95,7 @@
 .light .market-country-card[data-market='indonesia'] { --country-accent: #a9541a; }
 .light .market-country-card[data-market='philippines'] { --country-accent: #1e7290; }
 .light .market-country-card[data-market='vietnam'] { --country-accent: #aa465e; }
+.light .market-country-card[data-market='australia'] { --country-accent: #82551a; }
 .light .market-country-card.is-selected { border-color: #3b82cf; box-shadow: inset 0 0 0 1px #3b82cf26; }
 @media (max-width: 1000px) {
   .market-country-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 17px; }
@@ -123,3 +125,5 @@
 .market-rail-controls button:hover:not(:disabled) { border-color: var(--market-muted); background: var(--market-soft); }
 .market-rail-controls button:disabled { opacity: .35; cursor: default; }
 @media (prefers-reduced-motion: reduce) { .market-country-card, .market-explore-button svg { transition: none; } .market-country-card:hover { transform: none; } }
+
+@media (max-width: 720px) { .market-country-card:only-child { flex-basis: calc(100% - 2px); } }

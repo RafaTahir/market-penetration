@@ -133,7 +133,7 @@ const Header: React.FC<HeaderProps> = ({
         <button
           onClick={() => runAction(onLogoClick, '/research')}
           className="flow-brand"
-          title="Explore Southeast Asian markets"
+          title="Explore supported markets"
           aria-label="Flow home"
         >
           <FlowLogo className="flow-brand-mark" />
@@ -228,7 +228,7 @@ const Header: React.FC<HeaderProps> = ({
           <button role="menuitem" aria-label="Toggle theme" onClick={toggleTheme}>{theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}<span>{theme === 'dark' ? 'Light appearance' : 'Dark appearance'}</span></button>
           <button role="menuitem" aria-label="Notifications" onClick={() => setPanel('notifications')}><Bell size={17} aria-hidden="true" /><span>Notifications</span><span className="flow-menu-count">{unreadCount || '0'}</span></button>
           {user && <div className="flow-menu-account"><UserRound size={17} aria-hidden="true" /><div><strong>{accountName}</strong><span>{user.email}</span></div></div>}
-          <div className="flow-menu-footer">Explore Southeast Asia. Plan your next move.</div>
+          <div className="flow-menu-footer">Explore Southeast Asia and Australia.</div>
         </div>
       )}
 
@@ -243,8 +243,8 @@ const Header: React.FC<HeaderProps> = ({
           </div>
           {referenceMode ? (
             <>
-              <p><strong>Unverified reference examples enabled.</strong> Static examples and unverified records are not current market facts.</p>
-              <p>Source attributions and observation dates have not been verified. Examples never supply evidence or points to your entry assessment.</p>
+              <p><strong>Unverified reference examples enabled.</strong> The legacy collection covers Southeast Asia. Its figures have unverified sources and observation dates.</p>
+              <p>For Australia, open the explorer for historical country figures and Sydney research guides.</p>
               {onExitReference && <button className="flow-hide-examples" onClick={() => runAction(onExitReference)}>Hide examples</button>}
             </>
           ) : (

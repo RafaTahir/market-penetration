@@ -24,11 +24,17 @@ import ReferenceResearch from './components/ReferenceResearch';
 import MarketComparison from './components/MarketComparison';
 import MarketPlanHub from './components/MarketPlanHub';
 import { useMarketPlans, type MarketPlanSession } from './hooks/useMarketPlans';
-import { MARKETS } from './data/marketCatalog';
+import { filterMarketGuides, MARKETS, type MarketRegion } from './data/marketCatalog';
 import { SEA_COUNTRIES } from './components/visual/seaGeography';
 import './components/MarketExplorer.css';
 
 type ResearchView = 'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler' | 'data-sync' | 'enterprise-intelligence';
+
+const regions = [...new Set(MARKETS.map(market => market.region))];
+const referenceCityByMarket: Readonly<Record<string, string>> = {
+  thailand: 'bangkok', singapore: 'singapore-city', malaysia: 'kuala-lumpur',
+  indonesia: 'jakarta', philippines: 'manila', vietnam: 'ho-chi-minh',
+};
 
 const SHORTLIST_KEY = 'flow-market-shortlist-v1';
 function loadShortlist(): string[] {
@@ -61,6 +67,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
   const [showSearch, setShowSearch] = useState(false);
   const [showReferenceExamples, setShowReferenceExamples] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [region, setRegion] = useState<MarketRegion>();
   const [requestedCity, setRequestedCity] = useState<string | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -98,6 +105,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
   }, [showComparison, currentView, comparisonRequest, route]);
   function chooseMarkets() {
     setSearchQuery('');
+    setRegion(undefined);
     requestAnimationFrame(() => {
       const markets = document.getElementById('explore-markets');
       markets?.focus({ preventScroll: true });
@@ -111,8 +119,13 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
   const showMode = (mode: ResearchMode) => { setActiveTab(mode); requestAnimationFrame(() => document.getElementById('research-modes')?.scrollIntoView({ behavior: 'instant', block: 'start' })); };
   const exploreCountry = (countryId: string) => {
     includeMarket(countryId);
-    if (showReferenceExamples) showMode('cities');
-    else { setActiveTab('cities'); setRequestedCity(countryId); }
+    if (showReferenceExamples && referenceCityByMarket[countryId]) {
+      showMode('cities');
+    } else {
+      setShowReferenceExamples(false);
+      setActiveTab('cities');
+      setRequestedCity(countryId);
+    }
   };
   useEffect(() => {
     if (!requestedCity || activeTab !== 'cities' || showReferenceExamples) return;
@@ -322,7 +335,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onDismissNotification={handleDismissNotification}
         />
         <InstitutionalReports />
-        <div className="fixed bottom-6 right-6 space-x-2 flex">
+        <div className="mx-auto flex max-w-7xl flex-wrap justify-end gap-2 px-6 pb-6">
           <button
             onClick={() => setCurrentView('report-generator')}
             className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
@@ -518,48 +531,65 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
     { id: 'data', name: 'Data Visualization', shortName: 'Charts', icon: BarChart3 },
   ];
   const selectedMarkets = MARKETS.filter(market => selectedCountries.includes(market.id));
-  const matchingMarkets = MARKETS.filter(market => [market.name, market.city, market.id, market.countryCode].some(value => value.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase())));
-  const referenceCountries = selectedCountries.length ? selectedCountries : MARKETS.map(market => market.id);
+  const otherRegionCount = region ? selectedMarkets.filter(market => market.region !== region).length : 0;
+  const matchingMarkets = filterMarketGuides(MARKETS, searchQuery, region);
+  const referenceScope = selectedMarkets.length ? selectedMarkets : MARKETS;
+  const referenceCountries = referenceScope.filter(market => referenceCityByMarket[market.id]).map(market => market.id);
+  const referenceCityIds = referenceCountries.map(id => referenceCityByMarket[id]);
+  const referenceCities = selectedCities.filter(city => referenceCityIds.includes(city));
+  const outsideArchive = selectedMarkets.filter(market => !referenceCityByMarket[market.id]);
   const countryShapes: Record<string, string> = { tha: 'thailand', sgp: 'singapore', mys: 'malaysia', idn: 'indonesia', phl: 'philippines', vnm: 'vietnam' };
   return <div className="flow-explore-shell">
     <Header activeView="research" referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)} onLogoClick={() => setCurrentView('main')} onLiveDataClick={() => setCurrentView('live-data')} onAnalyticsClick={() => setCurrentView('analytics')} onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')} onSearchClick={focusSearch} onComparisonClick={openComparison} notifications={notifications} onMarkNotificationAsRead={handleMarkNotificationAsRead} onClearAllNotifications={handleClearAllNotifications} onDismissNotification={handleDismissNotification} />
     <main className="explorer-main">
       <section className="explorer-hero" aria-labelledby="explorer-title">
         <div className="explorer-hero-copy">
-          <div className="explorer-eyebrow"><span /> SOUTHEAST ASIA · MARKET INTELLIGENCE</div>
+          <div className="explorer-eyebrow"><span /> SOUTHEAST ASIA & AUSTRALIA</div>
           <h1 id="explorer-title">Find your next market.<br /><em>Make your move.</em></h1>
           <p>Explore countries, discover cities and understand what to research before you launch or expand.</p>
           <form className={`explorer-search${showSearch ? ' is-active' : ''}`} role="search" onSubmit={event => { event.preventDefault(); const results = document.getElementById('explore-markets'); results?.focus({ preventScroll: true }); results?.scrollIntoView({ behavior: 'instant', block: 'start' }); }}>
-            <Search size={18} aria-hidden="true" /><label className="sr-only" htmlFor="market-search">Search markets or cities</label><input id="market-search" ref={searchInput} value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Try Singapore, Bangkok or Vietnam…" autoComplete="off" />{searchQuery && <button type="button" aria-label="Clear search" onClick={() => setSearchQuery('')}><X size={15} /></button>}<button type="submit" className="explorer-search-submit" aria-label="Search markets"><ArrowRight size={18} /></button>
+            <Search size={18} aria-hidden="true" /><label className="sr-only" htmlFor="market-search">Search markets or cities</label><input id="market-search" ref={searchInput} value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Try Sydney, Singapore or Vietnam…" autoComplete="off" />{searchQuery && <button type="button" aria-label="Clear search" onClick={() => setSearchQuery('')}><X size={15} /></button>}<button type="submit" className="explorer-search-submit" aria-label="Search markets"><ArrowRight size={18} /></button>
           </form>
           <div className="explorer-hero-actions"><a href="#/plan" className="explorer-plan-link">Plan my entry <ArrowUpRight size={15} /></a><span>For founders, growing businesses & enterprises</span></div>
         </div>
-        <div className="explorer-atlas" aria-label="Geographic context for the six markets">
+        <div className="explorer-atlas" aria-label="Geographic context for Southeast Asia">
           <div className="atlas-orbit atlas-orbit-one" /><div className="atlas-orbit atlas-orbit-two" />
           <svg viewBox="0 0 740 630" aria-hidden="true" focusable="false"><defs><linearGradient id="explorer-land" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#3b82f6" /><stop offset="1" stopColor="#2dd4bf" /></linearGradient></defs>{SEA_COUNTRIES.map(country => <path key={country.id} d={country.path} data-market={countryShapes[country.id]} className={countryShapes[country.id] && selectedCountries.includes(countryShapes[country.id]) ? 'atlas-country is-selected' : 'atlas-country'} />)}</svg>
           <div className="atlas-label atlas-label-north"><span>🇹🇭</span> Thailand <span>🇻🇳</span> Vietnam</div><div className="atlas-label atlas-label-east"><span>🇵🇭</span> Philippines</div><div className="atlas-label atlas-label-south"><span>🇸🇬</span> Singapore <span>🇲🇾</span> Malaysia</div><div className="atlas-label atlas-label-bottom"><span>🇮🇩</span> Indonesia</div>
-          <div className="atlas-caption"><Compass size={14} /><span>One region. More possibilities.</span><small>Geographic context · no market ranking</small></div>
+          <div className="atlas-caption"><Compass size={14} /><span>Southeast Asia atlas</span><small>Geographic context · no market ranking</small></div>
         </div>
       </section>
 
       <nav className="explorer-mode-tabs" aria-label="Research modes">{tabs.map(({ id, name, shortName, icon: Icon }) => <button key={id} aria-label={name} aria-current={activeTab === id ? 'page' : undefined} onClick={() => showMode(id)}><Icon size={18} /><span className="mode-name-full">{name}</span><span className="mode-name-short" aria-hidden="true">{shortName}</span></button>)}</nav>
 
       <section className="explorer-markets" id="explore-markets" aria-labelledby="markets-title" tabIndex={-1}>
-        <div className="explorer-section-heading"><div><span className="explorer-eyebrow">EXPLORE THE REGION</span><h2 id="markets-title">Six markets. Your shortlist.</h2></div><div className="explorer-selection-actions"><span>{selectedCountries.length} selected</span><button onClick={openComparison}><ArrowLeftRight size={15} />Compare markets <span>{selectedCountries.length}</span></button></div></div>
+        <div className="explorer-section-heading"><div><span className="explorer-eyebrow">EXPLORE BY REGION</span><h2 id="markets-title">Build your market shortlist.</h2></div><div className="explorer-selection-actions"><span>{selectedCountries.length} selected</span><button onClick={openComparison}><ArrowLeftRight size={15} />Compare markets <span>{selectedCountries.length}</span></button></div></div>
+        <div className="explorer-region-filters" role="group" aria-label="Filter market cards by region">
+          <button type="button" aria-pressed={!region} onClick={() => setRegion(undefined)}>All regions <span>{MARKETS.length}</span></button>
+          {regions.map(item => <button key={item} type="button" aria-pressed={region === item} onClick={() => setRegion(item)}>
+            {item} <span>{MARKETS.filter(market => market.region === item).length}</span>
+          </button>)}
+        </div>
+        {otherRegionCount > 0 && <p className="explorer-region-note">
+          Your shortlist includes {otherRegionCount} {otherRegionCount === 1 ? 'market' : 'markets'} outside {region}.
+        </p>}
         {searchQuery && <p role="status" className="explorer-search-count">{matchingMarkets.length} {matchingMarkets.length === 1 ? 'market' : 'markets'} matching “{searchQuery}” <button onClick={() => setSearchQuery('')}>Clear</button></p>}
-        <CountrySelector selectedCountries={selectedCountries} onCountryToggle={handleCountryToggle} referenceMode={showReferenceExamples} showHeading={false} searchQuery={searchQuery} onExploreCountry={exploreCountry} />
-        <div className="explorer-shortlist"><span title={shortlistSaved ? 'Saved on this browser' : 'Session only; export your shortlist to keep it'}>Your shortlist · {shortlistSaved ? 'saved here' : 'session only'}</span><div>{selectedMarkets.length ? selectedMarkets.map(market => <button key={market.id} onClick={() => handleCountryToggle(market.id)} aria-label={`Remove ${market.name} from shortlist`}>{market.flag} {market.name}<X size={11} /></button>) : <small>Select a market to tailor the research below. All six remain available to explore.</small>}</div><a href="#/research/reports">Source directory <ArrowUpRight size={13} /></a></div>
+        <CountrySelector region={region} selectedCountries={selectedCountries} onCountryToggle={handleCountryToggle} referenceMode={showReferenceExamples} showHeading={false} searchQuery={searchQuery} onExploreCountry={exploreCountry} />
+        <div className="explorer-shortlist"><span title={shortlistSaved ? 'Saved on this browser' : 'Session only; export your shortlist to keep it'}>Your shortlist · {shortlistSaved ? 'saved here' : 'session only'}</span><div>{selectedMarkets.length ? selectedMarkets.map(market => <button key={market.id} onClick={() => handleCountryToggle(market.id)} aria-label={`Remove ${market.name} from shortlist`}>{market.flag} {market.name}<X size={11} /></button>) : <small>Select a market to tailor the research below. Browse markets in either region.</small>}</div><a href="#/research/reports">Source directory <ArrowUpRight size={13} /></a></div>
       </section>
 
-      {showComparison && <MarketComparison onChooseMarkets={chooseMarkets} selectedCountries={selectedCountries} onClose={() => setShowComparison(false)} onReference={() => setShowReferenceExamples(true)} referenceMode={showReferenceExamples}>{showReferenceExamples && <ComparisonMode availableCountries={countryComparisonData} />}</MarketComparison>}
+      {showComparison && <MarketComparison onChooseMarkets={chooseMarkets} selectedCountries={selectedCountries} onClose={() => setShowComparison(false)} onReference={() => setShowReferenceExamples(true)} referenceMode={showReferenceExamples}>{showReferenceExamples && referenceCountries.length > 0 && <ComparisonMode key={referenceCountries.join(',')} availableCountries={countryComparisonData.filter(country => referenceCountries.includes(country.name.toLowerCase()))} />}</MarketComparison>}
 
       <section className="explorer-research" id="research-modes" aria-labelledby="research-title">
         <h2 id="research-title" className="sr-only">From a place to a plan.</h2>
 
-        {showReferenceExamples ? <><div className="explorer-reference-strip"><span><BookOpen size={14} />Unverified reference examples · observation dates unknown</span><button onClick={() => setShowReferenceExamples(false)}>Return to research guides <X size={13} /></button></div><ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={selectedCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} /></> : <MarketResearch planSession={planSession} onIncludeMarket={includeMarket} mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
+        {showReferenceExamples ? <><div className="explorer-reference-strip"><span><BookOpen size={14} />Unverified reference examples · observation dates unknown</span><button onClick={() => setShowReferenceExamples(false)}>Return to research guides <X size={13} /></button></div>
+          {outsideArchive.length > 0 && <p className="explorer-archive-coverage" role="status">Reference examples cover Southeast Asia only. For {outsideArchive.map(market => market.name).join(', ')}, use the historical figures and city guides.</p>}
+          {referenceCountries.length > 0 && <ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={referenceCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} />}</> : <MarketResearch planSession={planSession} onIncludeMarket={includeMarket} mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
       </section>
 
-      {showReferenceExamples ? <section className="explorer-export-section"><div className="explorer-section-heading"><div><span className="explorer-eyebrow">TAKE IT WITH YOU</span><h2>Reference report studio</h2></div><span className="explorer-data-note">Illustrative templates · not verified research</span></div><ExportTools selectedCountries={selectedCountries} selectedCities={selectedCities} activeTab={activeTab} activeInsightTab={activeInsightTab} selectedIndustry={selectedIndustry} selectedCaseStudy={selectedCaseStudy} /></section> : <section className="explorer-reference-callout"><div><BookOpen size={20} /><span><strong>The original research collection, still here.</strong><small>Inspect existing charts, case studies and PDF, slide and spreadsheet templates as explicitly unverified examples.</small></span></div><button onClick={() => setShowReferenceExamples(true)}>View unverified reference examples <ArrowRight size={15} /></button></section>}
+      {showReferenceExamples && referenceCountries.length > 0 && <section className="explorer-export-section"><div className="explorer-section-heading"><div><span className="explorer-eyebrow">TAKE IT WITH YOU</span><h2>Reference report studio</h2></div><span className="explorer-data-note">Southeast Asia templates · not verified research</span></div><ExportTools selectedCountries={selectedCountries.length ? referenceCountries : []} selectedCities={referenceCities} activeTab={activeTab} activeInsightTab={activeInsightTab} selectedIndustry={selectedIndustry} selectedCaseStudy={selectedCaseStudy} /></section>}
+      {!showReferenceExamples && <section className="explorer-reference-callout"><div><BookOpen size={20} /><span><strong>The original research collection, still here.</strong><small>Inspect existing charts, case studies and PDF, slide and spreadsheet templates as explicitly unverified examples.</small></span></div><button onClick={() => setShowReferenceExamples(true)}>View unverified reference examples <ArrowRight size={15} /></button></section>}
 
       <section className="explorer-next-step"><div><span className="explorer-eyebrow">YOUR BUSINESS. YOUR NEXT CHAPTER.</span><h2>Found a market worth exploring?</h2><p>Keep your assumptions, sources and city preparation together in your entry plan. Start whenever you're ready.</p></div><a href="#/plan">Plan my entry <ArrowUpRight size={18} /></a></section>
       <KeyboardShortcutsHelp isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />

@@ -4,6 +4,13 @@ import { MarketDataService, MarketData, CurrencyRate } from './marketDataService
 import { MarketHoursService } from './marketHoursService';
 import { BrowserCacheService } from './browserCacheService';
 
+/** Curated institutional portals. Publication dates and page contents are unverified. */
+export const INSTITUTIONAL_PORTALS: readonly IMFReport[] = [
+  { title: 'IMF DataMapper', organization: 'IMF', country: 'Global', summary: 'Official data discovery portal. Contents, editions, observation periods and applicability have not been verified.', publicationDate: '', url: 'https://www.imf.org/external/datamapper/', type: 'Reference link (unverified)' },
+  { title: 'World Bank Open Data', organization: 'World Bank', country: 'Global', summary: 'Official data discovery portal. No publication date or current business applicability is established by this directory.', publicationDate: '', url: 'https://data.worldbank.org/', type: 'Reference link (unverified)' },
+  { title: 'ASEANstats Data Portal', organization: 'ASEAN Secretariat', country: 'ASEAN', summary: 'Regional data discovery portal. Linked content has not been fetched, checked or incorporated as verified research.', publicationDate: '', url: 'https://data.aseanstats.org/', type: 'Reference link (unverified)' }
+];
+
 export type EconomicMetric = 'gdp' | 'gdpGrowth' | 'inflation' | 'unemployment' | 'population' | 'gdpPerCapita' | 'internetUsers' | 'exchangeRate' | 'interestRate';
 
 export interface MetricEvidence {
@@ -286,11 +293,7 @@ export class UnifiedDataService {
 
   async getInstitutionalReports(): Promise<IMFReport[]> {
     // Discovery links are not fetched reports or verified publication records.
-    return [
-      { title: 'IMF DataMapper', organization: 'IMF', country: 'Global', summary: 'Official data discovery portal. Contents, editions, observation periods and applicability have not been verified.', publicationDate: '', url: 'https://www.imf.org/external/datamapper/', type: 'Reference link (unverified)' },
-      { title: 'World Bank Open Data', organization: 'World Bank', country: 'Global', summary: 'Official data discovery portal. No publication date or current business applicability is established by this directory.', publicationDate: '', url: 'https://data.worldbank.org/', type: 'Reference link (unverified)' },
-      { title: 'ASEANstats Data Portal', organization: 'ASEAN Secretariat', country: 'ASEAN', summary: 'Regional data discovery portal. Linked content has not been fetched, checked or incorporated as verified research.', publicationDate: '', url: 'https://data.aseanstats.org/', type: 'Reference link (unverified)' }
-    ];
+    return INSTITUTIONAL_PORTALS.map(portal => ({ ...portal }));
   }
 
   getDataFreshness(key: string): DataFreshness {

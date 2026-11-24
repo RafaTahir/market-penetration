@@ -51,7 +51,7 @@ def run_journey(browser, width, storage_blocked):
     comparison.get_by_text("Choose markets", exact=True).click()
     expect(search).to_have_value("")
     expect(page.locator("#explore-markets")).to_be_focused()
-    expect(page.locator(".market-country-card")).to_have_count(6)
+    expect(page.locator(".market-country-card")).to_have_count(7)
     comparison.get_by_role("button", name="Close market comparison").click()
 
     page.get_by_role("button", name="City Analysis", exact=True).click()

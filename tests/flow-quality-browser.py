@@ -45,7 +45,7 @@ with sync_playwright() as playwright:
             expect(page.locator('[data-content-status="unverified-reference"]')).to_have_count(0)
             expect(page.locator('.market-reference-figures')).to_have_count(0)
             if route == 'main':
-                expect(page.locator('.market-country-card')).to_have_count(6)
+                expect(page.locator('.market-country-card')).to_have_count(7)
                 expect(page.get_by_role('navigation', name='Research modes').get_by_role('button')).to_have_count(6)
             page.get_by_role('button', name='View unverified reference examples', exact=True).click()
         expect(page.get_by_text('Something went wrong', exact=True)).to_have_count(0)

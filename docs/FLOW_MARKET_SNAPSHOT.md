@@ -1,6 +1,6 @@
 # Historical market snapshot
 
-`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL) and Vietnam (VNM).
+`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM) and Australia (AUS).
 
 ## Attribution and exact source files
 
@@ -17,10 +17,12 @@ The declarations above are recorded from the mirrors' pinned [population datapac
 
 - Both complete downloaded CSV hashes were independently recomputed and matched the pinned input hashes above. Headers are `Country Name,Country Code,Year,Value`.
 - Selection uses ISO alpha-3 codes and exact observation years. Each selected country/year occurs once, all values are finite and nonnegative, and population counts are integral. No missing value is filled, interpolated or copied from another year/country.
-- All six countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
+- All seven countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
 - GDP units and indicator are explicit in its datapackage. The population datapackage identifies total-population series `SP.POP.TOTL`; its numeric counts are people, with no millions multiplier. Display abbreviation is the UI's responsibility.
 - Raw CSV numeric literals are retained without deliberate decimal rounding. Runtime values use JavaScript numbers and their ordinary IEEE-754 precision limits. GDP series are not inflation-adjusted, and nominal changes also reflect exchange-rate and price movements.
 - `retrievedAt = 2026-10-25T17:48:56Z` records the latest local capture time of the two downloaded CSV inputs. Population was captured at 17:48:08 UTC; GDP at 17:48:56 UTC. Retrieval is separate from observation year and does not establish source publication or freshness.
+
+Australia was added on 2026-11-24 from the original cached CSVs. Both complete files matched the SHA-256 values above. Filtering to country code `AUS` yielded one 2023 population count (26,659,922) and one nominal GDP observation for each year from 2014 through 2023. The 2023 GDP value is 1,723,827,215,334.7063 current US dollars. The extraction date records when the Australian rows were selected. The input retrieval time stays 2026-10-25T17:48:56Z.
 
 ## Verification limits
 

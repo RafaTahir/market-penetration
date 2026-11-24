@@ -14,11 +14,15 @@ Each city uses the existing `src/data/marketCatalog.ts` directories. The Custome
 | Jakarta | https://www.jakarta.go.id/ | Jakarta-province evidence versus a wider Greater Jakarta catchment; national OSS enquiries versus address-specific questions |
 | Manila | https://manila.gov.ph/ | City of Manila versus other Metro Manila cities; confirm the entity-registration route rather than assuming DTI covers every structure |
 | Ho Chi Minh City | https://hochiminhcity.gov.vn/ | Confirm current address jurisdiction and the boundary/observation period used by a dataset or older page |
+| Sydney | https://www.cityofsydney.nsw.gov.au/ | Check an ABS table’s statistical geography and period, the actual premises council, and the federal, NSW or council contact for the activity |
 
 These are research questions and directory labels, not newly verified administrative or regulatory findings. In particular, the Ho Chi Minh City cards ask readers to check current geography rather than assert an older boundary or a specific reform date.
 
 ## Retrieval limitation
 
-On 2026-10-28 at 05:13:06 UTC, one bounded batch attempted to retrieve the six city/address directories above in the cloud runtime. All six failed before page access with `Tunnel connection failed: 403 Forbidden`. No response content, official publication date, effective date or current legal applicability was verified. Other inherited national/statistics directory links were not newly fetched in this pass. The runtime audit metadata is retained in the task at `/workspace/scratch/flow-city-guidance/official-source-access.json`.
+On 2026-10-28 at 05:13:06 UTC, one bounded batch attempted to retrieve the six Southeast Asian city/address directories above in the cloud runtime. All six failed before page access with `Tunnel connection failed: 403 Forbidden`. No response content, official publication date, effective date or current legal applicability was verified. Other inherited national/statistics directory links were not newly fetched in this pass. The runtime audit metadata is retained in the task at `/workspace/scratch/flow-city-guidance/official-source-access.json`.
 
 The visible city section therefore says **“Research guidance, not verified findings. Source publication dates unknown.”** The shared source disclosure retains the wider limitations. The retrieval-attempt time is not a source observation date or evidence of freshness. Historical country GDP/population remain separate and retain their existing provenance; no city observations, scores, legal facts or live API results are added by this change.
+
+
+On 2026-11-24, the cloud proxy returned HTTP 403 on CONNECT for the Australian Government business portal, Australian Bureau of Statistics and City of Sydney, including a second attempt with approved network escalation. These are directory links. No portal content, publication date, legal requirement or current applicability was verified. Sydney’s customer and premises prompts distinguish the City of Sydney council area from the broader Greater Sydney geography.

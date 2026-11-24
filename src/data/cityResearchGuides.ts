@@ -113,4 +113,21 @@ export const CITY_RESEARCH_GUIDES: Readonly<Record<string, CityResearchGuide>> =
       },
     },
   },
+  australia: {
+    scope: 'City of Sydney council area · check the boundary within Greater Sydney',
+    prompts: {
+      customers: {
+        question: 'Is your first customer base in the City of Sydney or across Greater Sydney?',
+        detail: 'Choose the suburbs you can serve. Check the ABS geography and observation year for each table, then test your price and delivery radius with buyers in those suburbs.',
+      },
+      location: {
+        question: 'Which council covers the address on the Sydney lease quote?',
+        detail: 'Check whether the proposed premises fall within the City of Sydney council area. For two candidate sites, record the relevant council, rent period and delivery access before comparing quotes.',
+      },
+      setup: {
+        question: 'Which federal, NSW and council questions apply to this activity?',
+        detail: 'Start with the Australian Government business portal. Describe the activity, ownership and exact operating address, then identify the state and council contacts that can confirm the applicable steps.',
+      },
+    },
+  },
 };

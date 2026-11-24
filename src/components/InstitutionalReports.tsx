@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight, Globe2, Search } from 'lucide-react';
-import { MARKETS } from '../data/marketCatalog';
+import { MARKETS, makeSearchMatcher } from '../data/marketCatalog';
 import { INSTITUTIONAL_PORTALS } from '../data/institutionalPortals';
 
 interface DirectoryLink {
@@ -23,7 +23,7 @@ const marketGroups: DirectoryGroup[] = MARKETS.map(market => ({
   name: market.name,
   area: market.region,
   detail: market.city,
-  searchNames: [market.countryCode, ...(market.aliases ?? [])],
+  searchNames: [market.countryCode, market.worksheetCurrency, market.flag, ...(market.aliases ?? [])],
   flag: market.flag,
   links: [
     { portal: market.setup, purpose: 'Business setup' },
@@ -51,13 +51,12 @@ export default function InstitutionalReports() {
   const [query, setQuery] = useState('');
   const [area, setArea] = useState('');
   const [purpose, setPurpose] = useState('');
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = makeSearchMatcher(query);
   const filtered = groups.filter(group => !area || group.area === area).map(group => ({
     ...group,
     links: group.links.filter(link => {
       if (purpose && link.purpose !== purpose) return false;
-      const text = [group.name, group.area, group.detail, ...(group.searchNames ?? []), link.name, link.institution, link.purpose, new URL(link.url).hostname].join(' ').toLowerCase();
-      return terms.every(term => text.includes(term));
+      return matches([group.name, group.area, group.detail, ...(group.searchNames ?? []), link.name, link.institution, link.purpose, new URL(link.url).hostname]);
     }),
   })).filter(group => group.links.length > 0);
   const count = filtered.reduce((sum, group) => sum + group.links.length, 0);

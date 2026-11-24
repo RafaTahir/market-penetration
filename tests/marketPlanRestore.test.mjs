@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MARKETS } from '../src/data/marketCatalog.ts';
 import { MAX_ECONOMICS_INPUT_LENGTH } from '../src/services/marketEconomics.ts';
-import { buildMarketPlanExport, createMarketPlans, MAX_NEXT_STEP_LENGTH, MAX_FINDING_TEXT_LENGTH, MAX_FINDING_SOURCE_LENGTH, setMarketFinding, setMarketQuestionSaved, setMarketScenario, updateMarketNextStep } from '../src/services/marketPlans.ts';
+import { buildMarketPlanExport, createMarketPlans, MAX_NEXT_STEP_LENGTH, MAX_FINDING_TEXT_LENGTH, MAX_FINDING_SOURCE_LENGTH, parseMarketPlans, serializeMarketPlans, setMarketFinding, setMarketQuestionSaved, setMarketScenario, updateMarketNextStep } from '../src/services/marketPlans.ts';
 import { MAX_RESTORE_BYTES, parseMarketPlanFile, previewMarketPlanRestore } from '../src/services/marketPlanRestore.ts';
 
 const id = 'new-zealand';
@@ -285,4 +285,29 @@ test('all markets with full-size international and JSON-escaped personal entries
   const draft = parseMarketPlanFile(exported);
   assert.deepEqual(draft.warnings, []);
   assert.deepEqual(draft.plans, plans);
+});
+
+test('KES volume drafts survive v3 storage and restore without converting amounts or replacing other markets', () => {
+  for (const [quantity, expected] of [
+    ['0', { status: 'calculated', revenue: '0.00', totalCosts: '12000.00', netResult: '-12000.00' }],
+    ['50', { status: 'calculated', revenue: '50000.00', totalCosts: '42000.00', netResult: '8000.00' }],
+    ['.', { status: 'invalid-volume', revenue: null, totalCosts: null, netResult: null }],
+  ]) {
+    const inputs = { currency: 'KES', monthlyFixedCosts: '12000', unitPrice: '1000', unitVariableCost: '600', expectedMonthlyUnits: quantity };
+    const original = setMarketScenario(createMarketPlans(), 'kenya', inputs);
+    const stored = serializeMarketPlans(original);
+    assert.equal(stored.version, 3);
+    const file = buildMarketPlanExport(parseMarketPlans(JSON.parse(JSON.stringify(stored))), ['kenya'], date);
+    assert.equal(file.version, 3);
+    assert.deepEqual(file.markets[0].breakEvenScenario.monthlySales.result, expected);
+    const draft = parseMarketPlanFile(JSON.stringify(file));
+    assert.deepEqual(draft.warnings, []);
+    const local = plannedMarket();
+    const restored = previewMarketPlanRestore(local, [id], draft);
+    assert.deepEqual(restored.countries, [id, 'kenya']);
+    assert.deepEqual(restored.plans.scenarios.kenya, inputs);
+    assert.deepEqual(restored.plans.scenarios[id], local.scenarios[id]);
+    assert.deepEqual(restored.plans.notes, local.notes);
+    assert.deepEqual(buildMarketPlanExport(restored.plans, ['kenya'], date), file);
+  }
 });

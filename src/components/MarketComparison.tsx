@@ -89,6 +89,7 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
               <td key={market.id}>{change === null ? 'Unavailable' : `${changeFormat.format(change)}%`}</td>
             )}</tr>
             <tr><th scope="row">City to explore</th>{markets.map(market => <td key={market.id}>{market.city}</td>)}</tr>
+            <tr><th scope="row">Default worksheet currency</th>{markets.map(market => <td key={market.id}>{market.worksheetCurrency}</td>)}</tr>
             {([
               ['Business setup', 'setup'],
               ['Country statistics', 'statistics'],

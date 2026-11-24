@@ -1,12 +1,6 @@
 /** Single-product planning scenario. Amounts are entered by the user in one currency. */
-export const MARKET_CURRENCIES = ['USD', 'AUD', 'NZD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'AED', 'KHR', 'GBP'] as const;
-export type MarketCurrency = typeof MARKET_CURRENCIES[number];
-
-const localCurrency: ReadonlyMap<string, MarketCurrency> = new Map([
-  ['australia', 'AUD'], ['new-zealand', 'NZD'], ['singapore', 'SGD'], ['malaysia', 'MYR'],
-  ['thailand', 'THB'], ['indonesia', 'IDR'], ['philippines', 'PHP'], ['vietnam', 'VND'],
-  ['united-arab-emirates', 'AED'], ['cambodia', 'KHR'], ['uk', 'GBP'],
-]);
+import { MARKETS, MARKET_CURRENCIES, type MarketCurrency } from '../data/marketCatalog.ts';
+export { MARKET_CURRENCIES, type MarketCurrency } from '../data/marketCatalog.ts';
 
 export interface MarketEconomicsInputs {
   currency: MarketCurrency;
@@ -24,7 +18,7 @@ export const SALES_METHOD = 'For one month, revenue equals expected units sold t
 export const SALES_LIMITATION = 'Sales volume, unit price and costs are user-entered assumptions. This scenario excludes taxes, cash-flow timing and costs omitted from the worksheet. Market demand has not been measured or forecast.';
 
 export function emptyMarketEconomics(marketId: string): MarketEconomicsInputs {
-  return { currency: localCurrency.get(marketId) ?? 'USD', monthlyFixedCosts: '', unitPrice: '', unitVariableCost: '' };
+  return { currency: MARKETS.find(market => market.id === marketId)?.worksheetCurrency ?? 'USD', monthlyFixedCosts: '', unitPrice: '', unitVariableCost: '' };
 }
 
 function volumeDraft(value?: string): string | undefined {

@@ -1,4 +1,4 @@
-/** UK/Europe integration contracts using bundled historical data and plan fixtures. */
+/** Catalog integration contracts using bundled historical data and plan fixtures. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MARKETS, filterMarketGuides } from '../src/data/marketCatalog.ts';
@@ -151,4 +151,68 @@ test('UK restore merges a fourth region, keeps local work and ignores file-suppl
   assert.equal(canonical.sources.businessSetup.url, uk().setup.url);
   assert.equal(canonical.savedResearchQuestions[0].userFinding.kind, 'user-entered-research-finding');
   assert.equal(previewMarketPlanRestore(restored.plans, restored.countries, draft).changed, false);
+});
+
+test('discovery combines currency, place and region terms on the same market with tolerant spelling normalization', () => {
+  for (const [query, id] of [
+    ['Nairobi Kenya', 'kenya'], ['  kEs  aFrIcA  ', 'kenya'], ['KEN Nairobi', 'kenya'],
+    ['London GBP', 'uk'], ['U.K. GBP', 'uk'], ['new-zealand NZD', 'new-zealand'],
+    ['Hồ Chí Minh Vietnam', 'vietnam'], ['Ho\u0302\u0300 Chi\u0301 Minh Vietnam', 'vietnam'],
+    ['Nairobi, Kenya / KES', 'kenya'], ['Dubai AED', 'united-arab-emirates'],
+  ]) {
+    assert.deepEqual(filterMarketGuides(MARKETS, query).map(market => market.id), [id], query);
+  }
+  assert.ok(filterMarketGuides(MARKETS, 'ke').some(market => market.id === 'kenya'));
+  assert.ok(filterMarketGuides(MARKETS, 'ae').some(market => market.id === 'united-arab-emirates'));
+  for (const query of ['AE KE', 'Nairobi GBP', 'London KES', 'Kenya Europe', 'Naiorbi']) {
+    assert.deepEqual(filterMarketGuides(MARKETS, query), [], query);
+  }
+  assert.deepEqual(filterMarketGuides(MARKETS, 'KES Africa', 'Africa').map(market => market.id), ['kenya']);
+  assert.deepEqual(filterMarketGuides(MARKETS, 'Nairobi Kenya', 'Europe'), []);
+  assert.deepEqual(filterMarketGuides(MARKETS, 'London GBP', 'Africa'), []);
+});
+
+test('blank search keeps the region intersection while punctuation-only search cannot match everything', () => {
+  for (const query of ['', ' \t\n ']) {
+    assert.deepEqual(filterMarketGuides(MARKETS, query), MARKETS);
+    assert.deepEqual(filterMarketGuides(MARKETS, query, 'Africa'), MARKETS.filter(market => market.region === 'Africa'));
+  }
+  for (const query of ['---', ' . , / ', '()!']) {
+    assert.deepEqual(filterMarketGuides(MARKETS, query), [], query);
+    assert.deepEqual(filterMarketGuides(MARKETS, query, 'Africa'), [], query);
+  }
+});
+
+test('Kenya joins Africa with KES planning, pinned national USD history and correctly scoped official directories', () => {
+  const market = MARKETS.find(item => item.id === 'kenya');
+  assert.ok(market);
+  assert.deepEqual([market.name, market.city, market.region, market.countryCode, market.worksheetCurrency],
+    ['Kenya', 'Nairobi', 'Africa', 'KEN', 'KES']);
+  const snapshot = MARKET_FUNDAMENTALS[market.countryCode];
+  assert.equal(MARKET_SNAPSHOT_META.observationYear, 2023);
+  assert.equal(snapshot.population, 55339003);
+  assert.equal(snapshot.gdpUsd, 107440575838.04752);
+  assert.equal(historicalGdpAtYear(snapshot, 2014), 68285796514.28962);
+  assert.equal(historicalGdpAtYear(snapshot, 2023), snapshot.gdpUsd);
+  assert.equal(MARKET_SNAPSHOT_META.gdp.unit, 'current US dollars');
+  const sources = {
+    customers: ['https://www.knbs.or.ke/'],
+    location: ['https://nairobi.go.ke/'],
+    setup: ['https://brs.go.ke/', 'https://nairobi.go.ke/'],
+  };
+  let plans = createMarketPlans();
+  assert.match(CITY_RESEARCH_GUIDES.kenya.scope, /Nairobi/);
+  for (const lens of Object.keys(sources)) {
+    assert.deepEqual(getCityQuestionSources(market, lens).map(source => source.url), sources[lens]);
+    plans = setMarketQuestionSaved(plans, 'kenya', lens, true);
+  }
+  const exported = buildMarketPlanExport(plans, ['kenya'], EDITED).markets[0];
+  assert.equal(exported.region, 'Africa');
+  assert.equal(exported.cityResearchStartingPoint, 'Nairobi');
+  assert.equal(exported.sources.sourceContentsVerified, false);
+  assert.equal(exported.sources.sourcePublicationDate, null);
+  for (const question of exported.savedResearchQuestions) {
+    assert.equal(question.kind, 'unverified-research-prompt');
+    assert.deepEqual(question.sources.map(source => source.url), sources[question.lens]);
+  }
 });

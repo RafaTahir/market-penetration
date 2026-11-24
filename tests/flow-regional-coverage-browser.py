@@ -56,7 +56,7 @@ def cambodia_worksheet(page, width):
     expect(sheet).to_contain_text(re.compile(r"80\s+units/month"))
 
 
-def run(browser, width, theme):
+def open_context(browser, width):
     context = browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="reduce")
     errors, external = [], []
     def local_only(route):
@@ -66,15 +66,122 @@ def run(browser, width, theme):
             external.append(route.request.url.split("?")[0])
             route.abort()
     context.route("**/*", local_only)
+    context.on("page", lambda page: page.on("pageerror", lambda error: errors.append(str(error))))
+    return context, errors, external
+
+
+def download_json(page, label, scope=None):
+    with page.expect_download() as download:
+        (scope if scope is not None else page).get_by_role("button", name=label, exact=True).click()
+    return json.loads(download.value.path().read_text())
+
+
+def kenya_plan(page, width):
+    page.goto(BASE + "/#/research")
+    page.get_by_role("button", name="Remove Cambodia from shortlist", exact=True).click()
+    regions = page.get_by_role("group", name="Filter market cards by region")
+    regions.get_by_role("button", name=re.compile("^Europe")).click()
+    search = page.get_by_label("Search markets or cities")
+    search.fill("London")
+    page.get_by_role("button", name="Select United Kingdom", exact=True).click()
+    search.fill("Nairobi")
+    cards = page.locator(".market-country-card")
+    expect(cards).to_have_count(0)
+    page.get_by_role("button", name="Search all regions").click()
+    regions.get_by_role("button", name=re.compile("^Africa")).click()
+    search.fill("KEN")
+    expect(cards).to_have_count(1)
+    card = cards.filter(has=page.get_by_role("heading", name="Kenya", exact=True))
+    expect(card.get_by_label("55,339,003 people, 2023", exact=True)).to_be_visible()
+    art = card.locator(".market-scene-rendered[data-market=kenya] img")
+    assert art.evaluate("async img => { await img.decode(); return img.naturalWidth > 0; }")
+    card.evaluate("el => el.scrollIntoView({block: 'center', behavior: 'instant'})")
+    card.screenshot(path=str(ARTIFACTS / f"kenya-card-{width}.png"))
+    card.get_by_role("button", name="Add Kenya to shortlist and explore").click()
+    city = page.locator("#city-research-kenya")
+    expect(city).to_be_focused()
+    expect(city.get_by_role("heading", name="Nairobi", exact=True)).to_be_visible()
+    page.get_by_role("group", name="City research lens").get_by_role("button", name="Customers", exact=True).click()
+    expect(city.locator('a[href="https://www.knbs.or.ke/"]')).to_be_visible()
+    page.get_by_role("group", name="City research lens").get_by_role("button", name="Setup", exact=True).click()
+    official = {"https://brs.go.ke/", "https://nairobi.go.ke/"}
+    for url in official:
+        expect(city.locator(f'a[href="{url}"]')).to_be_visible()
+    prompt = city.locator(".mr-city-question strong").inner_text()
+    city.get_by_role("button", name="Save question", exact=True).click()
+    page.get_by_role("button", name=re.compile("^Compare markets")).click()
+    compare = page.locator("#market-comparison")
+    for name in ("Kenya", "United Kingdom"):
+        expect(compare.get_by_role("columnheader").filter(has_text=name)).to_have_count(1)
+    exported = download_json(page, "Export shortlist", compare)
+    snapshot = exported["historicalSnapshot"]
+    observations = {row["countryCode"]: row for row in snapshot["observations"]}
+    assert set(observations) == {"GBR", "KEN"}
+    national = observations["KEN"]
+    assert (national["region"], national["population"], national["gdpUsd"]) == ("Africa", 55339003, 107440575838.04752)
+    assert national["gdpPerPersonUsd"] == national["gdpUsd"] / national["population"]
+    assert [p["year"] for p in national["gdpSeries"]] == list(range(2014, 2024))
+    assert national["gdpSeries"][0]["value"] == 68285796514.28962 and national["gdpSeries"][-1]["value"] == national["gdpUsd"]
+    assert snapshot["provenance"]["observationYear"] == 2023 and snapshot["provenance"]["gdp"]["indicator"] == "NY.GDP.MKTP.CD"
+    assert "national" in exported["limitation"].lower()
+    compare.get_by_role("link", name="Plan these markets").click()
+    sheet = page.locator("#break-even-kenya")
+    sheet.locator(":scope > summary").click()
+    expect(sheet.get_by_label("Currency", exact=True)).to_have_value("KES")
+    for field, value in [("Monthly fixed costs", "10000"), ("Price per unit", "1250"),
+                         ("Variable cost per unit", "750"), ("Expected monthly sales", "24")]:
+        sheet.get_by_label(field, exact=True).fill(value)
+    expect(sheet).to_contain_text("2,000.00 KES")
+    plan = download_json(page, "Export market plan")
+    market = next(row for row in plan["markets"] if row["id"] == "kenya")
+    assert set(row["id"] for row in plan["markets"]) == {"uk", "kenya"} and plan["version"] == 3
+    assert (market["countryCode"], market["cityResearchStartingPoint"]) == ("KEN", "Nairobi")
+    assert market["sources"]["sourceContentsVerified"] is False and market["sources"]["sourcePublicationDate"] is None
+    question, = market["savedResearchQuestions"]
+    assert question["kind"] == "unverified-research-prompt" and question["question"] == prompt and question["userFinding"] is None
+    assert {source["url"] for source in question["sources"]} == official
+    assert market["breakEvenScenario"]["inputs"]["currency"] == "KES" and market["breakEvenScenario"]["result"]["breakEvenUnits"] == 20
+    assert market["breakEvenScenario"]["monthlySales"]["result"]["netResult"] == "2000.00"
+    page.locator(".mph-back").click()
+    page.get_by_role("button", name="View unverified reference examples", exact=True).click()
+    expect(page.get_by_role("status").filter(has_text="Reference examples cover six markets")).to_contain_text("Kenya")
+    expect(page.locator(".reference-research")).to_have_count(0)
+    expect(page.get_by_role("heading", name="Reference report studio", exact=True)).to_have_count(0)
+    return plan, market
+
+
+def restore_kenya(browser, width, plan, original):
+    context, errors, external = open_context(browser, width)
+    try:
+        page = context.new_page()
+        page.goto(BASE + "/#/plan")
+        expect(page.locator(".mph-market[data-market=kenya]")).to_have_count(0)
+        page.get_by_role("button", name="Restore market plan", exact=True).click()
+        dialog = page.get_by_role("dialog", name="Restore market plan")
+        dialog.get_by_label("Choose a Flow plan file").set_input_files({
+            "name": "flow-market-plan.json", "mimeType": "application/json", "buffer": json.dumps(plan).encode(),
+        })
+        expect(dialog).to_contain_text("Kenya")
+        dialog.get_by_role("button", name="Apply restore").click()
+        expect(page.locator("#question-kenya-setup")).to_be_visible()
+        page.reload(wait_until="networkidle")
+        restored = download_json(page, "Export market plan")
+        assert next(row for row in restored["markets"] if row["id"] == "kenya") == original
+        assert not errors and not external, (errors, external)
+    finally:
+        context.close()
+
+
+def run(browser, width, theme):
+    context, errors, external = open_context(browser, width)
     # Simulate returning with notes and a shortlist from before the coverage expansion.
     old_plan = {"version": 1, "notes": {"singapore": {"nextStep": NOTE, "updatedAt": None}}}
-    context.add_init_script(f"""if (localStorage.getItem('flow-market-plans-v1') === null) {{
+    context.add_init_script(f"""if (location.origin === {json.dumps(BASE)} && localStorage.getItem('flow-market-plans-v1') === null) {{
       localStorage.setItem('flow-market-plans-v1', {json.dumps(json.dumps(old_plan))});
       localStorage.setItem('flow-market-shortlist-v1', '{{"version":1,"countries":["singapore"]}}');
       localStorage.setItem('theme', {json.dumps(theme)});
     }}""")
     page = context.new_page()
-    page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(BASE, wait_until="networkidle")
     selector = page.get_by_role("group", name="Filter market cards by region", exact=True)
     def region(name):
@@ -188,9 +295,7 @@ def run(browser, width, theme):
     uae_column.evaluate("cell => cell.scrollIntoView({block: 'center', inline: 'end', behavior: 'instant'})")
     expect(uae_column).to_be_in_viewport(ratio=0.8)
     page.screenshot(path=str(ARTIFACTS / f"comparison-{width}.png"))
-    with page.expect_download() as download:
-        comparison.get_by_role("button", name="Export shortlist", exact=True).click()
-    exported = json.loads(download.value.path().read_text())
+    exported = download_json(page, "Export shortlist", comparison)
     by_country = {row["countryCode"]: row for row in exported["historicalSnapshot"]["observations"]}
     assert set(by_country) == {"AUS", "NZL", "SGP", "ARE", "KHM"}
     khm = by_country["KHM"]
@@ -237,9 +342,7 @@ def run(browser, width, theme):
     expect(page.locator('.mph-market[data-market="cambodia"]').get_by_text(PHNOM_PENH_PROMPT, exact=True)).to_be_visible()
     cambodia_worksheet(page, width)
     page.reload(wait_until="networkidle")
-    with page.expect_download() as download:
-        page.get_by_role("button", name="Export market plan", exact=True).click()
-    plan = json.loads(download.value.path().read_text())
+    plan = download_json(page, "Export market plan")
     by_market = {item["id"]: item for item in plan["markets"]}
     assert set(by_market) == {"australia", "new-zealand", "singapore", "cambodia", UAE}
     kh = by_market["cambodia"]
@@ -316,10 +419,12 @@ def run(browser, width, theme):
     directory.get_by_label("Search sources").fill("KHM statistics")
     expect(directory.get_by_role("status")).to_have_text("1 source")
     expect(directory.get_by_role("link")).to_have_attribute("href", "https://www.nis.gov.kh/")
+    kenya_export, kenya_market = kenya_plan(page, width)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors, errors
     assert not external, external
     context.close()
+    restore_kenya(browser, width, kenya_export, kenya_market)
 
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 with sync_playwright() as playwright:
@@ -329,5 +434,5 @@ with sync_playwright() as playwright:
         run(browser, 390, "dark")
     finally:
         browser.close()
-print("PASS: cross-region shortlist, four national GDP histories, Sydney/Auckland/Dubai/Phnom Penh guides, "
-      "AED and KHR/USD planning, prior notes, exported sources and six-market archive boundaries on desktop and phone")
+print("PASS: cross-region shortlist and history, Nairobi/UK comparison, Nairobi question + KES worksheet restore, "
+      "Sydney/Auckland/Dubai/Phnom Penh research, prior notes and archive boundaries on desktop and phone")

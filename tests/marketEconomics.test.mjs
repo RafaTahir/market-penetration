@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateMarketEconomics, calculateMonthlySales, emptyMarketEconomics, formatSalesAmount, parseMarketEconomics, sameMarketEconomics } from '../src/services/marketEconomics.ts';
+import { calculateMarketEconomics, calculateMonthlySales, emptyMarketEconomics, formatSalesAmount, MARKET_CURRENCIES, parseMarketEconomics, sameMarketEconomics } from '../src/services/marketEconomics.ts';
+import { MARKETS, filterMarketGuides } from '../src/data/marketCatalog.ts';
 import { buildMarketPlanExport, createMarketPlans, parseMarketPlans, setMarketScenario } from '../src/services/marketPlans.ts';
 
 const draft = (fixed, price, variable) => ({
@@ -171,4 +172,17 @@ test('formatted sales amounts retain every digit and the sign on a loss smaller 
   assert.equal(formatSalesAmount('-990000000000.00'), '-990,000,000,000.00');
   assert.equal(formatSalesAmount('-0.01'), '-0.01');
   assert.equal(formatSalesAmount('0.00'), '0.00');
+});
+
+test('worksheet defaults and currency discovery agree for every market without reordering existing currencies', () => {
+  const previous = ['USD', 'AUD', 'NZD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'AED', 'KHR', 'GBP'];
+  assert.deepEqual(MARKET_CURRENCIES.slice(0, previous.length), previous);
+  assert.ok(MARKET_CURRENCIES.indexOf('KES') >= previous.length);
+  assert.equal(new Set(MARKET_CURRENCIES).size, MARKET_CURRENCIES.length);
+  assert.deepEqual(emptyMarketEconomics('kenya'), { currency: 'KES', monthlyFixedCosts: '', unitPrice: '', unitVariableCost: '' });
+  for (const market of MARKETS) {
+    assert.ok(MARKET_CURRENCIES.includes(market.worksheetCurrency), market.id);
+    assert.equal(emptyMarketEconomics(market.id).currency, market.worksheetCurrency, market.id);
+    assert.ok(filterMarketGuides(MARKETS, market.worksheetCurrency).some(found => found.id === market.id), market.id);
+  }
 });

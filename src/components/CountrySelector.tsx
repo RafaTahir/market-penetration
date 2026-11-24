@@ -71,7 +71,7 @@ export default function CountrySelector({
   const [expandedMarket, setExpandedMarket] = useState<string | null>(null);
   const rail = useRef<HTMLDivElement>(null);
   const [railPosition, setRailPosition] = useState({ overflow: false, start: true, end: false });
-  const query = searchQuery.trim().toLocaleLowerCase();
+  const query = searchQuery.trim();
   const visibleMarkets = filterMarketGuides(MARKETS, query, region);
   const matchesElsewhere = region && visibleMarkets.length === 0 ? filterMarketGuides(MARKETS, query) : [];
 
@@ -120,7 +120,7 @@ export default function CountrySelector({
           {matchesElsewhere.length > 0 && onSearchAllRegions ? <>
             <span>{matchesElsewhere.length === 1 ? `${matchesElsewhere[0].name} · ${matchesElsewhere[0].region}` : `${matchesElsewhere.length} matches in other regions`}</span>
             <button type="button" className="market-explore-button" onClick={onSearchAllRegions}>Search all regions <ArrowRight size={14} aria-hidden="true" /></button>
-          </> : <span>{region ? `Try another country or city in ${region}, or change the region filter.` : 'Try a country, city or region.'}</span>}
+          </> : <span>{region ? `Try another country or city in ${region}, or change the region filter.` : 'Try a country, city, region or worksheet currency.'}</span>}
         </div>
       ) : (
         <div className="market-country-grid" aria-label={region ? `${region} markets` : 'Available markets'} ref={rail}>
@@ -177,6 +177,7 @@ export default function CountrySelector({
                         <a href={source.license.url} target="_blank" rel="noopener noreferrer">Mirror metadata licence: {source.license.name}<ArrowUpRight size={12} aria-hidden="true" /></a>
                       </details>
                     </div>)}
+                    <dl><div><dt>Default worksheet currency</dt><dd>{market.worksheetCurrency} · changeable in your plan</dd></div></dl>
                     <p className="market-directory-label">Government starting points</p>
                     <p>Curated discovery links. Page content, dates and local applicability have not been verified.</p>
                     {[

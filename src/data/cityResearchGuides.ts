@@ -198,4 +198,21 @@ export const CITY_RESEARCH_GUIDES: Readonly<Record<string, CityResearchGuide>> =
       },
     },
   },
+  kenya: {
+    scope: 'Nairobi · compare one address in Westlands with one in Industrial Area',
+    prompts: {
+      customers: {
+        question: 'Which buyers would reorder in Westlands or Industrial Area?',
+        detail: 'Offer the same paid trial to one customer type in both areas. Record orders, repeat requests and the supplier each buyer uses today. For company accounts, ask who approves a new supplier and when it gets paid. Check the year and area of any KNBS figures you use.',
+      },
+      location: {
+        question: 'What would the same delivery round cost from each Nairobi site?',
+        detail: 'Test a round trip from each address to the same customers at the hour you would deliver. Record the vehicle quote, loading time, waiting charges and completed drops. Compare cost per completed drop alongside each site’s monthly rent and service charges.',
+      },
+      setup: {
+        question: 'Which setup questions depend on the entity, and which on the Nairobi premises?',
+        detail: 'Ask the Business Registration Service where to confirm the route for your proposed entity or branch. Give Nairobi City County the building, unit and intended use, such as packing goods or receiving customers. Request a dated answer on the office, steps and fees that apply to that site.',
+      },
+    },
+  },
 };

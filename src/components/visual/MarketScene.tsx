@@ -3,6 +3,7 @@ import './MarketScene.css';
 
 // Original decorative city studies. These are illustrations, not maps or data.
 const renderedScenes: Record<string, { src: string; width: number }> = {
+  kenya: { src: '/art/nairobi-civic-centre.webp', width: 2560 },
   uk: { src: '/art/london-thames.webp', width: 2560 },
   cambodia: { src: '/art/phnom-penh-market.webp', width: 2560 },
   'united-arab-emirates': { src: '/art/dubai-skyline.webp', width: 960 },

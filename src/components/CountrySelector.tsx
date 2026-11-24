@@ -161,7 +161,12 @@ export default function CountrySelector({
                     {fundamentals && <div className="market-snapshot-provenance">
                       <strong>{MARKET_SNAPSHOT_META.source}</strong>
                       <p>Historical observations, not current conditions or market-demand estimates. Display figures are rounded. GDP lines use each country's own vertical range.</p>
-                      <dl><div><dt>Card observations</dt><dd>{MARKET_SNAPSHOT_META.observationYear}</dd></div><div><dt>GDP history</dt><dd>2014–{MARKET_SNAPSHOT_META.observationYear} · current US dollars</dd></div><div><dt>Mirror retrieved</dt><dd><time dateTime={MARKET_SNAPSHOT_META.retrievedAt}>{MARKET_SNAPSHOT_META.retrievedAt.replace('T', ' ').replace('Z', ' UTC')}</time></dd></div><div><dt>Publication date</dt><dd>Unknown</dd></div></dl>
+                      <dl>
+                        <div><dt>Card observations</dt><dd>{MARKET_SNAPSHOT_META.observationYear}</dd></div>
+                        <div><dt>GDP history</dt><dd>2014–{MARKET_SNAPSHOT_META.observationYear} · current US dollars</dd></div>
+                        <div><dt>Population history</dt><dd>2014–{MARKET_SNAPSHOT_META.observationYear} · people</dd></div>
+                        <div><dt>Publication date</dt><dd>Unknown</dd></div>
+                      </dl>
                       <p>Not cross-checked against the primary World Bank API. Mirror package metadata may lag the observation rows.</p>
                       {referenceMode && <p>Reference mode applies to the research examples below. These card figures remain the sourced historical snapshot.</p>}
                     </div>}
@@ -173,7 +178,14 @@ export default function CountrySelector({
                       <a href={source.upstreamUrl} target="_blank" rel="noopener noreferrer">World Bank · {source.indicator}<ArrowUpRight size={12} aria-hidden="true" /></a>
                       <details className="market-dataset-details">
                         <summary>{label} · units & file details<ChevronDown size={12} aria-hidden="true" /></summary>
-                        <dl><div><dt>Indicator</dt><dd>{source.indicator}</dd></div><div><dt>Unit</dt><dd>{source.unit}</dd></div><div><dt>{MARKET_SNAPSHOT_META.observationYear} value</dt><dd>{isObservation(value) ? fullNumberFormat.format(value) : 'Unavailable'}</dd></div><div><dt>Mirror version</dt><dd>{source.commit}</dd></div><div><dt>SHA-256</dt><dd>{source.sha256}</dd></div></dl>
+                        <dl>
+                          <div><dt>Indicator</dt><dd>{source.indicator}</dd></div>
+                          <div><dt>Unit</dt><dd>{source.unit}</dd></div>
+                          <div><dt>{MARKET_SNAPSHOT_META.observationYear} value</dt><dd>{isObservation(value) ? fullNumberFormat.format(value) : 'Unavailable'}</dd></div>
+                          <div><dt>Mirror retrieved</dt><dd><time dateTime={source.retrievedAt}>{source.retrievedAt.replace('T', ' ').replace('Z', ' UTC')}</time></dd></div>
+                          <div><dt>Mirror version</dt><dd>{source.commit}</dd></div>
+                          <div><dt>SHA-256</dt><dd>{source.sha256}</dd></div>
+                        </dl>
                         <a href={source.license.url} target="_blank" rel="noopener noreferrer">Mirror metadata licence: {source.license.name}<ArrowUpRight size={12} aria-hidden="true" /></a>
                       </details>
                     </div>)}

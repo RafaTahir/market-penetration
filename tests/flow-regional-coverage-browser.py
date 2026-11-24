@@ -346,7 +346,12 @@ def run(browser, width, theme):
     expect(comparison.get_by_role("row", name=re.compile("^Region"))).to_contain_text("Middle East")
     expect(comparison.get_by_role("row", name=re.compile("^Nominal GDP change"))).to_contain_text("+21.8%")
     expect(comparison.get_by_role("row", name=re.compile("^Nominal GDP change"))).to_contain_text("+90.2%")
-    expect(comparison).to_contain_text("Prices and exchange rates affect the result.")
+    change_scope = comparison.locator("#period-change-scope")
+    expect(change_scope).to_contain_text("the full 2014–2023 period")
+    expect(change_scope).to_contain_text("Prices and exchange rates affect nominal GDP.")
+    for label in ("Nominal GDP change", "Population change"):
+        expect(comparison.get_by_role("rowheader", name=re.compile(f"^{label}"))).to_have_attribute(
+            "aria-describedby", "period-change-scope")
     uae_column = comparison.get_by_role("columnheader").filter(has_text="United Arab Emirates")
     uae_column.evaluate("cell => cell.scrollIntoView({block: 'center', inline: 'end', behavior: 'instant'})")
     expect(uae_column).to_be_in_viewport(ratio=0.8)

@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { gdpPerPerson, historicalGdpAtYear, nominalGdpChangePercent } from '../src/services/marketComparison.ts';
+import { MARKET_FUNDAMENTALS } from '../src/data/marketSnapshot.ts';
+import {
+  GDP_PER_PERSON, HISTORY_YEARS, POPULATION_CHANGE, gdpPerPerson, historicalGdpAtYear, historicalMetricAtYear,
+  nominalGdpChangePercent, populationChangePercent,
+} from '../src/services/marketComparison.ts';
 
 function series(start, end) {
   return [{ year: 2014, value: start }, { year: 2023, value: end }];
@@ -49,5 +53,75 @@ test('GDP per person never coerces missing or malformed observations and rejects
     { gdpUsd: 100, population: NaN }, { gdpUsd: 100, population: Infinity },
     { gdpUsd: Number.MAX_VALUE, population: Number.MIN_VALUE }]) {
     assert.equal(gdpPerPerson(input), null, `Rejected observation: ${JSON.stringify(input)}`);
+  }
+});
+
+test('annual GDP per person requires observations for the same year and keeps full precision', () => {
+  const snapshot = {
+    gdpUsd: 200, population: 50,
+    gdpSeries: [{ year: 2015, value: 0 }, { year: 2014, value: 20 }, { year: 2016, value: 25 }],
+    populationSeries: [{ year: 2017, value: 5 }, { year: 2015, value: 3 }, { year: 2016, value: 7 }],
+  };
+  assert.equal(historicalMetricAtYear(snapshot, 'gdpUsd', 2014), 20);
+  assert.equal(historicalMetricAtYear(snapshot, 'population', 2017), 5);
+  assert.equal(historicalMetricAtYear(snapshot, 'gdpPerPerson', 2015), 0);
+  assert.equal(historicalMetricAtYear(snapshot, 'gdpPerPerson', 2016), 25 / 7);
+  for (const year of [2014, 2017, 2018]) assert.equal(historicalMetricAtYear(snapshot, 'gdpPerPerson', year), null);
+  assert.equal(historicalMetricAtYear(snapshot, 'population', 2014), null);
+  assert.equal(historicalMetricAtYear(snapshot, 'gdpUsd', 2017), null);
+});
+
+test('the headline year supports older snapshots with scalars and no history arrays', () => {
+  const snapshot = { gdpUsd: 330, population: 11 };
+  assert.deepEqual(['gdpUsd', 'population', 'gdpPerPerson'].map(metric =>
+    historicalMetricAtYear(snapshot, metric, GDP_PER_PERSON.year)), [330, 11, 30]);
+  for (const metric of ['gdpUsd', 'population', 'gdpPerPerson']) {
+    assert.equal(historicalMetricAtYear(snapshot, metric, 2014), null);
+    for (const year of [2013, 2016.5, 2024, Infinity, NaN, '2023']) assert.equal(historicalMetricAtYear(snapshot, metric, year), null);
+  }
+});
+
+test('annual levels preserve measured population zero and reject invalid values, shapes and overflowing ratios', () => {
+  const snapshot = { gdpSeries: series(10, 20), populationSeries: series(0, 10) };
+  assert.equal(historicalMetricAtYear(snapshot, 'population', 2014), 0);
+  assert.equal(historicalMetricAtYear(snapshot, 'gdpPerPerson', 2014), null);
+  for (const value of [-1, null, '5', NaN, Infinity]) {
+    const malformed = { ...snapshot, populationSeries: [null, { year: 2014, value }] };
+    assert.equal(historicalMetricAtYear(malformed, 'population', 2014), null);
+    assert.equal(historicalMetricAtYear(malformed, 'gdpPerPerson', 2014), null);
+  }
+  assert.equal(historicalMetricAtYear({ populationSeries: {} }, 'population', 2015), null);
+  assert.equal(historicalMetricAtYear({ gdpSeries: series(Number.MAX_VALUE, 0), populationSeries: series(Number.MIN_VALUE, 10) }, 'gdpPerPerson', 2014), null);
+  assert.equal(historicalMetricAtYear(undefined, 'population', 2015), null);
+  assert.equal(historicalMetricAtYear(snapshot, 'unknown', 2015), null);
+});
+
+test('national population change uses only the two named endpoints and rounds the whole-period percent once', () => {
+  assert.equal(POPULATION_CHANGE.fromYear, 2014);
+  assert.equal(POPULATION_CHANGE.toYear, 2023);
+  assert.equal(POPULATION_CHANGE.unit, 'percent');
+  assert.equal(populationChangePercent([{ year: 2023, value: 160 }, { year: 2019, value: 0 }, { year: 2014, value: 101 }]), 58.4);
+  assert.equal(populationChangePercent(series(123, 70)), -43.1);
+  assert.equal(populationChangePercent(series(42, 0)), -100);
+  assert.equal(populationChangePercent(series(42, 42)), 0);
+  assert.equal(populationChangePercent(series(100000, 99999)), 0);
+  for (const input of [null, {}, [], series(0, 7), series(-1, 1), series(25, -1), series(15, '20'),
+    series(Infinity, 30), series(Number.MIN_VALUE, Number.MAX_VALUE), [{ year: 2015, value: 10 }, { year: 2023, value: 100 }]]) {
+    assert.equal(populationChangePercent(input), null);
+  }
+});
+
+test('annual lookups and previous GDP API agree with the bundled observations and matching headline year', () => {
+  assert.deepEqual(HISTORY_YEARS, [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023]);
+  for (const [country, snapshot] of Object.entries(MARKET_FUNDAMENTALS)) {
+    for (const year of HISTORY_YEARS) {
+      const headlineYear = year === GDP_PER_PERSON.year;
+      const gdp = snapshot.gdpSeries.find(point => point.year === year)?.value ?? (headlineYear ? snapshot.gdpUsd : null);
+      const population = snapshot.populationSeries.find(point => point.year === year)?.value ?? (headlineYear ? snapshot.population : null);
+      assert.equal(historicalGdpAtYear(snapshot, year), gdp, `${country} GDP ${year}`);
+      assert.equal(historicalMetricAtYear(snapshot, 'population', year), population, `${country} population ${year}`);
+      const perPerson = gdp !== null && population > 0 ? gdp / population : null;
+      assert.equal(historicalMetricAtYear(snapshot, 'gdpPerPerson', year), perPerson, `${country} output per resident ${year}`);
+    }
   }
 });

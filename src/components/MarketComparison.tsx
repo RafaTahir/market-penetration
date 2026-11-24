@@ -2,7 +2,10 @@ import { ArrowDownToLine, ArrowRight, ArrowUpRight, Info, MoveHorizontal, X } fr
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import './MarketComparison.css';
 import { MARKETS } from '../data/marketCatalog';
-import { GDP_PER_PERSON, gdpPerPerson, NOMINAL_GDP_CHANGE, nominalGdpChangePercent } from '../services/marketComparison';
+import {
+  GDP_PER_PERSON, gdpPerPerson, HISTORY_YEARS, historicalMetricAtYear, NOMINAL_GDP_CHANGE,
+  nominalGdpChangePercent, POPULATION_CHANGE, populationChangePercent,
+} from '../services/marketComparison';
 import { MARKET_FUNDAMENTALS, MARKET_SNAPSHOT_META } from '../data/marketSnapshot';
 
 const populationFormat = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
@@ -27,7 +30,11 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
   const columns = markets.map(market => {
     const snapshot = MARKET_FUNDAMENTALS[market.countryCode];
-    return { market, snapshot, perPerson: gdpPerPerson(snapshot), change: nominalGdpChangePercent(snapshot?.gdpSeries) };
+    return {
+      market, snapshot, perPerson: gdpPerPerson(snapshot),
+      gdpChange: nominalGdpChangePercent(snapshot?.gdpSeries),
+      populationChange: populationChangePercent(snapshot?.populationSeries),
+    };
   });
   const tableScroll = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -44,18 +51,27 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
     const payload = {
       exportedAt: new Date().toISOString(),
       contentType: 'historical-country-snapshot-and-source-directory',
-      limitation: 'Historical 2023 national series via pinned DataHub mirrors, not live/current observations, city statistics, market demand or business-fit rankings. Primary World Bank API was not cross-checked. Curated discovery links are not verified current business requirements.',
+      limitation: 'Historical 2014–2023 national series and 2023 headlines via pinned DataHub mirrors, not live/current observations, city statistics, market demand or business-fit rankings. Primary World Bank API was not cross-checked. Curated discovery links are not verified current business requirements.',
       historicalSnapshot: {
         provenance: MARKET_SNAPSHOT_META,
         gdpPerPerson: GDP_PER_PERSON,
+        annualGdpPerPerson: {
+          fromYear: HISTORY_YEARS[0], toYear: MARKET_SNAPSHOT_META.observationYear,
+          unit: GDP_PER_PERSON.unit, method: GDP_PER_PERSON.method, limitation: GDP_PER_PERSON.limitation,
+        },
         nominalGdpChange: NOMINAL_GDP_CHANGE,
-        observations: columns.map(({ market, snapshot, perPerson, change }) => ({
+        populationChange: POPULATION_CHANGE,
+        observations: columns.map(({ market, snapshot, perPerson, gdpChange, populationChange }) => ({
           country: market.name,
           countryCode: market.countryCode,
           region: market.region,
           ...snapshot,
           gdpPerPersonUsd: perPerson,
-          nominalGdpChangePercent: change,
+          annualGdpPerPerson: HISTORY_YEARS.map(year => ({
+            year, value: historicalMetricAtYear(snapshot, 'gdpPerPerson', year),
+          })),
+          nominalGdpChangePercent: gdpChange,
+          populationChangePercent: populationChange,
         })),
       },
       markets,
@@ -85,8 +101,11 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
             <tr><th scope="row" aria-describedby="gdp-per-person-scope">GDP per person · {GDP_PER_PERSON.year} · US$</th>{columns.map(({ market, perPerson }) =>
               <td key={market.id}>{perPerson === null ? 'Unavailable' : perPersonFormat.format(perPerson)}</td>
             )}</tr>
-            <tr><th scope="row" aria-describedby="nominal-gdp-change-scope">Nominal GDP change · 2014–2023</th>{columns.map(({ market, change }) =>
-              <td key={market.id}>{change === null ? 'Unavailable' : `${changeFormat.format(change)}%`}</td>
+            <tr><th scope="row" aria-describedby="period-change-scope">Nominal GDP change · 2014–2023</th>{columns.map(({ market, gdpChange }) =>
+              <td key={market.id}>{gdpChange === null ? 'Unavailable' : `${changeFormat.format(gdpChange)}%`}</td>
+            )}</tr>
+            <tr><th scope="row" aria-describedby="period-change-scope">Population change · 2014–2023</th>{columns.map(({ market, populationChange }) =>
+              <td key={market.id}>{populationChange === null ? 'Unavailable' : `${changeFormat.format(populationChange)}%`}</td>
             )}</tr>
             <tr><th scope="row">City to explore</th>{markets.map(market => <td key={market.id}>{market.city}</td>)}</tr>
             <tr><th scope="row">Default worksheet currency</th>{markets.map(market => <td key={market.id}>{market.worksheetCurrency}</td>)}</tr>
@@ -118,10 +137,10 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
     )}
     {markets.length > 0 && <p className="explorer-comparison-intro">
       <span id="gdp-per-person-scope">Flow divides GDP by population to show output per resident. Household income and spending power require separate evidence.</span>{' '}
-      <span id="nominal-gdp-change-scope">GDP change covers the full 2014–2023 period in current US dollars. Prices and exchange rates affect the result.</span>
+      <span id="period-change-scope">Both changes cover the full 2014–2023 period. Prices and exchange rates affect nominal GDP.</span>
     </p>}
     <div className="explorer-comparison-footer">
-      <span><Info size={14} aria-hidden="true" />2023 historical snapshot · World Bank series via DataHub · not a market ranking</span>
+      <span><Info size={14} aria-hidden="true" />2023 historical snapshot · 2014–2023 changes · World Bank series via DataHub · not a market ranking</span>
       {markets.length > 0 && (
         <div className="market-comparison-actions">
           <a className="market-comparison-plan" href="#/plan">
@@ -134,7 +153,13 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
       )}
     </div>
     {markets.length === 1 && <p className="explorer-comparison-intro">Add another country above for a side-by-side view.</p>}
-    <details className="explorer-comparison-limits"><summary>About market figures & comparison limits</summary><p>Population and GDP use the same 2023 period from pinned public DataHub mirrors of World Bank series. GDP is in current US dollars, not inflation-adjusted or a measure of customer demand. Source publication dates are unknown; the primary API could not be cross-checked. Linked government directories and current applicability are unverified. The shortlist export preserves exact values, observation year, retrieval time and source revisions without a business-fit ranking.</p><p><a href={MARKET_SNAPSHOT_META.gdp.downloadUrl} target="_blank" rel="noopener noreferrer">Pinned GDP source</a> · <a href={MARKET_SNAPSHOT_META.population.downloadUrl} target="_blank" rel="noopener noreferrer">Pinned population source</a> · Retrieved {MARKET_SNAPSHOT_META.retrievedAt.slice(0, 10)}</p>{!referenceMode && <button onClick={onReference}>View unverified reference examples <ArrowRight size={14} /></button>}</details>
+    <details className="explorer-comparison-limits">
+      <summary>About market figures & comparison limits</summary>
+      <p>The headlines use 2023 national observations. The shortlist export includes annual population and nominal GDP from 2014 through 2023, plus GDP per person calculated from each year's pair. The GDP series uses current US dollars. City demand and household purchasing power require separate evidence.</p>
+      <p>Each pinned DataHub file has its own retrieval time and revision in the export. Publication dates are unknown. The primary World Bank API and the current applicability of government directories have not been independently checked.</p>
+      <p><a href={MARKET_SNAPSHOT_META.gdp.downloadUrl} target="_blank" rel="noopener noreferrer">Pinned GDP source</a> · <a href={MARKET_SNAPSHOT_META.population.downloadUrl} target="_blank" rel="noopener noreferrer">Pinned population source</a></p>
+      {!referenceMode && <button onClick={onReference}>View unverified reference examples <ArrowRight size={14} /></button>}
+    </details>
     {children}
   </section>;
 }

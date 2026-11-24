@@ -1,6 +1,6 @@
 # Historical market snapshot
 
-`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM), Cambodia (KHM), Australia (AUS), New Zealand (NZL), the United Arab Emirates (ARE), the United Kingdom (GBR), Kenya (KEN) and Canada (CAN).
+`src/data/marketSnapshot.ts` contains annual national population and GDP observations for **2014–2023**, with **2023** as the common headline year. The 13 markets are Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM), Cambodia (KHM), Australia (AUS), New Zealand (NZL), the United Arab Emirates (ARE), the United Kingdom (GBR), Kenya (KEN) and Canada (CAN).
 
 ## Attribution and exact source files
 
@@ -17,10 +17,11 @@ The declarations above are recorded from the mirrors' pinned [population datapac
 
 - Both complete downloaded CSV hashes were independently recomputed and matched the pinned input hashes above. Headers are `Country Name,Country Code,Year,Value`.
 - Selection uses ISO alpha-3 codes and exact observation years. Each selected country/year occurs once, all values are finite and nonnegative, and population counts are integral. No missing value is filled, interpolated or copied from another year/country.
-- All thirteen countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
+- Filtering each pinned CSV to the 13 catalog ISO codes and years 2014 through 2023 yielded exactly 130 unique country-year observations per indicator. Every 2023 endpoint matched its existing headline. All selected population counts and GDP values were positive. The population mirror extends to 2025 for all 13 markets. GDP ends in 2023, which defines the common comparison period.
+- `populationSeries` preserves decreases in the source. Singapore goes from 5,703,569 people in 2019 to 5,685,807 in 2020 and 5,453,566 in 2021. The other year-on-year decreases are Thailand in 2023, New Zealand in 2022 and the UAE in 2020. These observations alone do not establish causes.
 - GDP units and indicator are explicit in its datapackage. The population datapackage identifies total-population series `SP.POP.TOTL`; its numeric counts are people, with no millions multiplier. Display abbreviation is the UI's responsibility.
 - Raw CSV numeric literals are retained without deliberate decimal rounding. Runtime values use JavaScript numbers and their ordinary IEEE-754 precision limits. GDP series are not inflation-adjusted, and nominal changes also reflect exchange-rate and price movements.
-- `retrievedAt = 2026-10-25T17:48:56Z` records the latest local capture time of the two downloaded CSV inputs. Population was captured at 17:48:08 UTC; GDP at 17:48:56 UTC. Retrieval is separate from observation year and does not establish source publication or freshness.
+- The pinned CSVs retain their archived local capture timestamps. `population.retrievedAt` is `2026-10-25T17:48:08Z` and `gdp.retrievedAt` is `2026-10-25T17:48:56Z`. The top-level `retrievedAt` records the later of the two captures for the combined snapshot. Retrieval is separate from observation year and does not establish source publication or freshness.
 
 Australia was added on 2026-11-24 from the original cached CSVs. Both complete files matched the SHA-256 values above. Filtering to country code `AUS` yielded one 2023 population count (26,659,922) and one nominal GDP observation for each year from 2014 through 2023. The 2023 GDP value is 1,723,827,215,334.7063 current US dollars. The extraction date records when the Australian rows were selected. The input retrieval time stays 2026-10-25T17:48:56Z.
 
@@ -38,10 +39,12 @@ The Canada series uses country code `CAN`. Both complete CSV hashes matched befo
 
 ## GDP per person
 
-Flow calculates 2023 national GDP per person by dividing each country's nominal GDP in current US dollars by its population for that year. The chart and comparison table round display values to whole dollars. The shortlist JSON includes the unrounded ratio, both inputs, the calculation method and their provenance. Missing inputs and a population of zero yield an unavailable value. A genuine zero GDP with a positive population yields zero. The ratio describes average output per resident. Measuring household income, purchasing power or sales potential requires other evidence.
+GDP per person is a Flow calculation in current US dollars per resident. For each selected year, divide national GDP by the national population with the same ISO code and observation year. For example, Singapore's 2014 inputs are US$314,863,580,758.45465 and 5,469,724 people. The 2023 comparison uses Singapore's 2023 inputs for both series. A missing input or a zero population leaves the ratio unavailable. A genuine zero GDP with a positive population yields zero.
+
+Whole-dollar display values use the unrounded inputs. The shortlist export retains both source series and provenance. The ratio describes average output per resident. Household income, purchasing power and sales potential require separate evidence. Changes over time can also reflect prices and exchange rates.
 
 ## Verification limits
 
-The primary World Bank API request was blocked with HTTP 403 in this cloud environment. These values were **not independently cross-checked against the primary service**; a matching file hash establishes the downloaded mirror artifact, not factual accuracy or current applicability. Source revision and official publication dates remain **unknown**. The population datapackage says `last_updated: 2023-05-04` despite newer observation rows, so that packaging field cannot establish the CSV's publication date. GDP's packaging update label likewise does not make 2023 observations current.
+The original World Bank API request returned HTTP 403 in this cloud environment. Verification therefore covers the pinned mirror files. The upstream revision and official publication dates remain **unknown**. The population datapackage labels its last update `2023-05-04` despite containing newer observation years. Neither mirror's packaging date establishes when the upstream provider published these observations.
 
 The snapshot does not measure market demand, digital adoption, competition, business survivability, regulatory readiness or current legal requirements. It supplies no market ranking, entry recommendation, forecast, calibrated probability or planner score. Do not present it as live or current intelligence, merge it into provider error fallbacks, or treat national observations as city-level facts. Any later refresh must select an explicit compatible period, revalidate completeness and units, update the pinned hashes, and retain the observation/retrieval distinction.

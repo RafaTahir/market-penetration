@@ -133,7 +133,11 @@ def explore_and_plan(browser, width):
         ratio = chart.locator('li[data-market="uk"] data')
         expect(ratio).to_have_attribute("value", str(GBR_GDP / GBR_POPULATION))
         expect(ratio).to_have_accessible_name(re.compile(r"current US dollars per person, 2023$"))
-        expect(chart.get_by_role("slider")).to_have_count(0)
+        year_slider = chart.get_by_role("slider", name="GDP per person observation year", exact=True)
+        year_slider.press("Home")
+        expect(year_slider).to_have_value("2014")
+        expect(ratio).to_have_attribute("value", str(3064708247921.4277 / 64619000))
+        expect(ratio).to_have_accessible_name(re.compile(r"current US dollars per person, 2014$"))
         page.get_by_role("button", name=re.compile("^Compare markets")).click()
         compare = page.locator("#market-comparison")
         for country in ("Singapore", "United Kingdom"):

@@ -199,7 +199,11 @@ with sync_playwright() as playwright:
         expect(details).to_have_attribute('open', '')
         expect(details).to_contain_text('Historical observations, not a live feed.')
         expect(details).to_contain_text('not independently cross-checked against the primary World Bank endpoint')
-        expect(details.locator('time')).to_have_attribute('datetime', provenance['retrievedAt'])
+        for key, timestamp in [('population', '2026-10-25T17:48:08Z'), ('gdp', '2026-10-25T17:48:56Z')]:
+            source = provenance[key]
+            assert source['retrievedAt'] == timestamp
+            source_panel = details.locator('.mf-source-files section').filter(has=page.locator(f'a[href="{source["downloadUrl"]}"]'))
+            expect(source_panel.locator('time')).to_have_attribute('datetime', timestamp)
         expect(details).to_contain_text('Unknown')
         safe_source(details.locator(f'a[href="{POP_URL}"]'), POP_URL)
         safe_source(details.locator(f'a[href="{GDP_URL}"]'), GDP_URL)

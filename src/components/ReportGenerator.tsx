@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FileText, Download, Presentation, Sparkles } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import { ProfessionalDeckService } from '../services/professionalDeckService';
+import type { jsPDF } from 'jspdf';
 
 // This route exports a bundled planning example; it does not load provider data.
 const labelIllustrativePages = (doc: jsPDF): void => {
@@ -23,6 +22,8 @@ const labelIllustrativePages = (doc: jsPDF): void => {
 
 const ReportGenerator: React.FC = () => {
   const [generating, setGenerating] = useState(false);
+  const busy = useRef(false);
+  const [outcome, setOutcome] = useState<'success' | 'error' | null>(null);
 
   // Fixed illustrative assumptions, not provider observations or current market facts.
   const marketData = {
@@ -48,10 +49,14 @@ const ReportGenerator: React.FC = () => {
     ]
   };
 
-  const generateWrittenReport = () => {
+  const generateWrittenReport = async () => {
+    if (busy.current) return;
+    busy.current = true;
     setGenerating(true);
+    setOutcome(null);
 
     try {
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -456,219 +461,35 @@ const ReportGenerator: React.FC = () => {
       labelIllustrativePages(doc);
       doc.save('FLOW_SEA_Market_Entry_Strategy_Report.pdf');
 
+      setOutcome('success');
     } catch (error) {
+      setOutcome('error');
       console.error('Error generating report:', error);
     } finally {
+      busy.current = false;
       setGenerating(false);
     }
   };
 
   const generateProfessionalDeck = async () => {
+    if (busy.current) return;
+    busy.current = true;
     setGenerating(true);
+    setOutcome(null);
 
     try {
+      const { ProfessionalDeckService } = await import('../services/professionalDeckService');
       const deckService = ProfessionalDeckService.getInstance();
       await deckService.generateProfessionalDeck({
         selectedCountries: ['Indonesia', 'Thailand', 'Singapore', 'Vietnam', 'Malaysia', 'Philippines'],
         selectedCities: []
       });
+      setOutcome('success');
     } catch (error) {
+      setOutcome('error');
       console.error('Error generating professional deck:', error);
     } finally {
-      setGenerating(false);
-    }
-  };
-
-  const generatePresentationDeck = async () => {
-    setGenerating(true);
-
-    try {
-      // Use the professional deck service
-      await generateProfessionalDeck();
-      return;
-
-      const doc = new jsPDF('landscape');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20;
-
-      // Slide 1: Title Slide
-      doc.setFillColor(30, 58, 138);
-      doc.rect(0, 0, pageWidth, pageHeight, 'F');
-
-      // FLOW Logo
-      doc.setFontSize(48);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.text('FLOW', pageWidth / 2, 50, { align: 'center' });
-
-      // Title
-      doc.setFontSize(36);
-      doc.setTextColor(255, 255, 255);
-      doc.text('Southeast Asian Market Entry', pageWidth / 2, 90, { align: 'center' });
-      doc.text('Strategy', pageWidth / 2, 105, { align: 'center' });
-
-      // Subtitle
-      doc.setFontSize(18);
-      doc.setTextColor(203, 213, 225);
-      doc.text('Illustrative template | generated ' + new Date().getFullYear(), pageWidth / 2, 130, { align: 'center' });
-
-      // Decorative element
-      doc.setDrawColor(59, 130, 246);
-      doc.setLineWidth(2);
-      doc.line(pageWidth / 2 - 50, 140, pageWidth / 2 + 50, 140);
-
-      // Slide 2: Executive Summary
-      doc.addPage();
-
-      // Header bar
-      doc.setFillColor(59, 130, 246);
-      doc.rect(0, 0, pageWidth, 20, 'F');
-      doc.setFontSize(12);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.text('EXECUTIVE SUMMARY', margin, 13);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Slide 2', pageWidth - margin, 13, { align: 'right' });
-
-      // Content
-      let yPos = 40;
-
-      doc.setFontSize(24);
-      doc.setTextColor(30, 58, 138);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Investment Thesis', margin, yPos);
-
-      yPos += 20;
-
-      doc.setFontSize(14);
-      doc.setTextColor(51, 65, 85);
-      doc.setFont('helvetica', 'normal');
-
-      const summaryPoints = [
-        '• $901B combined market opportunity across 6 Southeast Asian economies',
-        '• 4.7% average GDP growth with demographics favoring 20+ years of expansion',
-        '• $229.5B digital economy growing at 20%+ annually',
-        '• Indonesia, Vietnam, and Philippines offer highest growth potential',
-        '• Recommend phased entry: Indonesia first, then Vietnam/Philippines',
-        '• Expected ROI: 25-30% by Year 3 with $50-75M investment'
-      ];
-
-      summaryPoints.forEach(point => {
-        doc.text(point, margin, yPos);
-        yPos += 12;
-      });
-
-      yPos += 10;
-
-      // Recommendation box
-      doc.setFillColor(16, 185, 129, 0.1);
-      doc.rect(margin, yPos, pageWidth - (2 * margin), 25, 'F');
-      doc.setDrawColor(16, 185, 129);
-      doc.setLineWidth(2);
-      doc.line(margin, yPos, margin, yPos + 25);
-
-      doc.setFontSize(16);
-      doc.setTextColor(16, 185, 129);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ILLUSTRATIVE PLANNING SCENARIO', margin + 5, yPos + 10);
-
-      doc.setFontSize(12);
-      doc.setTextColor(51, 65, 85);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Southeast Asia presents a compelling market entry opportunity with manageable risks and strong upside potential.', margin + 5, yPos + 20);
-
-      // Slide 3: Market Overview
-      doc.addPage();
-
-      doc.setFillColor(59, 130, 246);
-      doc.rect(0, 0, pageWidth, 20, 'F');
-      doc.setFontSize(12);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.text('MARKET OVERVIEW', margin, 13);
-      doc.text('Slide 3', pageWidth - margin, 13, { align: 'right' });
-
-      yPos = 40;
-
-      doc.setFontSize(24);
-      doc.setTextColor(30, 58, 138);
-      doc.text('Illustrative Regional Market Metrics', margin, yPos);
-
-      yPos += 15;
-
-      // Metrics boxes
-      const metrics = [
-        { label: 'Market Size', value: '$901B', sublabel: 'Combined GDP', color: [59, 130, 246] },
-        { label: 'Population', value: '588.8M', sublabel: 'Median age: 30', color: [16, 185, 129] },
-        { label: 'Growth Rate', value: '4.7%', sublabel: 'GDP CAGR', color: [139, 92, 246] },
-        { label: 'Digital Economy', value: '$229.5B', sublabel: '+20% annually', color: [245, 158, 11] }
-      ];
-
-      const boxWidth = 60;
-      const boxHeight = 50;
-      const spacing = (pageWidth - (2 * margin) - (4 * boxWidth)) / 3;
-
-      metrics.forEach((metric, index) => {
-        const xPos = margin + (index * (boxWidth + spacing));
-
-        doc.setFillColor(metric.color[0], metric.color[1], metric.color[2], 0.1);
-        doc.rect(xPos, yPos, boxWidth, boxHeight, 'F');
-
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139);
-        doc.setFont('helvetica', 'normal');
-        doc.text(metric.label, xPos + boxWidth / 2, yPos + 12, { align: 'center' });
-
-        doc.setFontSize(22);
-        doc.setTextColor(metric.color[0], metric.color[1], metric.color[2]);
-        doc.setFont('helvetica', 'bold');
-        doc.text(metric.value, xPos + boxWidth / 2, yPos + 28, { align: 'center' });
-
-        doc.setFontSize(9);
-        doc.setTextColor(100, 116, 139);
-        doc.setFont('helvetica', 'normal');
-        doc.text(metric.sublabel, xPos + boxWidth / 2, yPos + 40, { align: 'center' });
-      });
-
-      yPos += 70;
-
-      // Country data
-      doc.setFontSize(16);
-      doc.setTextColor(30, 58, 138);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Illustrative Markets by Size', margin, yPos);
-
-      yPos += 12;
-
-      const topCountries = marketData.countries.slice(0, 3);
-      topCountries.forEach((country, index) => {
-        const barWidth = (country.marketSize / 287.2) * 200;
-
-        doc.setFillColor(59, 130, 246, 0.7 - (index * 0.2));
-        doc.rect(margin + 50, yPos, barWidth, 15, 'F');
-
-        doc.setFontSize(11);
-        doc.setTextColor(51, 65, 85);
-        doc.setFont('helvetica', 'bold');
-        doc.text(country.name, margin, yPos + 10);
-
-        doc.setTextColor(255, 255, 255);
-        doc.text(`$${country.marketSize}B`, margin + 55, yPos + 10);
-
-        doc.setFontSize(9);
-        doc.setTextColor(16, 185, 129);
-        doc.text(`+${country.growth}%`, margin + 260, yPos + 10);
-
-        yPos += 20;
-      });
-
-      labelIllustrativePages(doc);
-      doc.save('FLOW_SEA_Market_Entry_Presentation.pdf');
-
-    } catch (error) {
-      console.error('Error generating presentation:', error);
-    } finally {
+      busy.current = false;
       setGenerating(false);
     }
   };
@@ -683,6 +504,10 @@ const ReportGenerator: React.FC = () => {
           </p>
         </div>
 
+        {outcome === 'error' && <p role="alert" className="mb-4 text-sm text-white">
+          Could not generate this PDF. Try again, or <button type="button" className="underline" onClick={() => window.location.reload()}>reload the page</button> and retry.
+        </p>}
+        {outcome === 'success' && <p role="status" className="mb-4 text-sm text-white">PDF generated. Your download has started.</p>}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
           <div className="bg-slate-700/50 rounded-lg p-6 border border-slate-600">
             <div className="flex items-center space-x-3 mb-4">
@@ -729,7 +554,7 @@ const ReportGenerator: React.FC = () => {
             </ul>
 
             <button
-              onClick={generatePresentationDeck}
+              onClick={generateProfessionalDeck}
               disabled={generating}
               className="w-full flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 text-white px-4 py-3 rounded-lg font-medium transition-colors"
             >

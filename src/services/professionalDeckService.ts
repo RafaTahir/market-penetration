@@ -1,4 +1,3 @@
-import { jsPDF } from 'jspdf';
 
 export interface DeckData {
   selectedCountries: string[];
@@ -17,6 +16,7 @@ export class ProfessionalDeckService {
   }
 
   async generateProfessionalDeck(data: DeckData): Promise<void> {
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',

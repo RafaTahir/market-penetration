@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Download, FileText, BarChart3, Loader2, Sparkles, Presentation } from 'lucide-react';
-import { ExportService, ExportData } from '../services/exportService';
+import type { ExportData } from '../services/exportService';
 
 interface ExportToolsProps {
   selectedCountries: string[];
@@ -22,7 +22,8 @@ const ExportTools: React.FC<ExportToolsProps> = ({
   const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'ppt'>('pdf');
   const [isExporting, setIsExporting] = useState(false);
   
-  const exportService = ExportService.getInstance();
+  const busy = useRef(false);
+  const [outcome, setOutcome] = useState<'success' | 'error' | null>(null);
 
   const exportOptions = [
     {
@@ -46,9 +47,14 @@ const ExportTools: React.FC<ExportToolsProps> = ({
   ];
 
   const handleExport = async () => {
+    if (busy.current || !selectedCountries.length) return;
+    busy.current = true;
     setIsExporting(true);
+    setOutcome(null);
     
     try {
+      const { ExportService } = await import('../services/exportService');
+      const exportService = ExportService.getInstance();
       const exportData: ExportData = {
         selectedCountries,
         selectedCities,
@@ -70,60 +76,12 @@ const ExportTools: React.FC<ExportToolsProps> = ({
           break;
       }
       
-      // Show success message
-      // Create a beautiful success notification
-      const notification = document.createElement('div');
-      notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300';
-      notification.innerHTML = `
-        <div class="flex items-center space-x-3">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <div>
-            <div class="font-semibold">Report Generated Successfully!</div>
-            <div class="text-sm opacity-90">Your ${exportFormat.toUpperCase()} report is ready for download</div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(notification);
-      
-      // Remove notification after 5 seconds
-      setTimeout(() => {
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => document.body.removeChild(notification), 300);
-      }, 5000);
+      setOutcome('success');
     } catch (error) {
       console.error('Error generating export:', error);
-      const errorNotification = document.createElement('div');
-      errorNotification.className = 'fixed top-4 right-4 bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300';
-
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      const detailedMessage = errorMessage.includes('Failed to generate')
-        ? errorMessage
-        : 'An unexpected error occurred. Please check your internet connection and try again.';
-
-      errorNotification.innerHTML = `
-        <div class="flex items-center space-x-3">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <div>
-            <div class="font-semibold">Generation Failed</div>
-            <div class="text-sm opacity-90">${detailedMessage}</div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(errorNotification);
-
-      setTimeout(() => {
-        errorNotification.style.transform = 'translateX(100%)';
-        setTimeout(() => {
-          if (document.body.contains(errorNotification)) {
-            document.body.removeChild(errorNotification);
-          }
-        }, 300);
-      }, 7000);
+      setOutcome('error');
     } finally {
+      busy.current = false;
       setIsExporting(false);
     }
   };
@@ -148,7 +106,9 @@ const ExportTools: React.FC<ExportToolsProps> = ({
             {exportOptions.map((option) => (
               <button
                 key={option.id}
-                onClick={() => setExportFormat(option.id as 'pdf' | 'excel' | 'ppt')}
+                disabled={isExporting}
+                aria-pressed={exportFormat === option.id}
+                onClick={() => { setExportFormat(option.id as 'pdf' | 'excel' | 'ppt'); setOutcome(null); }}
                 className={`p-3 rounded-lg border text-left transition-all duration-200 ${
                   exportFormat === option.id
                     ? 'border-orange-500 bg-orange-900/20 text-white'
@@ -243,6 +203,10 @@ const ExportTools: React.FC<ExportToolsProps> = ({
             </>
           )}
         </button>
+        {outcome === 'error' && <p role="alert" className="text-sm text-white">
+          Could not generate this report. Try again, or <button type="button" className="underline" onClick={() => window.location.reload()}>reload the page</button> and retry.
+        </p>}
+        {outcome === 'success' && <p role="status" className="text-sm text-white">Report generated. Your download has started.</p>}
       </div>
     </div>
   );

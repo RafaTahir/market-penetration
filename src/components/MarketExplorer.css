@@ -233,3 +233,10 @@
   .explorer-region-filters button { gap: 5px; padding-inline: 9px; font-size: 12px; }
 }
 .explorer-region-note { margin: -4px 0 14px; color: var(--ex-muted); font-size: 12px; }
+
+.flow-tool-message { padding: 20px 24px; margin: 16px auto; width: min(100%, 720px); background: #172b43; color: #e8f2ff; border-radius: 12px; font-size: 14px; }
+.light .flow-tool-message { background: #e8f1fb; color: #18324e; }
+.flow-tool-message h2 { font-size: 18px; font-weight: 650; }
+.flow-tool-message p { margin-block: 8px; }
+.flow-tool-message div { display: flex; flex-wrap: wrap; gap: 16px; }
+.flow-tool-message a, .flow-tool-message button { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 3px; }

@@ -1,34 +1,37 @@
-import { useState, useEffect, useRef } from 'react';
+import { lazy, useState, useEffect, useRef } from 'react';
 import { ArrowRight, ArrowUpRight, ArrowLeftRight, BarChart3, BookOpen, Compass, Globe2, Layers3, MapPin, Search, Sparkles, X } from 'lucide-react';
-import EntryPlanner from './components/EntryPlanner';
 import Header from './components/Header';
-import LiveMarketData from './components/LiveMarketData';
-import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CountrySelector from './components/CountrySelector';
-import ExportTools from './components/ExportTools';
-import InstitutionalReports from './components/InstitutionalReports';
-import ReportGenerator from './components/ReportGenerator';
-import { Notification } from './components/NotificationCenter';
-import ComparisonMode from './components/ComparisonMode';
+import type { Notification } from './components/NotificationCenter';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
-import UserDashboard from './components/UserDashboard';
-import ExportScheduler from './components/ExportScheduler';
-import DataPlayground from './components/DataPlayground';
 import CollaborationPanel from './components/CollaborationPanel';
-import DataRefreshDashboard from './components/DataRefreshDashboard';
-import EnterpriseIntelligenceDashboard from './components/EnterpriseIntelligenceDashboard';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAuth } from './contexts/AuthContext';
 import MarketResearch, { type ResearchMode } from './components/MarketResearch';
-import ReferenceResearch from './components/ReferenceResearch';
 import MarketComparison from './components/MarketComparison';
-import MarketPlanHub from './components/MarketPlanHub';
 import type { RestoreDraft } from './services/marketPlanRestore';
 import { useMarketShortlist } from './hooks/useMarketShortlist';
 import { useMarketPlans, type MarketPlanSession } from './hooks/useMarketPlans';
 import { filterMarketGuides, MARKETS, type MarketRegion } from './data/marketCatalog';
 import { SEA_COUNTRIES } from './components/visual/seaGeography';
+import ToolPanel from './components/ToolPanel';
+import { downloadMarketPlan } from './services/downloadMarketPlan';
 import './components/MarketExplorer.css';
+
+const EntryPlanner = lazy(() => import('./components/EntryPlanner'));
+const MarketPlanHub = lazy(() => import('./components/MarketPlanHub'));
+const LiveMarketData = lazy(() => import('./components/LiveMarketData'));
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'));
+const InstitutionalReports = lazy(() => import('./components/InstitutionalReports'));
+const ReportGenerator = lazy(() => import('./components/ReportGenerator'));
+const UserDashboard = lazy(() => import('./components/UserDashboard'));
+const DataPlayground = lazy(() => import('./components/DataPlayground'));
+const ExportScheduler = lazy(() => import('./components/ExportScheduler'));
+const DataRefreshDashboard = lazy(() => import('./components/DataRefreshDashboard'));
+const EnterpriseIntelligenceDashboard = lazy(() => import('./components/EnterpriseIntelligenceDashboard'));
+const ReferenceResearch = lazy(() => import('./components/ReferenceResearch'));
+const ExportTools = lazy(() => import('./components/ExportTools'));
+const ComparisonMode = lazy(() => import('./components/ComparisonMode'));
 
 type ResearchView = 'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler' | 'data-sync' | 'enterprise-intelligence';
 
@@ -265,7 +268,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onClearAllNotifications={handleClearAllNotifications}
           onDismissNotification={handleDismissNotification}
         />
-        <LiveMarketData />
+        <ToolPanel name="Market data"><LiveMarketData /></ToolPanel>
         <div className="fixed bottom-6 right-6">
           <button
             onClick={() => setCurrentView('main')}
@@ -292,7 +295,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onClearAllNotifications={handleClearAllNotifications}
           onDismissNotification={handleDismissNotification}
         />
-        <AnalyticsDashboard />
+        <ToolPanel name="Analytics"><AnalyticsDashboard /></ToolPanel>
         <div className="fixed bottom-6 right-6 space-x-2 flex">
           <button
             onClick={() => setCurrentView('reports')}
@@ -325,7 +328,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onClearAllNotifications={handleClearAllNotifications}
           onDismissNotification={handleDismissNotification}
         />
-        <InstitutionalReports />
+        <ToolPanel name="Source directory"><InstitutionalReports /></ToolPanel>
         <div className="mx-auto flex max-w-7xl flex-wrap justify-end gap-2 px-6 pb-6">
           <button
             onClick={() => setCurrentView('report-generator')}
@@ -358,7 +361,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onClearAllNotifications={handleClearAllNotifications}
           onDismissNotification={handleDismissNotification}
         />
-        <ReportGenerator />
+        <ToolPanel name="Report generator"><ReportGenerator /></ToolPanel>
         <div className="fixed bottom-6 right-6">
           <button
             onClick={() => setCurrentView('main')}
@@ -386,7 +389,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onDismissNotification={handleDismissNotification}
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <UserDashboard />
+          <ToolPanel name="Account dashboard"><UserDashboard /></ToolPanel>
         </div>
         <div className="fixed bottom-6 right-6">
           <button
@@ -415,7 +418,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onDismissNotification={handleDismissNotification}
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <DataPlayground />
+          <ToolPanel name="Data playground"><DataPlayground /></ToolPanel>
         </div>
         <div className="fixed bottom-6 right-6">
           <button
@@ -444,7 +447,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onDismissNotification={handleDismissNotification}
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ExportScheduler />
+          <ToolPanel name="Export scheduler"><ExportScheduler /></ToolPanel>
         </div>
         <div className="fixed bottom-6 right-6">
           <button
@@ -473,7 +476,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onDismissNotification={handleDismissNotification}
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <DataRefreshDashboard />
+          <ToolPanel name="Data sync"><DataRefreshDashboard /></ToolPanel>
         </div>
         <div className="fixed bottom-6 right-6">
           <button
@@ -501,7 +504,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
           onClearAllNotifications={handleClearAllNotifications}
           onDismissNotification={handleDismissNotification}
         />
-        <EnterpriseIntelligenceDashboard />
+        <ToolPanel name="Enterprise intelligence"><EnterpriseIntelligenceDashboard /></ToolPanel>
         <div className="fixed bottom-6 right-6">
           <button
             onClick={() => setCurrentView('main')}
@@ -569,17 +572,32 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
         <div className="explorer-shortlist"><span title={shortlistSaved ? 'Saved on this browser' : 'Session only; export your shortlist to keep it'}>Your shortlist · {shortlistSaved ? 'saved here' : 'session only'}</span><div>{selectedMarkets.length ? selectedMarkets.map(market => <button key={market.id} onClick={() => handleCountryToggle(market.id)} aria-label={`Remove ${market.name} from shortlist`}>{market.flag} {market.name}<X size={11} /></button>) : <small>Select a market to tailor the research below. Selections stay in your shortlist when you switch regions.</small>}</div><a href="#/research/reports">Source directory <ArrowUpRight size={13} /></a></div>
       </section>
 
-      {showComparison && <MarketComparison onChooseMarkets={chooseMarkets} selectedCountries={selectedCountries} onClose={() => setShowComparison(false)} onReference={() => setShowReferenceExamples(true)} referenceMode={showReferenceExamples}>{showReferenceExamples && referenceCountries.length > 0 && <ComparisonMode key={referenceCountries.join(',')} availableCountries={countryComparisonData.filter(country => referenceCountries.includes(country.name.toLowerCase()))} />}</MarketComparison>}
+      {showComparison && <MarketComparison
+        onChooseMarkets={chooseMarkets} selectedCountries={selectedCountries} onClose={() => setShowComparison(false)}
+        onReference={() => setShowReferenceExamples(true)} referenceMode={showReferenceExamples}
+      >
+        {showReferenceExamples && referenceCountries.length > 0 && (
+          <ToolPanel name="Reference comparison" onReturn={() => setShowReferenceExamples(false)}>
+            <ComparisonMode key={referenceCountries.join(',')} availableCountries={countryComparisonData.filter(country => referenceCountries.includes(country.name.toLowerCase()))} />
+          </ToolPanel>
+        )}
+      </MarketComparison>}
 
       <section className="explorer-research" id="research-modes" aria-labelledby="research-title">
         <h2 id="research-title" className="sr-only">From a place to a plan.</h2>
 
         {showReferenceExamples ? <><div className="explorer-reference-strip"><span><BookOpen size={14} />Unverified reference examples · observation dates unknown</span><button onClick={() => setShowReferenceExamples(false)}>Return to research guides <X size={13} /></button></div>
           {outsideArchive.length > 0 && <p className="explorer-archive-coverage" role="status">Reference examples cover six markets in Southeast Asia. For {outsideArchive.map(market => market.name).join(', ')}, use the historical figures and city guides.</p>}
-          {referenceCountries.length > 0 && <ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={referenceCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} />}</> : <MarketResearch planSession={planSession} onIncludeMarket={includeMarket} mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
+          {referenceCountries.length > 0 && <ToolPanel name="Reference research" onReturn={() => setShowReferenceExamples(false)}>
+            <ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={referenceCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} />
+          </ToolPanel>}</> : <MarketResearch planSession={planSession} onIncludeMarket={includeMarket} mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
       </section>
 
-      {showReferenceExamples && referenceCountries.length > 0 && <section className="explorer-export-section"><div className="explorer-section-heading"><div><span className="explorer-eyebrow">TAKE IT WITH YOU</span><h2>Reference report studio</h2></div><span className="explorer-data-note">Southeast Asia templates · not verified research</span></div><ExportTools selectedCountries={selectedCountries.length ? referenceCountries : []} selectedCities={referenceCities} activeTab={activeTab} activeInsightTab={activeInsightTab} selectedIndustry={selectedIndustry} selectedCaseStudy={selectedCaseStudy} /></section>}
+      {showReferenceExamples && referenceCountries.length > 0 && <section className="explorer-export-section"><div className="explorer-section-heading"><div><span className="explorer-eyebrow">TAKE IT WITH YOU</span><h2>Reference report studio</h2></div><span className="explorer-data-note">Southeast Asia templates · not verified research</span></div>
+        <ToolPanel name="Reference exports" onReturn={() => setShowReferenceExamples(false)}>
+          <ExportTools selectedCountries={selectedCountries.length ? referenceCountries : []} selectedCities={referenceCities} activeTab={activeTab} activeInsightTab={activeInsightTab} selectedIndustry={selectedIndustry} selectedCaseStudy={selectedCaseStudy} />
+        </ToolPanel>
+      </section>}
       {!showReferenceExamples && <section className="explorer-reference-callout"><div><BookOpen size={20} /><span><strong>The original research collection, still here.</strong><small>Inspect existing charts, case studies and PDF, slide and spreadsheet templates as explicitly unverified examples.</small></span></div><button onClick={() => setShowReferenceExamples(true)}>View unverified reference examples <ArrowRight size={15} /></button></section>}
 
       <section className="explorer-next-step"><div><span className="explorer-eyebrow">YOUR BUSINESS. YOUR NEXT CHAPTER.</span><h2>Found a market worth exploring?</h2><p>Keep your assumptions, sources and city preparation together in your entry plan. Start whenever you're ready.</p></div><a href="#/plan">Plan my entry <ArrowUpRight size={18} /></a></section>
@@ -636,6 +654,12 @@ export default function App() {
       onAnalyticsClick={() => { window.location.hash = '/research/analytics'; }}
       onEnterpriseIntelligenceClick={() => { window.location.hash = '/research/enterprise-intelligence'; }}
     />
-    {isNotebook ? <EntryPlanner /> : <MarketPlanHub onRestore={restorePlan} shortlistSaved={shortlist.saved} focusTarget={focusTarget} planSession={planSession} selectedCountries={selectedCountries} />}
+    {isNotebook ? (
+      <ToolPanel name="City notebook"><EntryPlanner /></ToolPanel>
+    ) : (
+      <ToolPanel name="Market plan" onExportPlan={() => downloadMarketPlan(planSession.plans, selectedCountries)}>
+        <MarketPlanHub onRestore={restorePlan} shortlistSaved={shortlist.saved} focusTarget={focusTarget} planSession={planSession} selectedCountries={selectedCountries} />
+      </ToolPanel>
+    )}
   </div>;
 }

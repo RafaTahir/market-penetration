@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+import type { jsPDF } from 'jspdf';
 import { UnifiedDataService } from './unifiedDataService';
 import type { UnifiedEconomicData } from './unifiedDataService';
 import { MarketDataService } from './marketDataService';
@@ -63,6 +63,7 @@ export class EnhancedPDFService {
 
   async generateEnhancedPDF(data: PDFReportData): Promise<void> {
     try {
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF('p', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();

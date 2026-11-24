@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Globe2, Info, MapPin, PenLine, X } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
-import { MAX_NEXT_STEP_LENGTH, buildMarketPlanExport, getCityQuestionSources } from '../services/marketPlans';
+import { MAX_NEXT_STEP_LENGTH, getCityQuestionSources } from '../services/marketPlans';
+import { downloadMarketPlan } from '../services/downloadMarketPlan';
 import type { RestoreDraft } from '../services/marketPlanRestore';
 import MarketPlanRestore from './MarketPlanRestore';
 import MarketEconomicsWorksheet from './MarketEconomicsWorksheet';
@@ -67,13 +68,7 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
   }, [focusTarget]);
 
   function exportPlan() {
-    const payload = buildMarketPlanExport(plans, selectedCountries);
-    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'flow-market-plan.json';
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadMarketPlan(plans, selectedCountries);
     setExportMessage(hub.current?.querySelector('.question-finding[data-dirty="true"]')
       ? 'Exported the saved version. Save your open finding edits to include them in the next export.'
       : 'Market plan exported with your selected markets, notes, saved questions, findings and worksheets.');

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowUpRight, Globe2, Search } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
-import { INSTITUTIONAL_PORTALS } from '../services/unifiedDataService';
+import { INSTITUTIONAL_PORTALS } from '../data/institutionalPortals';
 
 interface DirectoryLink {
   name: string;

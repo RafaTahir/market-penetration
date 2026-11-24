@@ -39,6 +39,7 @@ const result = await build({
       }));
       builder.onLoad({ filter: /.*/, namespace: 'legacy-export-boundaries' }, args => {
         if (args.path === 'react') return { contents: `
+          export const useRef = current => ({ current });
           export const useState = value => [value, () => {}];
           export default { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) };
         ` };
@@ -112,10 +113,10 @@ test('professional deck labels every slide as a static template with creation an
   assert.doesNotMatch(text, /Live Market Data|Real-Time Insights|real-time APIs|1000\+/);
 });
 
-test('written-report route identifies fixed business scenarios on every exported page', () => {
+test('written-report route identifies fixed business scenarios on every exported page', async () => {
   const writtenButton = buttons(ReportGenerator()).find(button => button.props.onClick.name === 'generateWrittenReport');
   assert.ok(writtenButton);
-  writtenButton.props.onClick();
+  await writtenButton.props.onClick();
   const snapshot = pdfSnapshots.at(-1);
   const text = pdfText(snapshot);
   assert.ok(snapshot.pages >= 5);
@@ -142,7 +143,7 @@ test('legacy spreadsheet identifies all fixed tables as examples with a code sou
   for (const name of workbook.SheetNames) {
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1 });
     assert.match(rows[0][0], /Illustrative static example/);
-    assert.deepEqual(rows[1], ['Source', 'src/services/exportService.ts']);
+    assert.deepEqual(rows[1], ['Source', 'src/services/legacyWorkbook.ts']);
     assert.match(rows[2][1], /Unavailable/);
     assert.match(rows[3][1], /^\d{4}-\d{2}-\d{2}T/);
     assert.equal(rows[3][2], 'Export creation only');

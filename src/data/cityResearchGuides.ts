@@ -113,6 +113,23 @@ export const CITY_RESEARCH_GUIDES: Readonly<Record<string, CityResearchGuide>> =
       },
     },
   },
+  cambodia: {
+    scope: 'Phnom Penh · check the khan (district) and sangkat (commune) for each address',
+    prompts: {
+      customers: {
+        question: 'Where do your first buyers in Phnom Penh buy today?',
+        detail: 'Pick one customer type and two sangkats you can serve. Ask buyers in each where they last bought, what they paid and why they chose that supplier. Check the year and boundary of any statistics before applying them to either area.',
+      },
+      location: {
+        question: 'What would it cost to serve those buyers from each Phnom Penh site?',
+        detail: 'Test the trip from two candidate sites during delivery hours. For each written quote, record the currency, rent period, deposit, lease term and included services. If you convert amounts, keep the original quote and date the exchange rate.',
+      },
+      setup: {
+        question: 'Who can confirm the setup steps for your activity at this address?',
+        detail: 'Describe what you will sell, whether you will produce or store goods on site, and the address. Start with the national business portal for registration. Ask the capital administration which khan, sangkat or sector office can answer the premises question, and request a dated reply.',
+      },
+    },
+  },
   australia: {
     scope: 'City of Sydney council area · check the boundary within Greater Sydney',
     prompts: {

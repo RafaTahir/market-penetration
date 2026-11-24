@@ -90,3 +90,19 @@ test('UAE defaults to AED and mixed-currency plan exports retain each market’s
   assert.equal(scenario.result.breakEvenUnits, 50);
   assert.equal(scenario.result.contributionPerUnit, 2);
 });
+
+test('Cambodian plans start in KHR and restore deliberately entered USD or KHR amounts exactly', () => {
+  const empty = emptyMarketEconomics('cambodia');
+  assert.deepEqual(empty, { currency: 'KHR', monthlyFixedCosts: '', unitPrice: '', unitVariableCost: '' });
+  for (const [currency, fixed, price, variable, units] of [
+    ['KHR', '450000', '3500', '2000', 300],
+    ['USD', '123.45', '5.20', '2.70', 50],
+  ]) {
+    const inputs = {currency, monthlyFixedCosts: fixed, unitPrice: price, unitVariableCost: variable};
+    const state = setMarketScenario(createMarketPlans(), 'cambodia', inputs);
+    const restored = parseMarketPlans(JSON.parse(JSON.stringify(state)));
+    const [market] = buildMarketPlanExport(restored, ['cambodia']).markets;
+    assert.deepEqual(market.breakEvenScenario.inputs, inputs);
+    assert.equal(market.breakEvenScenario.result.breakEvenUnits, units);
+  }
+});

@@ -8,6 +8,14 @@ export const NOMINAL_GDP_CHANGE = {
   limitation: 'The percentage covers the whole period in current US dollars. Prices and exchange rates affect it. It does not measure inflation-adjusted growth or local customer demand.',
 } as const;
 
+export function historicalGdpAtYear(snapshot: MarketFundamental | undefined, year: number): number | null {
+  if (!Number.isInteger(year) || year < NOMINAL_GDP_CHANGE.fromYear || year > MARKET_SNAPSHOT_META.observationYear) return null;
+  const value = year === MARKET_SNAPSHOT_META.observationYear
+    ? snapshot?.gdpUsd
+    : snapshot?.gdpSeries.find(point => point.year === year)?.value;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
 export function nominalGdpChangePercent(series: MarketFundamental['gdpSeries'] | undefined): number | null {
   const start = series?.find(point => point.year === NOMINAL_GDP_CHANGE.fromYear)?.value;
   const end = series?.find(point => point.year === NOMINAL_GDP_CHANGE.toYear)?.value;

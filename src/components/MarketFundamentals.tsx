@@ -2,9 +2,13 @@ import { useId, useState } from 'react';
 import { ArrowRight, ArrowUpRight, CalendarDays, ChevronDown, Info, Users, Wallet } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
 import { MARKET_FUNDAMENTALS, MARKET_SNAPSHOT_META } from '../data/marketSnapshot';
+import { historicalGdpAtYear, NOMINAL_GDP_CHANGE } from '../services/marketComparison';
 import './MarketFundamentals.css';
 
 type Metric = 'gdpUsd' | 'population';
+const latestYear = MARKET_SNAPSHOT_META.observationYear;
+const firstYear = NOMINAL_GDP_CHANGE.fromYear;
+const gdpYears = Array.from({ length: latestYear - firstYear + 1 }, (_, i) => firstYear + i);
 
 interface MarketFundamentalsProps {
   selectedCountries: string[];
@@ -34,23 +38,37 @@ function compactValue(value: number, metric: Metric) {
 
 export default function MarketFundamentals({ selectedCountries, onCompare }: MarketFundamentalsProps) {
   const [metric, setMetric] = useState<Metric>('gdpUsd');
+  const [gdpYear, setGdpYear] = useState<number>(latestYear);
+  const year = metric === 'gdpUsd' ? gdpYear : latestYear;
   const id = useId().replace(/:/g, '');
   const markets = selectedCountries.length ? MARKETS.filter(market => selectedCountries.includes(market.id)) : MARKETS;
   const rows = markets.map(market => {
-    const candidate = MARKET_FUNDAMENTALS[market.countryCode]?.[metric];
-    return { market, value: validValue(candidate) ? candidate : null };
+    const snapshot = MARKET_FUNDAMENTALS[market.countryCode];
+    const candidate = metric === 'gdpUsd' ? historicalGdpAtYear(snapshot, year) : snapshot?.population;
+    const value = validValue(candidate) ? candidate : null;
+    const axisMaximum = metric === 'gdpUsd'
+      ? Math.max(...gdpYears.map(observedYear => historicalGdpAtYear(snapshot, observedYear) ?? 0))
+      : value ?? 0;
+    return { market, value, axisMaximum };
   });
   const divisor = metric === 'gdpUsd' ? 1e9 : 1e6;
-  const axis = axisFor(Math.max(0, ...rows.flatMap(row => row.value === null ? [] : [row.value / divisor])));
+  const axis = axisFor(Math.max(0, ...rows.map(row => row.axisMaximum / divisor)));
   const unit = metric === 'gdpUsd' ? 'US$ billions · current prices' : 'People · millions';
   const metricName = metric === 'gdpUsd' ? 'GDP in current US dollars' : 'Total population';
-  const year = MARKET_SNAPSHOT_META.observationYear;
 
   return <figure className="market-fundamentals" aria-labelledby={`${id}-title`}>
     <figcaption className="mf-heading">
       <div><div className="mf-snapshot-label"><CalendarDays size={13} aria-hidden="true" />{year} historical snapshot</div><h2 id={`${id}-title`}>Compare country fundamentals.</h2></div>
       <div className="mf-metric-switch" role="group" aria-label="Compare country fundamentals by metric"><button type="button" aria-pressed={metric === 'gdpUsd'} onClick={() => setMetric('gdpUsd')}><Wallet size={14} aria-hidden="true" />GDP</button><button type="button" aria-pressed={metric === 'population'} onClick={() => setMetric('population')}><Users size={14} aria-hidden="true" />Population</button></div>
     </figcaption>
+    {metric === 'gdpUsd' && <div className="mf-year-control">
+      <label htmlFor={`${id}-year`}>GDP observation year <strong>{year}</strong></label>
+      <div className="mf-timeline"><span aria-hidden="true">{firstYear}</span>
+        <input type="range" id={`${id}-year`} aria-label="GDP observation year" min={firstYear} max={latestYear} step={1}
+          value={gdpYear} onChange={event => setGdpYear(event.currentTarget.valueAsNumber)} />
+        <span aria-hidden="true">{latestYear}</span>
+      </div>
+    </div>}
     <div className="mf-chart-context"><span>{unit}</span><span><span>{selectedCountries.length ? `${markets.length} selected markets` : `All ${MARKETS.length} markets`}</span><i aria-hidden="true" /><span>Shared linear scale</span></span></div>
     <div className="mf-axis" aria-hidden="true"><span /><div>{axis.ticks.map(tick => <span key={tick} style={{ left: `${tick / axis.maximum * 100}%` }}>{tick.toLocaleString('en-US', { maximumFractionDigits: 1 })}</span>)}</div><span /></div>
     <ul className="mf-rows" aria-label={`${year} ${metricName} comparison`}>
@@ -64,7 +82,7 @@ export default function MarketFundamentals({ selectedCountries, onCompare }: Mar
     <div className="mf-chart-footer"><span>World Bank via DataHub <i /> {year} observations</span>{onCompare && <button type="button" onClick={onCompare}>Compare research paths <ArrowRight size={13} aria-hidden="true" /></button>}</div>
     <div className="mf-limit"><Info size={13} aria-hidden="true" /><span>Country totals show scale, not customer demand, business fit or legal requirements.</span></div>
     <details className="mf-source-details"><summary>Sources, dates & limits <ChevronDown size={13} aria-hidden="true" /></summary><div>
-      <p><strong>Historical observations, not a live feed.</strong> Both metrics use {year} so periods match. GDP is nominal, in current US dollars; it is not addressable market size, a forecast, an entry recommendation or legal advice.</p>
+      <p><strong>Historical observations, not a live feed.</strong> Annual nominal GDP is available for {firstYear}–{latestYear}. The scale stays fixed across years for the markets shown. Population uses {latestYear}. Changes in prices and exchange rates can affect nominal GDP.</p>
       <p>Attribution: World Bank population series; World Bank and OECD GDP series, republished by the DataHub / datasets mirrors. The downloaded mirror files were pinned and hash-checked. Their values were not independently cross-checked against the primary World Bank endpoint.</p>
       <dl><div><dt>Observation year</dt><dd>{year}</dd></div><div><dt>Retrieved</dt><dd><time dateTime={MARKET_SNAPSHOT_META.retrievedAt}>{MARKET_SNAPSHOT_META.retrievedAt.replace('T', ' ').replace('Z', ' UTC')}</time></dd></div><div><dt>Upstream publication date</dt><dd>Unknown</dd></div></dl>
       <div className="mf-source-files">{([['Population', MARKET_SNAPSHOT_META.population], ['GDP', MARKET_SNAPSHOT_META.gdp]] as const).map(([label, source]) => <section key={label}><div><strong>{label}</strong><span>{source.indicator}</span></div><a href={source.downloadUrl} target="_blank" rel="noopener noreferrer">Pinned DataHub CSV <ArrowUpRight size={13} aria-hidden="true" /></a><a href={source.upstreamUrl} target="_blank" rel="noopener noreferrer">World Bank indicator directory <ArrowUpRight size={13} aria-hidden="true" /></a><p>Units: {source.unit}. <a href={source.license.url} target="_blank" rel="noopener noreferrer">Mirror licence: {source.license.name}</a></p><small>Commit <code>{source.commit}</code></small><small>SHA-256 <code>{source.sha256}</code></small></section>)}</div>

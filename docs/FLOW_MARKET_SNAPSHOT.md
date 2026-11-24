@@ -1,6 +1,6 @@
 # Historical market snapshot
 
-`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM), Australia (AUS), New Zealand (NZL) and the United Arab Emirates (ARE).
+`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM), Cambodia (KHM), Australia (AUS), New Zealand (NZL) and the United Arab Emirates (ARE).
 
 ## Attribution and exact source files
 
@@ -17,7 +17,7 @@ The declarations above are recorded from the mirrors' pinned [population datapac
 
 - Both complete downloaded CSV hashes were independently recomputed and matched the pinned input hashes above. Headers are `Country Name,Country Code,Year,Value`.
 - Selection uses ISO alpha-3 codes and exact observation years. Each selected country/year occurs once, all values are finite and nonnegative, and population counts are integral. No missing value is filled, interpolated or copied from another year/country.
-- All nine countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
+- All ten countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
 - GDP units and indicator are explicit in its datapackage. The population datapackage identifies total-population series `SP.POP.TOTL`; its numeric counts are people, with no millions multiplier. Display abbreviation is the UI's responsibility.
 - Raw CSV numeric literals are retained without deliberate decimal rounding. Runtime values use JavaScript numbers and their ordinary IEEE-754 precision limits. GDP series are not inflation-adjusted, and nominal changes also reflect exchange-rate and price movements.
 - `retrievedAt = 2026-10-25T17:48:56Z` records the latest local capture time of the two downloaded CSV inputs. Population was captured at 17:48:08 UTC; GDP at 17:48:56 UTC. Retrieval is separate from observation year and does not establish source publication or freshness.
@@ -27,6 +27,8 @@ Australia was added on 2026-11-24 from the original cached CSVs. Both complete f
 New Zealand uses the same cached CSVs and the same retrieval timestamp. Both whole-file hashes were checked again before selecting the unique rows for country code `NZL`. The population CSV gives exactly 5,200,000 people for 2023. The GDP CSV includes every year from 2014 through 2023 and gives 253,465,703,232.14594 current US dollars for 2023.
 
 The UAE selection uses country code `ARE`. After verifying both cached CSVs against their original hashes, extraction yielded a 2023 population of 10,483,751 and GDP of 504,173,451,327.43365 current US dollars. Each GDP year from 2014 through 2023 has one observation. These totals cover the UAE nationally. Dubai city and emirate figures require separate sources with explicit geographic coverage. The original CSV capture times apply to this selection.
+
+Cambodia’s national rows use country code `KHM`. Both whole-file hashes matched before extraction. The 2023 population count is 17,423,880 and GDP is 31,772,759,998.85713 current US dollars. Each GDP observation year from 2014 through 2023 occurs once. The figures describe national totals. Research about Phnom Penh or an individual district needs figures with the corresponding geographic scope.
 
 ## Verification limits
 

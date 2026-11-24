@@ -31,6 +31,7 @@
 .market-country-card[data-market='vietnam'] { --country-accent: #ed919f; }
 .market-country-card[data-market='australia'] { --country-accent: #f2c688; }
 .market-country-card[data-market='united-arab-emirates'] { --country-accent: #eab781; }
+.market-country-card[data-market='cambodia'] { --country-accent: #e5ca72; }
 .market-country-card:hover { border-color: #4a688c; transform: translateY(-2px); box-shadow: 0 10px 28px #030d1d24; }
 .market-country-card.is-selected { border-color: #447ed2; box-shadow: inset 0 0 0 1px #447ed226; }
 .market-country-card.is-selected::before { opacity: 1; }
@@ -99,6 +100,7 @@
 .light .market-country-card[data-market='vietnam'] { --country-accent: #aa465e; }
 .light .market-country-card[data-market='australia'] { --country-accent: #82551a; }
 .light .market-country-card[data-market='united-arab-emirates'] { --country-accent: #895a28; }
+.light .market-country-card[data-market='cambodia'] { --country-accent: #765e14; }
 .light .market-country-card.is-selected { border-color: #3b82cf; box-shadow: inset 0 0 0 1px #3b82cf26; }
 @media (max-width: 1000px) {
   .market-country-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 17px; }

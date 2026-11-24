@@ -62,6 +62,13 @@ export const MARKETS: readonly MarketGuide[] = [
     cityPortal: { name: 'Ho Chi Minh City portal', url: 'https://hochiminhcity.gov.vn/' },
   },
   {
+    region: 'Southeast Asia',
+    id: 'cambodia', name: 'Cambodia', flag: '🇰🇭', city: 'Phnom Penh', countryCode: 'KHM',
+    setup: { name: 'Cambodia Online Business Registration', url: 'https://www.registrationservices.gov.kh/' },
+    statistics: { name: 'National Institute of Statistics', url: 'https://www.nis.gov.kh/' },
+    cityPortal: { name: 'Phnom Penh Capital Administration', url: 'https://phnompenh.gov.kh/' },
+  },
+  {
     region: 'Oceania',
     id: 'australia', name: 'Australia', flag: '🇦🇺', city: 'Sydney', countryCode: 'AUS',
     setup: { name: 'Australian Government business portal', url: 'https://business.gov.au/' },

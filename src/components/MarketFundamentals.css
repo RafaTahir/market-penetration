@@ -24,6 +24,12 @@ html.light .market-fundamentals {
   --mf-teal: #077c6c;
   background: linear-gradient(110deg, #f2f7ff, var(--mf-surface) 70%);
 }
+.mf-year-control { display: flex; align-items: center; flex-wrap: wrap; gap: 0 20px; padding: 0 0 12px; }
+.mf-year-control label, .mf-timeline { display: flex; align-items: center; gap: 9px; color: var(--mf-muted); font-size: 12px; }
+.mf-year-control label strong { font-size: 16px; color: var(--mf-text); font-variant-numeric: tabular-nums; }
+.mf-timeline { flex: 1 1 180px; max-width: 360px; font-variant-numeric: tabular-nums; }
+.mf-timeline input { flex: 1; min-width: 60px; height: 44px; cursor: pointer; accent-color: var(--mf-teal); }
+.mf-timeline input:focus-visible { outline: 2px solid var(--mf-blue); outline-offset: 2px; }
 .market-fundamentals *, .market-fundamentals *::before, .market-fundamentals *::after { box-sizing: border-box; }
 .market-fundamentals button:focus-visible, .market-fundamentals a:focus-visible, .market-fundamentals summary:focus-visible { outline: 2px solid var(--mf-teal); outline-offset: 4px; }
 .mf-heading { display: flex; align-items: center; justify-content: space-between; gap: 25px; margin-bottom: 25px; }

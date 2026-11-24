@@ -33,6 +33,7 @@ import './components/MarketExplorer.css';
 type ResearchView = 'main' | 'live-data' | 'analytics' | 'reports' | 'report-generator' | 'dashboard' | 'playground' | 'scheduler' | 'data-sync' | 'enterprise-intelligence';
 
 const regions = [...new Set(MARKETS.map(market => market.region))];
+const atlasMarkets = new Map(MARKETS.filter(market => market.region === 'Southeast Asia').map(market => [market.countryCode.toLowerCase(), market.id]));
 const referenceCityByMarket: Readonly<Record<string, string>> = {
   thailand: 'bangkok', singapore: 'singapore-city', malaysia: 'kuala-lumpur',
   indonesia: 'jakarta', philippines: 'manila', vietnam: 'ho-chi-minh',
@@ -528,7 +529,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
   const referenceCityIds = referenceCountries.map(id => referenceCityByMarket[id]);
   const referenceCities = selectedCities.filter(city => referenceCityIds.includes(city));
   const outsideArchive = selectedMarkets.filter(market => !referenceCityByMarket[market.id]);
-  const countryShapes: Record<string, string> = { tha: 'thailand', sgp: 'singapore', mys: 'malaysia', idn: 'indonesia', phl: 'philippines', vnm: 'vietnam' };
+  const selectedShapeIds = new Set(selectedMarkets.map(market => market.countryCode.toLowerCase()));
   return <div className="flow-explore-shell">
     <Header activeView="research" referenceMode={showReferenceExamples} onExitReference={() => setShowReferenceExamples(false)} onLogoClick={() => setCurrentView('main')} onLiveDataClick={() => setCurrentView('live-data')} onAnalyticsClick={() => setCurrentView('analytics')} onEnterpriseIntelligenceClick={() => setCurrentView('enterprise-intelligence')} onSearchClick={focusSearch} onComparisonClick={openComparison} notifications={notifications} onMarkNotificationAsRead={handleMarkNotificationAsRead} onClearAllNotifications={handleClearAllNotifications} onDismissNotification={handleDismissNotification} />
     <main className="explorer-main">
@@ -544,7 +545,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
         </div>
         <div className="explorer-atlas" aria-label="Geographic context for Southeast Asia">
           <div className="atlas-orbit atlas-orbit-one" /><div className="atlas-orbit atlas-orbit-two" />
-          <svg viewBox="0 0 740 630" aria-hidden="true" focusable="false"><defs><linearGradient id="explorer-land" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#3b82f6" /><stop offset="1" stopColor="#2dd4bf" /></linearGradient></defs>{SEA_COUNTRIES.map(country => <path key={country.id} d={country.path} data-market={countryShapes[country.id]} className={countryShapes[country.id] && selectedCountries.includes(countryShapes[country.id]) ? 'atlas-country is-selected' : 'atlas-country'} />)}</svg>
+          <svg viewBox="0 0 740 630" aria-hidden="true" focusable="false"><defs><linearGradient id="explorer-land" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#3b82f6" /><stop offset="1" stopColor="#2dd4bf" /></linearGradient></defs>{SEA_COUNTRIES.map(country => <path key={country.id} d={country.path} data-market={atlasMarkets.get(country.id)} className={selectedShapeIds.has(country.id) ? 'atlas-country is-selected' : 'atlas-country'} />)}</svg>
           <div className="atlas-label atlas-label-north"><span>🇹🇭</span> Thailand <span>🇻🇳</span> Vietnam</div><div className="atlas-label atlas-label-east"><span>🇵🇭</span> Philippines</div><div className="atlas-label atlas-label-south"><span>🇸🇬</span> Singapore <span>🇲🇾</span> Malaysia</div><div className="atlas-label atlas-label-bottom"><span>🇮🇩</span> Indonesia</div>
           <div className="atlas-caption"><Compass size={14} /><span>Southeast Asia atlas</span><small>Geographic context · no market ranking</small></div>
         </div>
@@ -574,7 +575,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
         <h2 id="research-title" className="sr-only">From a place to a plan.</h2>
 
         {showReferenceExamples ? <><div className="explorer-reference-strip"><span><BookOpen size={14} />Unverified reference examples · observation dates unknown</span><button onClick={() => setShowReferenceExamples(false)}>Return to research guides <X size={13} /></button></div>
-          {outsideArchive.length > 0 && <p className="explorer-archive-coverage" role="status">Reference examples cover Southeast Asia only. For {outsideArchive.map(market => market.name).join(', ')}, use the historical figures and city guides.</p>}
+          {outsideArchive.length > 0 && <p className="explorer-archive-coverage" role="status">Reference examples cover six markets in Southeast Asia. For {outsideArchive.map(market => market.name).join(', ')}, use the historical figures and city guides.</p>}
           {referenceCountries.length > 0 && <ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={referenceCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} />}</> : <MarketResearch planSession={planSession} onIncludeMarket={includeMarket} mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
       </section>
 

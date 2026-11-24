@@ -129,6 +129,22 @@ export const MARKET_FUNDAMENTALS: Record<string, MarketFundamental> = {
       { year: 2023, value: 429716969049.5928 },
     ],
   },
+  KHM: {
+    population: 17423880,
+    gdpUsd: 31772759998.85713,
+    gdpSeries: [
+      { year: 2014, value: 16702610842.35294 },
+      { year: 2015, value: 18049954289.472065 },
+      { year: 2016, value: 20016747857.636715 },
+      { year: 2017, value: 22177200588.182632 },
+      { year: 2018, value: 24571753583.393467 },
+      { year: 2019, value: 27089390032.797966 },
+      { year: 2020, value: 25872797891.766376 },
+      { year: 2021, value: 26961061151.733734 },
+      { year: 2022, value: 29504829319.316875 },
+      { year: 2023, value: 31772759998.85713 },
+    ],
+  },
   AUS: {
     population: 26659922,
     gdpUsd: 1723827215334.7063,

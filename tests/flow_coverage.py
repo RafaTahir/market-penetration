@@ -6,6 +6,7 @@ MARKETS = (
     ('indonesia', 'Indonesia', '🇮🇩'),
     ('philippines', 'Philippines', '🇵🇭'),
     ('vietnam', 'Vietnam', '🇻🇳'),
+    ('cambodia', 'Cambodia', '🇰🇭'),
     ('australia', 'Australia', '🇦🇺'),
     ('new-zealand', 'New Zealand', '🇳🇿'),
     ('united-arab-emirates', 'United Arab Emirates', '🇦🇪'),

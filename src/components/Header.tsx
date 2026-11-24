@@ -242,8 +242,8 @@ const Header: React.FC<HeaderProps> = ({
           </div>
           {referenceMode ? (
             <>
-              <p><strong>Unverified reference examples enabled.</strong> The legacy collection covers Southeast Asia. Its figures have unverified sources and observation dates.</p>
-              <p>For markets outside Southeast Asia, use the explorer’s national figures and city research guides.</p>
+              <p><strong>Unverified reference examples enabled.</strong> The collection covers Thailand, Singapore, Malaysia, Indonesia, the Philippines and Vietnam. Its sources and observation dates are unverified.</p>
+              <p>For other markets, use the explorer’s national figures and city guides.</p>
               {onExitReference && <button className="flow-hide-examples" onClick={() => runAction(onExitReference)}>Hide examples</button>}
             </>
           ) : (

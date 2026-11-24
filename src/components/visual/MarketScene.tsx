@@ -2,6 +2,11 @@ import { useId } from 'react';
 import './MarketScene.css';
 
 // Original decorative city studies. These are illustrations, not maps or data.
+const renderedScenes: Record<string, { src: string; width: number }> = {
+  cambodia: { src: '/art/phnom-penh-market.webp', width: 2560 },
+  'united-arab-emirates': { src: '/art/dubai-skyline.webp', width: 960 },
+};
+
 const scenes: Record<string, { sky: string; glow: string; accent: string; buildings: number[][] }> = {
   thailand: { sky: '#152f4a', glow: '#ab7455', accent: '#edbd8c', buildings: [[12, 68, 24, 47], [43, 55, 22, 60], [73, 76, 25, 39], [244, 48, 27, 67], [279, 65, 22, 50], [310, 39, 23, 76]] },
   singapore: { sky: '#103c48', glow: '#328b88', accent: '#7ae0ce', buildings: [[8, 74, 25, 41], [42, 53, 21, 62], [72, 38, 29, 77], [109, 62, 18, 53], [271, 59, 27, 56], [308, 75, 25, 40]] },
@@ -61,9 +66,10 @@ function Landmark({ marketId }: { marketId: string }) {
 
 export default function MarketScene({ marketId, className = '' }: { marketId: string; className?: string }) {
   const id = useId().replace(/:/g, '');
-  if (marketId === 'united-arab-emirates') {
-    return <div className={`market-scene market-scene-dubai ${className}`} aria-hidden="true">
-      <img src="/art/dubai-skyline.webp" alt="" width="960" height="320" decoding="async" />
+  const renderedScene = renderedScenes[marketId];
+  if (renderedScene) {
+    return <div className={`market-scene market-scene-rendered ${className}`} data-market={marketId} aria-hidden="true">
+      <img src={renderedScene.src} alt="" width={renderedScene.width} height="320" decoding="async" />
     </div>;
   }
   const scene = scenes[marketId];

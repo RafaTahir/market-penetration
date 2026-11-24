@@ -1,0 +1,156 @@
+.mpb-dialog {
+  --brief-frame: #112238;
+  --brief-paper: #162b42;
+  --brief-ink: #f1f5fb;
+  --brief-muted: #b4c5d6;
+  --brief-rule: #405469;
+  --brief-tint: #203850;
+  --brief-accent: #87dfcb;
+  --brief-link: #a2ccff;
+  position: fixed;
+  inset: 0;
+  width: min(860px, calc(100% - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: 66px;
+  border: 1px solid var(--brief-rule);
+  border-radius: 15px;
+  background: var(--brief-frame);
+  color: var(--brief-ink);
+  font: 400 15px/1.6 Inter, ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 24px 80px #020b1866;
+}
+.light .mpb-dialog {
+  --brief-frame: #e9eff3;
+  --brief-paper: #fffefa;
+  --brief-ink: #182f46;
+  --brief-muted: #526474;
+  --brief-rule: #c3ced4;
+  --brief-tint: #eff4f3;
+  --brief-accent: #116b63;
+  --brief-link: #235d99;
+}
+.mpb-dialog::backdrop { background: rgb(6 16 30 / .74); }
+.mpb-dialog :is(button, a):focus-visible { outline: 2px solid var(--brief-accent); outline-offset: 3px; }
+.mpb-toolbar {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px;
+  padding: 9px clamp(12px, 3vw, 25px); border-bottom: 1px solid var(--brief-rule); background: var(--brief-frame);
+}
+.mpb-toolbar button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 44px; min-height: 44px;
+  padding: 8px 13px; border: 1px solid var(--brief-rule); border-radius: 8px; background: var(--brief-paper);
+  color: var(--brief-ink); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.mpb-toolbar .mpb-print { border-color: #396ba6; background: #245c93; color: #fff; }
+.mpb-toolbar button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.mpb-draft-notice {
+  margin: 10px clamp(12px, 3vw, 25px); padding: 8px 12px; border-inline-start: 2px solid var(--brief-accent);
+  background: var(--brief-tint); color: var(--brief-ink); font-size: 13px;
+}
+.mpb-paper {
+  box-sizing: border-box; margin: clamp(12px, 2vw, 24px); padding: clamp(22px, 5vw, 54px);
+  min-width: 0; border: 1px solid var(--brief-rule); border-radius: 3px; background: var(--brief-paper);
+  color: var(--brief-ink); overflow-wrap: anywhere;
+}
+.mpb-heading { padding: 15px 0 18px; border-top: 3px solid var(--brief-accent); border-bottom: 1px solid var(--brief-rule); }
+.mpb-heading h1 {
+  margin: 7px 0 9px; font: 500 clamp(34px, 4.8vw, 46px)/1.1 Spectral, Georgia, serif; letter-spacing: -.035em;
+}
+.mpb-eyebrow { color: var(--brief-accent); font-size: 11px; font-weight: 700; letter-spacing: .10em; }
+.mpb-meta, .mpb-note, .mpb-empty, .brief-worksheet-limit, .brief-worksheet-status {
+  color: var(--brief-muted); font-size: 13px; line-height: 1.55;
+}
+.mpb-market { padding-top: 26px; }
+.mpb-market + .mpb-market { margin-top: 26px; border-top: 1px solid var(--brief-rule); }
+.mpb-market-heading h2 { margin: 0; font-size: clamp(23px, 3vw, 29px); font-weight: 650; line-height: 1.2; letter-spacing: -.035em; }
+.mpb-market-heading p { margin: 4px 0 0; color: var(--brief-muted); font-size: 13px; }
+.mpb-market-heading .mpb-eyebrow { margin: 0 0 4px; color: var(--brief-accent); font-size: 11px; }
+.mpb-section, .brief-worksheet { margin-top: 20px; }
+.mpb-section h3, .brief-worksheet h3 { margin: 0 0 7px; color: var(--brief-accent); font-size: 16px; font-weight: 650; line-height: 1.35; }
+.mpb-user-text { min-width: 0; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 3; }
+.mpb-questions, .mpb-directory { list-style: none; margin: 0; padding: 0; }
+.mpb-question { padding: 11px 0 11px 13px; border-inline-start: 2px solid var(--brief-rule); }
+.mpb-question + .mpb-question { margin-top: 10px; }
+.mpb-question-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; color: var(--brief-muted); font-size: 12px; }
+.mpb-question h4, .brief-worksheet h4 { margin: 5px 0 7px; font-size: 15px; line-height: 1.45; font-weight: 650; }
+.mpb-status { padding: 1px 6px; border: 1px solid var(--brief-rule); border-radius: 4px; font-size: 11px; }
+.mpb-finding { margin-top: 10px; }
+.mpb-field-label { color: var(--brief-muted); font-size: 12px; font-weight: 650; }
+.mpb-question-sources { margin: 5px 0; font-size: 13px; }
+.mpb-question-sources a { color: var(--brief-link); text-decoration: underline; text-underline-offset: 2px; }
+.mpb-citation { margin: 9px 0 0; font-size: 13px; }
+.mpb-citation > div { display: grid; grid-template-columns: minmax(6em, 24%) minmax(0, 1fr); gap: 0 10px; margin: 3px 0; }
+.mpb-citation dt { color: var(--brief-muted); }
+.mpb-citation dd, .brief-worksheet dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.mpb-directory { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+.mpb-directory > li { min-width: 0; padding: 8px 0; border-top: 1px solid var(--brief-rule); color: var(--brief-muted); font-size: 12px; }
+.mpb-directory a { display: block; min-height: 44px; color: var(--brief-link); }
+.mpb-source-name { display: block; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.mpb-url { display: block; margin-top: 3px; color: var(--brief-muted); font-size: 12px; overflow-wrap: anywhere; }
+.brief-worksheet-inputs, .brief-worksheet-results { margin: 8px 0 14px; font-size: 14px; }
+.brief-worksheet-inputs > div, .brief-worksheet-results > div {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 4px 14px;
+  align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--brief-rule);
+}
+.brief-worksheet dt { color: var(--brief-muted); }
+.brief-worksheet dd { text-align: end; font-variant-numeric: tabular-nums; }
+.brief-worksheet-results dd { font-weight: 650; }
+.brief-worksheet-limit, .brief-worksheet-status, .mpb-note { margin: 8px 0; }
+@media screen and (max-width: 560px) {
+  .mpb-dialog { width: calc(100% - 12px); max-height: calc(100dvh - 12px); border-radius: 11px; }
+  .mpb-toolbar { padding: 7px 10px; }
+  .mpb-paper { margin: 8px; padding: 20px 14px; }
+  .mpb-directory { grid-template-columns: minmax(0, 1fr); }
+  .mpb-citation > div { grid-template-columns: minmax(0, 1fr); margin-top: 5px; }
+}
+@media screen {
+  body:has(> .mpb-dialog[open]) { overflow: hidden; }
+}
+
+/* A named page supplies margins only for the open brief; paper size follows the print dialog. */
+@page flow-market-plan { margin: 15mm 16mm; }
+@media print {
+  html:has(body > .mpb-dialog[open]), body:has(> .mpb-dialog[open]) {
+    height: auto !important; min-height: 0 !important; overflow: visible !important;
+    margin: 0 !important; background: white !important; color-scheme: light; page: flow-market-plan;
+  }
+  body:has(> .mpb-dialog[open]) > :not(.mpb-dialog[open]) { display: none !important; }
+  .mpb-dialog[open] {
+    --brief-paper: #fff; --brief-ink: #182b3a; --brief-muted: #465661; --brief-rule: #bdc8ca;
+    --brief-accent: #205f5a; --brief-link: #244f70;
+    page: flow-market-plan; display: block !important; position: static !important; inset: auto !important;
+    width: auto !important; height: auto !important; max-width: none !important; max-height: none !important;
+    margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0;
+    background: white !important; overflow: visible !important; box-shadow: none; color-scheme: light;
+    font-size: 10pt; line-height: 1.43;
+  }
+  .mpb-dialog[open]::backdrop { display: none !important; background: transparent !important; }
+  .mpb-dialog[open] :is(.mpb-toolbar, .mpb-draft-notice) { display: none !important; }
+  .mpb-dialog[open] .mpb-paper { margin: 0; padding: 0; border: 0; border-radius: 0; background: white; overflow: visible; }
+  .mpb-dialog[open] .mpb-heading { padding: 3mm 0; }
+  .mpb-dialog[open] .mpb-heading h1 { font-size: 26pt; margin: 2mm 0; }
+  .mpb-dialog[open] .mpb-market { padding-top: 5mm; }
+  .mpb-dialog[open] .mpb-market + .mpb-market { margin-top: 5mm; }
+  .mpb-dialog[open] .mpb-market-heading h2 { font-size: 17pt; }
+  .mpb-dialog[open] :is(.mpb-section, .brief-worksheet) { margin-top: 4mm; }
+  .mpb-dialog[open] .mpb-paper h3 { font-size: 12pt; margin-bottom: 1mm; }
+  .mpb-dialog[open] .mpb-paper h4 { font-size: 10.5pt; }
+  .mpb-dialog[open] :is(.mpb-heading, .mpb-market-heading, .mpb-question-heading) { break-inside: avoid; }
+  .mpb-dialog[open] :is(h1, h2, h3, h4, .mpb-market-heading, .mpb-question-heading, .mpb-field-label) { break-after: avoid; }
+  .mpb-dialog[open] :is(p, dd) { orphans: 3; widows: 3; }
+  .mpb-dialog[open] .mpb-question { padding: 1.5mm 0 1.5mm 3mm; }
+  .mpb-dialog[open] .mpb-citation { font-size: 9pt; }
+  .mpb-dialog[open] .mpb-directory { display: block; }
+  .mpb-dialog[open] .mpb-directory > li { padding: 1.5mm 0; break-inside: avoid; }
+  .mpb-dialog[open] .mpb-directory a { min-height: 0; }
+  .mpb-dialog[open] .mpb-source-name { font-size: 10pt; }
+  .mpb-dialog[open] .mpb-url { font-size: 8.5pt; margin: 0; }
+  .mpb-dialog[open] :is(.brief-worksheet-inputs, .brief-worksheet-results) { font-size: 10pt; margin: 1mm 0 2mm; }
+  .mpb-dialog[open] :is(.brief-worksheet-inputs, .brief-worksheet-results) > div { padding: 1mm 0; break-inside: avoid; }
+  .mpb-dialog[open] :is(.mpb-meta, .mpb-note, .mpb-empty, .brief-worksheet-limit, .brief-worksheet-status) { font-size: 9pt; }
+}

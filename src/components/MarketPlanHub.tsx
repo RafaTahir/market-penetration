@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Globe2, Info, MapPin, PenLine, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, FileText, Globe2, Info, MapPin, PenLine, X } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
-import { MAX_NEXT_STEP_LENGTH, getCityQuestionSources } from '../services/marketPlans';
+import { buildMarketPlanExport, MAX_NEXT_STEP_LENGTH, getCityQuestionSources } from '../services/marketPlans';
 import { downloadMarketPlan } from '../services/downloadMarketPlan';
 import type { RestoreDraft } from '../services/marketPlanRestore';
 import MarketPlanRestore from './MarketPlanRestore';
+import PlanBriefDialog, { type BriefPreview } from './PlanBriefDialog';
 import MarketEconomicsWorksheet from './MarketEconomicsWorksheet';
 import MonthlySalesComparison from './MonthlySalesComparison';
 import QuestionFinding from './QuestionFinding';
@@ -36,6 +37,8 @@ function focusPlanItem(id: string) {
 export default function MarketPlanHub({ selectedCountries, planSession, focusTarget, onRestore, shortlistSaved }: MarketPlanHubProps) {
   const { plans, savedLocally, saveNote, saveScenario, setQuestionSaved } = planSession;
   const [exportMessage, setExportMessage] = useState('');
+  const [brief, setBrief] = useState<BriefPreview | null>(null);
+  const briefButton = useRef<HTMLButtonElement>(null);
   const hub = useRef<HTMLElement>(null);
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
   const hasNotes = Object.keys(plans.notes).length > 0;
@@ -91,15 +94,22 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
       : 'Plan restored for this session. Export your plan before reloading.');
   }
 
-  return <main className="market-plan-hub" ref={hub}>
+  return <main className="market-plan-hub" ref={hub} tabIndex={-1}>
     <a className="mph-back" href="#/research"><ArrowLeft size={16} aria-hidden="true" />Explore markets</a>
     <header className="mph-heading">
       <div><span className="mph-eyebrow">YOUR SHORTLIST · YOUR NEXT MOVE</span><h1>Your market plan.</h1><p>Keep the markets you chose, follow their sources and decide your next step.</p></div>
       <div className="mph-file-actions">
+        {markets.length > 0 && <button ref={briefButton} className="mph-primary" type="button" aria-haspopup="dialog" onClick={() => {
+          setBrief({ plan: buildMarketPlanExport(plans, selectedCountries), hasUnsavedFindings: Boolean(hub.current?.querySelector('.question-finding[data-dirty="true"]')) });
+        }}><FileText size={17} aria-hidden="true" />Preview plan brief</button>}
         <MarketPlanRestore plans={plans} selectedCountries={selectedCountries} onRestore={applyRestore} />
         <button className="mph-export" onClick={exportPlan}><ArrowDownToLine size={17} aria-hidden="true" />Export market plan</button>
       </div>
     </header>
+    {brief && <PlanBriefDialog preview={brief} onClose={() => {
+      setBrief(null);
+      (briefButton.current ?? hub.current)?.focus({ preventScroll: true });
+    }} />}
     <div className="mph-plan-status">
       <span><Globe2 size={16} aria-hidden="true" />{markets.length} {markets.length === 1 ? 'market' : 'markets'} in your shortlist</span>
       <span role="status">{savedLocally && shortlistSaved ? <><Check size={15} aria-hidden="true" />{saveStatus}</> : <><Info size={15} aria-hidden="true" />Session only · export before reloading</>}</span>

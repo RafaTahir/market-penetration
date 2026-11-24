@@ -311,3 +311,30 @@ test('KES volume drafts survive v3 storage and restore without converting amount
     assert.deepEqual(buildMarketPlanExport(restored.plans, ['kenya'], date), file);
   }
 });
+
+test('restoring a Canadian v3 worksheet rebuilds its CAD totals and Ontario link while preserving an older NZD plan', () => {
+  const inputs = { currency: 'CAD', monthlyFixedCosts: '120.00', unitPrice: '12.50', unitVariableCost: '7.25', expectedMonthlyUnits: '24' };
+  let canada = setMarketScenario(createMarketPlans(), 'canada', inputs);
+  canada = setMarketQuestionSaved(canada, 'canada', 'setup', true);
+  const file = buildMarketPlanExport(canada, ['canada'], date);
+  assert.equal(file.version, 3);
+  const [market] = file.markets;
+  assert.equal(market.breakEvenScenario.result.breakEvenUnits, 23);
+  assert.deepEqual(market.breakEvenScenario.monthlySales.result, {
+    status: 'calculated', revenue: '300.00', totalCosts: '294.00', netResult: '6.00',
+  });
+  const imported = structuredClone(file);
+  imported.markets[0].sources.regionalSetup.url = 'https://untrusted.invalid/registry';
+  imported.markets[0].breakEvenScenario.monthlySales.result.netResult = '9999.99';
+  const draft = parseMarketPlanFile(JSON.stringify(imported));
+  assert.deepEqual(draft.warnings, []);
+  const local = plannedMarket();
+  const merged = previewMarketPlanRestore(local, [id], draft);
+  assert.deepEqual(merged.countries, [id, 'canada']);
+  assert.deepEqual(merged.plans.scenarios[id], local.scenarios[id]);
+  assert.deepEqual(merged.plans.notes, local.notes);
+  assert.deepEqual(buildMarketPlanExport(merged.plans, ['canada'], date), file);
+  const old = buildMarketPlanExport(merged.plans, [id], date);
+  assert.equal(old.version, 1);
+  assert.equal(Object.hasOwn(old.markets[0].sources, 'regionalSetup'), false);
+});

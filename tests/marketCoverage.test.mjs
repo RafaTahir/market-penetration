@@ -1,7 +1,7 @@
 /** Catalog integration contracts using bundled historical data and plan fixtures. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MARKETS, filterMarketGuides } from '../src/data/marketCatalog.ts';
+import { MARKETS, filterMarketGuides, getMarketDirectories } from '../src/data/marketCatalog.ts';
 import { CITY_RESEARCH_GUIDES } from '../src/data/cityResearchGuides.ts';
 import { MARKET_FUNDAMENTALS, MARKET_SNAPSHOT_META } from '../src/data/marketSnapshot.ts';
 import { historicalGdpAtYear } from '../src/services/marketComparison.ts';
@@ -159,6 +159,7 @@ test('discovery combines currency, place and region terms on the same market wit
     ['London GBP', 'uk'], ['U.K. GBP', 'uk'], ['new-zealand NZD', 'new-zealand'],
     ['Hồ Chí Minh Vietnam', 'vietnam'], ['Ho\u0302\u0300 Chi\u0301 Minh Vietnam', 'vietnam'],
     ['Nairobi, Kenya / KES', 'kenya'], ['Dubai AED', 'united-arab-emirates'],
+    [' Toronto / CAD ', 'canada'], ['🇨🇦 CAN', 'canada'], ['Canada North America', 'canada'],
   ]) {
     assert.deepEqual(filterMarketGuides(MARKETS, query).map(market => market.id), [id], query);
   }
@@ -170,6 +171,8 @@ test('discovery combines currency, place and region terms on the same market wit
   assert.deepEqual(filterMarketGuides(MARKETS, 'KES Africa', 'Africa').map(market => market.id), ['kenya']);
   assert.deepEqual(filterMarketGuides(MARKETS, 'Nairobi Kenya', 'Europe'), []);
   assert.deepEqual(filterMarketGuides(MARKETS, 'London GBP', 'Africa'), []);
+  assert.deepEqual(filterMarketGuides(MARKETS, 'CAD', 'North America').map(market => market.id), ['canada']);
+  assert.deepEqual(filterMarketGuides(MARKETS, 'Toronto', 'Europe'), []);
 });
 
 test('blank search keeps the region intersection while punctuation-only search cannot match everything', () => {
@@ -215,4 +218,54 @@ test('Kenya joins Africa with KES planning, pinned national USD history and corr
     assert.equal(question.kind, 'unverified-research-prompt');
     assert.deepEqual(question.sources.map(source => source.url), sources[question.lens]);
   }
+});
+
+test('Canada maps Toronto to North America and retains the unrounded national USD series from the pinned CSVs', () => {
+  const market = MARKETS.find(item => item.id === 'canada');
+  assert.ok(market);
+  assert.deepEqual([market.name, market.city, market.region, market.countryCode, market.worksheetCurrency],
+    ['Canada', 'Toronto', 'North America', 'CAN', 'CAD']);
+  const snapshot = MARKET_FUNDAMENTALS[market.countryCode];
+  assert.equal(MARKET_SNAPSHOT_META.observationYear, 2023);
+  assert.equal(MARKET_SNAPSHOT_META.gdp.unit, 'current US dollars');
+  assert.equal(snapshot.population, 40049088);
+  const expected = [
+    1805749878439.9412, 1556508816217.1401, 1527994741907.425, 1649265644244.095, 1725329192783.024,
+    1743725183672.5212, 1655684730000.1936, 2007472181464.1519, 2161483369422.0146, 2140085567791.4514,
+  ];
+  assert.deepEqual(snapshot.gdpSeries, expected.map((value, index) => ({ year: 2014 + index, value })));
+  assert.equal(snapshot.gdpUsd, expected.at(-1));
+});
+
+test('saved Toronto prompts preserve national statistics and all three setup jurisdictions as discovery links', () => {
+  const market = MARKETS.find(item => item.id === 'canada');
+  const setup = 'https://www.canada.ca/en/services/business/start/register-with-gov.html';
+  const ontario = 'https://www.ontario.ca/page/ontario-business-registry';
+  const toronto = 'https://www.toronto.ca/services-payments/permits-licences-bylaws/';
+  const sources = { customers: ['https://www.statcan.gc.ca/en/start'], location: [toronto], setup: [setup, ontario, toronto] };
+  const guide = CITY_RESEARCH_GUIDES.canada;
+  assert.match(guide.scope, /Toronto/);
+  assert.match(guide.scope, /Etobicoke/);
+  assert.match(guide.scope, /Mississauga/);
+  assert.match(guide.prompts.customers.detail, /census metropolitan area|CMA/i);
+  assert.match(guide.prompts.setup.detail, /Mississauga/);
+  assert.deepEqual(getMarketDirectories(market).map(entry => entry.source.url), [setup, ontario, ...sources.customers, toronto]);
+  let plans = createMarketPlans();
+  for (const lens of Object.keys(sources)) {
+    const prompt = guide.prompts[lens];
+    assert.ok(prompt.question.trim() && prompt.detail.trim(), lens);
+    assert.deepEqual(getCityQuestionSources(market, lens).map(source => source.url), sources[lens]);
+    plans = setMarketQuestionSaved(plans, 'canada', lens, true);
+  }
+  const [row] = buildMarketPlanExport(plans, ['canada'], EDITED).markets;
+  assert.deepEqual(row.savedResearchQuestions.map(q => q.lens), Object.keys(sources));
+  for (const q of row.savedResearchQuestions) {
+    assert.equal(q.question, guide.prompts[q.lens].question);
+    assert.equal(q.kind, 'unverified-research-prompt');
+    assert.equal(q.userFinding, null);
+    assert.deepEqual(q.sources.map(source => source.url), sources[q.lens]);
+  }
+  assert.equal(row.sources.regionalSetup.url, ontario);
+  assert.equal(row.sources.sourceContentsVerified, false);
+  assert.equal(row.sources.sourcePublicationDate, null);
 });

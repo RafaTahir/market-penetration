@@ -2,6 +2,7 @@
 .market-scene>svg { display: block; width: 100%; height: 100%; }
 .market-scene-rendered { background: #263d51; }
 .market-scene-rendered>img { display: block; width: 100%; height: 100%; max-height: 320px; object-fit: cover; object-position: 50% 34%; }
+.market-scene-rendered[data-market='canada']>img,
 .market-scene-rendered[data-market='kenya']>img,
 .market-scene-rendered[data-market='uk']>img,
 .market-scene-rendered[data-market='cambodia']>img { object-position: center; }

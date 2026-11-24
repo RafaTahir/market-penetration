@@ -3,10 +3,10 @@
  * Portal content, publication dates and current applicability are unverified.
  * City names identify a starting point for exploration, not a market ranking.
  */
-export type MarketRegion = 'Southeast Asia' | 'Oceania' | 'Middle East' | 'Europe' | 'Africa';
+export type MarketRegion = 'Southeast Asia' | 'Oceania' | 'Middle East' | 'Europe' | 'Africa' | 'North America';
 
 // Menu order is kept stable for existing worksheets. USD is also available across markets.
-export const MARKET_CURRENCIES = ['USD', 'AUD', 'NZD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'AED', 'KHR', 'GBP', 'KES'] as const;
+export const MARKET_CURRENCIES = ['USD', 'AUD', 'NZD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'AED', 'KHR', 'GBP', 'KES', 'CAD'] as const;
 export type MarketCurrency = typeof MARKET_CURRENCIES[number];
 
 export interface MarketGuide {
@@ -19,6 +19,7 @@ export interface MarketGuide {
   worksheetCurrency: MarketCurrency;
   aliases?: readonly string[];
   setup: { name: string; url: string };
+  regionalSetup?: { name: string; url: string };
   statistics: { name: string; url: string };
   cityPortal: { name: string; url: string };
   cityStatistics?: { name: string; url: string };
@@ -112,7 +113,28 @@ export const MARKETS: readonly MarketGuide[] = [
     statistics: { name: 'Kenya National Bureau of Statistics', url: 'https://www.knbs.or.ke/' },
     cityPortal: { name: 'Nairobi City County', url: 'https://nairobi.go.ke/' },
   },
+  {
+    region: 'North America',
+    id: 'canada', name: 'Canada', flag: '🇨🇦', city: 'Toronto', countryCode: 'CAN', worksheetCurrency: 'CAD',
+    setup: { name: 'Government of Canada · Register your business', url: 'https://www.canada.ca/en/services/business/start/register-with-gov.html' },
+    regionalSetup: { name: 'Ontario Business Registry', url: 'https://www.ontario.ca/page/ontario-business-registry' },
+    statistics: { name: 'Statistics Canada', url: 'https://www.statcan.gc.ca/en/start' },
+    cityPortal: { name: 'City of Toronto · Permits and licences', url: 'https://www.toronto.ca/services-payments/permits-licences-bylaws/' },
+  },
 ];
+
+export function getMarketDirectories(market: MarketGuide) {
+  const directories = [{ label: 'Business setup', source: market.setup }];
+  if (market.regionalSetup) {
+    directories.push({ label: 'Province or state registration', source: market.regionalSetup });
+  }
+  directories.push(
+    { label: 'National statistics', source: market.statistics },
+    { label: 'City & premises', source: market.cityPortal },
+  );
+  if (market.cityStatistics) directories.push({ label: 'City statistics', source: market.cityStatistics });
+  return directories;
+}
 
 function searchWords(text: string): string[] {
   // Preserve dotted initialisms such as U.A.E. while treating other punctuation as word separators.

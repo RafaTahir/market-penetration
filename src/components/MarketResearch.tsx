@@ -4,7 +4,7 @@ import { MARKETS, type MarketGuide } from '../data/marketCatalog';
 import { INDUSTRIES, type ResearchAngle } from '../data/industryGuides';
 import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides';
 import type { MarketPlanSession } from '../hooks/useMarketPlans';
-import { getCityQuestionSources } from '../services/marketPlans';
+import { getCityQuestionDirectories } from '../services/marketPlans';
 import MarketFundamentals from './MarketFundamentals';
 import MarketScene from './visual/MarketScene';
 import './MarketResearch.css';
@@ -79,6 +79,7 @@ function IndustryDirectories({ markets }: { markets: readonly MarketGuide[] }) {
       <div><small>Customer and industry statistics</small><SourceLink url={market.statistics.url}>{market.statistics.name}</SourceLink></div>
       {market.cityStatistics && <div><small>City datasets and geography</small><SourceLink url={market.cityStatistics.url}>{market.cityStatistics.name}</SourceLink></div>}
       <div><small>Business setup enquiries</small><SourceLink url={market.setup.url}>{market.setup.name}</SourceLink></div>
+      {market.regionalSetup && <div><small>Province or state registration</small><SourceLink url={market.regionalSetup.url}>{market.regionalSetup.name}</SourceLink></div>}
       <div><small>Location and premises enquiries</small><SourceLink url={market.cityPortal.url}>{market.cityPortal.name}</SourceLink></div>
     </div>
     <p>Directory contents and publication dates are unverified. Check the activity, geography and period covered by each source.</p>
@@ -141,7 +142,7 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
       <div className="mr-city-grid">{markets.map(market => {
         const guide = CITY_RESEARCH_GUIDES[market.id];
         const prompt = guide?.prompts[cityLens] ?? currentCityLens;
-        const [source, localSource] = getCityQuestionSources(market, cityLens);
+        const directories = getCityQuestionDirectories(market, cityLens);
         const selected = selectedCountries.includes(market.id);
         const saved = planSession.plans.questions[market.id]?.includes(cityLens) ?? false;
         const hasFinding = Boolean(planSession.plans.findings[market.id]?.[cityLens]);
@@ -153,8 +154,9 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
           <div className="mr-city-name"><h3 id={`city-name-${market.id}`}>{market.city}</h3><small>{guide?.scope ?? 'City research starting point'}</small></div>
           <div className="mr-city-question"><currentCityLens.icon size={18} aria-hidden="true" /><div><strong>{prompt.question}</strong><p>{prompt.detail}</p></div></div>
           <div className="mr-city-sources">
-            <SourceLink url={source.url} label={source.name}><span>{source.name}<small>{cityLens === 'customers' ? 'Dataset geography & dates · discovery link' : cityLens === 'setup' ? 'National setup enquiries · discovery link' : 'Address & local authority · discovery link'}</small></span></SourceLink>
-            {localSource && <SourceLink url={localSource.url} label={localSource.name}><span>{localSource.name}<small>{cityLens === 'customers' ? 'City datasets & geography' : 'Premises & address enquiries'} · discovery link</small></span></SourceLink>}
+            {directories.map(({ source, label }) => <SourceLink key={source.url} url={source.url} label={source.name}>
+              <span>{source.name}<small>{label} · discovery link</small></span>
+            </SourceLink>)}
           </div>
           {guide && <div className="mr-question-actions">
             {!(selected && hasFinding) && <button type="button" className="mr-save-question" aria-pressed={selected && saved} onClick={() => {
@@ -209,7 +211,14 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
       <div className="mr-insight-intro"><currentInsightLens.icon size={22} aria-hidden="true" /><div><h3>{currentInsightLens.question}</h3><p>{currentInsightLens.description}</p></div></div>
       <div className="mr-portal-grid">{markets.map(market => {
         const portal = insightLens === 'setup' ? market.setup : insightLens === 'demand' ? market.statistics : market.cityPortal;
-        return <article className="mr-portal" key={market.id}><div><span className="mr-flag" aria-hidden="true">{market.flag}</span><span className="mr-portal-country">{market.name}</span><ArrowUpRight size={18} aria-hidden="true" /></div><h3>{portal.name}</h3><p>{insightLens === 'setup' ? 'Explore activity, registration and operating questions.' : insightLens === 'demand' ? 'Look for relevant datasets, definitions and observation periods.' : `Explore the city context around ${market.city}.`}</p><SourceLink url={portal.url}>Open source directory</SourceLink></article>;
+        const regional = insightLens === 'setup' && market.regionalSetup;
+        return <article className="mr-portal" key={market.id}>
+          <div><span className="mr-flag" aria-hidden="true">{market.flag}</span><span className="mr-portal-country">{market.name}</span><ArrowUpRight size={18} aria-hidden="true" /></div>
+          <h3>{portal.name}</h3>
+          <p>{insightLens === 'setup' ? 'Explore activity, registration and operating questions.' : insightLens === 'demand' ? 'Look for relevant datasets, definitions and observation periods.' : `Explore the city context around ${market.city}.`}</p>
+          <SourceLink url={portal.url}>{regional ? 'National registration directory' : 'Open source directory'}</SourceLink>
+          {regional && <SourceLink url={regional.url}>{regional.name}</SourceLink>}
+        </article>;
       })}</div>
     </>}
 

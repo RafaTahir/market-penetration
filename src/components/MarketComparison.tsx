@@ -92,14 +92,17 @@ export default function MarketComparison({ selectedCountries, onClose, onChooseM
             <tr><th scope="row">Default worksheet currency</th>{markets.map(market => <td key={market.id}>{market.worksheetCurrency}</td>)}</tr>
             {([
               ['Business setup', 'setup'],
+              ['Province or state registration', 'regionalSetup'],
               ['Country statistics', 'statistics'],
               ['City & location', 'cityPortal'],
-            ] as const).map(([label, field]) =>
-              <tr key={field}><th scope="row">{label}</th>{markets.map(market =>
-                <td key={market.id}><a href={market[field].url} target="_blank" rel="noopener noreferrer">
-                  {market[field].name}<ArrowUpRight size={13} aria-hidden="true" />
-                </a></td>
-              )}</tr>
+              ['City statistics', 'cityStatistics'],
+            ] as const).filter(([, field]) => markets.some(market => market[field])).map(([label, field]) =>
+              <tr key={field}><th scope="row">{label}</th>{markets.map(market => {
+                const source = market[field];
+                return <td key={market.id}>{source ? <a href={source.url} target="_blank" rel="noopener noreferrer">
+                  {source.name}<ArrowUpRight size={13} aria-hidden="true" />
+                </a> : 'No directory listed'}</td>;
+              })}</tr>
             )}
           </tbody>
         </table>

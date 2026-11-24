@@ -20,6 +20,12 @@ PHNOM_PENH_PROMPT = "Where do your first buyers in Phnom Penh buy today?"
 AUCKLAND_PROMPT = "Which Auckland premises work for your deliveries and staff?"
 CITY_PROMPT = "Which federal, NSW and council questions apply to this activity?"
 NOTE = "Prior-release test note on comparing Singapore premises."
+CANADA_DIRECTORIES = {
+    "businessSetup": "https://www.canada.ca/en/services/business/start/register-with-gov.html",
+    "regionalSetup": "https://www.ontario.ca/page/ontario-business-registry",
+    "countryStatistics": "https://www.statcan.gc.ca/en/start",
+    "cityAndLocation": "https://www.toronto.ca/services-payments/permits-licences-bylaws/",
+}
 
 
 def cambodia_worksheet(page, width):
@@ -76,7 +82,36 @@ def download_json(page, label, scope=None):
     return json.loads(download.value.path().read_text())
 
 
-def kenya_plan(page, width):
+def save_toronto_setup(page, width):
+    regions = page.get_by_role("group", name="Filter market cards by region")
+    regions.get_by_role("button", name=re.compile("^North America")).click()
+    page.get_by_label("Search markets or cities").fill("Toronto CAD")
+    card = page.locator('.market-country-card[data-market="canada"]')
+    expect(card.get_by_label("40,049,088 people, 2023", exact=True)).to_be_visible()
+    card.evaluate("el => el.scrollIntoView({block: 'center', behavior: 'instant'})")
+    card.screenshot(path=str(ARTIFACTS / f"canada-card-{width}.png"))
+    card.get_by_role("button", name="Add Canada to shortlist and explore", exact=True).click()
+    city = page.locator("#city-research-canada")
+    expect(city).to_be_focused()
+    expect(city.get_by_role("heading", name="Toronto", exact=True)).to_be_visible()
+    page.get_by_role("group", name="City research lens").get_by_role("button", name="Setup", exact=True).click()
+    for scope in ("businessSetup", "regionalSetup", "cityAndLocation"):
+        expect(city.locator(f'a[href="{CANADA_DIRECTORIES[scope]}"]')).to_be_visible()
+    prompt = city.locator(".mr-city-question strong").inner_text()
+    city.get_by_role("button", name="Save question", exact=True).click()
+    return prompt
+
+
+def enter_sales(page, market_id, currency, amounts):
+    sheet = page.locator(f"#break-even-{market_id}")
+    sheet.locator(":scope > summary").click()
+    expect(sheet.get_by_label("Currency", exact=True)).to_have_value(currency)
+    for label, value in zip(("Monthly fixed costs", "Price per unit", "Variable cost per unit", "Expected monthly sales"), amounts, strict=True):
+        sheet.get_by_label(label, exact=True).fill(value)
+    return sheet
+
+
+def cross_region_plan(page, width):
     page.goto(BASE + "/#/research")
     page.get_by_role("button", name="Remove Cambodia from shortlist", exact=True).click()
     regions = page.get_by_role("group", name="Filter market cards by region")
@@ -109,14 +144,20 @@ def kenya_plan(page, width):
         expect(city.locator(f'a[href="{url}"]')).to_be_visible()
     prompt = city.locator(".mr-city-question strong").inner_text()
     city.get_by_role("button", name="Save question", exact=True).click()
+    toronto_prompt = save_toronto_setup(page, width)
     page.get_by_role("button", name=re.compile("^Compare markets")).click()
     compare = page.locator("#market-comparison")
-    for name in ("Kenya", "United Kingdom"):
+    for name in ("Kenya", "United Kingdom", "Canada"):
         expect(compare.get_by_role("columnheader").filter(has_text=name)).to_have_count(1)
+    expect(compare.get_by_role("row", name=re.compile("^Default worksheet currency"))).to_contain_text("CAD")
     exported = download_json(page, "Export shortlist", compare)
     snapshot = exported["historicalSnapshot"]
     observations = {row["countryCode"]: row for row in snapshot["observations"]}
-    assert set(observations) == {"GBR", "KEN"}
+    assert set(observations) == {"GBR", "KEN", "CAN"}
+    canada = observations["CAN"]
+    assert (canada["region"], canada["population"], canada["gdpUsd"]) == ("North America", 40049088, 2140085567791.4514)
+    assert canada["gdpPerPersonUsd"] == canada["gdpUsd"] / canada["population"]
+    assert canada["gdpSeries"][-1] == {"year": 2023, "value": canada["gdpUsd"]}
     national = observations["KEN"]
     assert (national["region"], national["population"], national["gdpUsd"]) == ("Africa", 55339003, 107440575838.04752)
     assert national["gdpPerPersonUsd"] == national["gdpUsd"] / national["population"]
@@ -125,16 +166,26 @@ def kenya_plan(page, width):
     assert snapshot["provenance"]["observationYear"] == 2023 and snapshot["provenance"]["gdp"]["indicator"] == "NY.GDP.MKTP.CD"
     assert "national" in exported["limitation"].lower()
     compare.get_by_role("link", name="Plan these markets").click()
-    sheet = page.locator("#break-even-kenya")
-    sheet.locator(":scope > summary").click()
-    expect(sheet.get_by_label("Currency", exact=True)).to_have_value("KES")
-    for field, value in [("Monthly fixed costs", "10000"), ("Price per unit", "1250"),
-                         ("Variable cost per unit", "750"), ("Expected monthly sales", "24")]:
-        sheet.get_by_label(field, exact=True).fill(value)
-    expect(sheet).to_contain_text("2,000.00 KES")
+    expect(enter_sales(page, "kenya", "KES", ("10000", "1250", "750", "24"))).to_contain_text("2,000.00 KES")
+    expect(enter_sales(page, "canada", "CAD", ("200", "35", "25", "25"))).to_contain_text("50.00 CAD")
+    page.get_by_role("button", name="Preview plan brief", exact=True).click()
+    brief = page.get_by_role("dialog", name="Market plan brief")
+    canada_brief = brief.get_by_role("region", name="Canada", exact=True)
+    expect(canada_brief).to_contain_text(toronto_prompt)
+    expect(canada_brief).to_contain_text("50.00 CAD")
+    directory = canada_brief.locator(".mpb-directory")
+    assert set(directory.get_by_role("link").evaluate_all("items => items.map(a => a.href)")) == set(CANADA_DIRECTORIES.values())
+    brief.get_by_role("button", name="Close brief").click()
     plan = download_json(page, "Export market plan")
-    market = next(row for row in plan["markets"] if row["id"] == "kenya")
-    assert set(row["id"] for row in plan["markets"]) == {"uk", "kenya"} and plan["version"] == 3
+    markets = {row["id"]: row for row in plan["markets"]}
+    assert set(markets) == {"uk", "kenya", "canada"} and plan["version"] == 3
+    ca = markets["canada"]
+    assert ca["sources"]["sourceContentsVerified"] is False and ca["sources"]["sourcePublicationDate"] is None
+    assert {scope: ca["sources"][scope]["url"] for scope in CANADA_DIRECTORIES} == CANADA_DIRECTORIES
+    ca_question, = ca["savedResearchQuestions"]
+    assert ca_question["question"] == toronto_prompt and ca_question["userFinding"] is None
+    assert [row["url"] for row in ca_question["sources"]] == [CANADA_DIRECTORIES[scope] for scope in ("businessSetup", "regionalSetup", "cityAndLocation")]
+    market = markets["kenya"]
     assert (market["countryCode"], market["cityResearchStartingPoint"]) == ("KEN", "Nairobi")
     assert market["sources"]["sourceContentsVerified"] is False and market["sources"]["sourcePublicationDate"] is None
     question, = market["savedResearchQuestions"]
@@ -145,12 +196,13 @@ def kenya_plan(page, width):
     page.locator(".mph-back").click()
     page.get_by_role("button", name="View unverified reference examples", exact=True).click()
     expect(page.get_by_role("status").filter(has_text="Reference examples cover six markets")).to_contain_text("Kenya")
+    expect(page.get_by_role("status").filter(has_text="Reference examples cover six markets")).to_contain_text("Canada")
     expect(page.locator(".reference-research")).to_have_count(0)
     expect(page.get_by_role("heading", name="Reference report studio", exact=True)).to_have_count(0)
-    return plan, market
+    return plan
 
 
-def restore_kenya(browser, width, plan, original):
+def restore_cross_region_plan(browser, width, plan):
     context, errors, external = open_context(browser, width)
     try:
         page = context.new_page()
@@ -162,11 +214,15 @@ def restore_kenya(browser, width, plan, original):
             "name": "flow-market-plan.json", "mimeType": "application/json", "buffer": json.dumps(plan).encode(),
         })
         expect(dialog).to_contain_text("Kenya")
+        expect(dialog).to_contain_text("Canada")
         dialog.get_by_role("button", name="Apply restore").click()
         expect(page.locator("#question-kenya-setup")).to_be_visible()
+        expect(page.locator("#question-canada-setup")).to_be_visible()
         page.reload(wait_until="networkidle")
         restored = download_json(page, "Export market plan")
-        assert next(row for row in restored["markets"] if row["id"] == "kenya") == original
+        restored_by_id = {row["id"]: row for row in restored["markets"]}
+        for original in plan["markets"]:
+            assert restored_by_id[original["id"]] == original
         assert not errors and not external, (errors, external)
     finally:
         context.close()
@@ -419,12 +475,12 @@ def run(browser, width, theme):
     directory.get_by_label("Search sources").fill("KHM statistics")
     expect(directory.get_by_role("status")).to_have_text("1 source")
     expect(directory.get_by_role("link")).to_have_attribute("href", "https://www.nis.gov.kh/")
-    kenya_export, kenya_market = kenya_plan(page, width)
+    exported_plan = cross_region_plan(page, width)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors, errors
     assert not external, external
     context.close()
-    restore_kenya(browser, width, kenya_export, kenya_market)
+    restore_cross_region_plan(browser, width, exported_plan)
 
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 with sync_playwright() as playwright:
@@ -434,5 +490,5 @@ with sync_playwright() as playwright:
         run(browser, 390, "dark")
     finally:
         browser.close()
-print("PASS: cross-region shortlist and history, Nairobi/UK comparison, Nairobi question + KES worksheet restore, "
+print("PASS: cross-region shortlist and history, London/Nairobi/Toronto comparison, Toronto’s four directories, CAD/KES planning, brief and restore, "
       "Sydney/Auckland/Dubai/Phnom Penh research, prior notes and archive boundaries on desktop and phone")

@@ -215,4 +215,21 @@ export const CITY_RESEARCH_GUIDES: Readonly<Record<string, CityResearchGuide>> =
       },
     },
   },
+  canada: {
+    scope: 'City of Toronto · compare an Etobicoke address with a Mississauga alternative',
+    prompts: {
+      customers: {
+        question: 'Which buyers could you serve from Etobicoke or Mississauga?',
+        detail: 'Map trial orders or appointments by customer postal area. For a corporate account, mark the sites that receive the service as well as the purchasing office. Check the year and boundary behind any City of Toronto, Toronto census metropolitan area (CMA) or Greater Toronto Area (GTA) total.',
+      },
+      location: {
+        question: 'Which lease fits the space and delivery window you need?',
+        detail: 'Request the unit area, base rent, additional rent and included charges for each site. Convert quoted annual rent per square foot to monthly CAD for the whole unit. Time a delivery to the same customer during the promised window, including loading and parking.',
+      },
+      setup: {
+        question: 'Who can confirm your registration route and the proposed use of each site?',
+        detail: 'Take your ownership or branch structure to the federal registration directory and Ontario Business Registry. Give the municipality your exact unit, activity and proposed alterations. Use Toronto’s permits directory for the Etobicoke site and ask Mississauga separately about its site.',
+      },
+    },
+  },
 };

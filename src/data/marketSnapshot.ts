@@ -225,4 +225,20 @@ export const MARKET_FUNDAMENTALS: Record<string, MarketFundamental> = {
       { year: 2023, value: 107440575838.04752 },
     ],
   },
+  CAN: {
+    population: 40049088,
+    gdpUsd: 2140085567791.4514,
+    gdpSeries: [
+      { year: 2014, value: 1805749878439.9412 },
+      { year: 2015, value: 1556508816217.1401 },
+      { year: 2016, value: 1527994741907.425 },
+      { year: 2017, value: 1649265644244.095 },
+      { year: 2018, value: 1725329192783.024 },
+      { year: 2019, value: 1743725183672.5212 },
+      { year: 2020, value: 1655684730000.1936 },
+      { year: 2021, value: 2007472181464.1519 },
+      { year: 2022, value: 2161483369422.0146 },
+      { year: 2023, value: 2140085567791.4514 },
+    ],
+  },
 };

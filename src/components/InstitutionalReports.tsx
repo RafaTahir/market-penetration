@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight, Globe2, Search } from 'lucide-react';
-import { MARKETS, makeSearchMatcher } from '../data/marketCatalog';
+import { MARKETS, getMarketDirectories, makeSearchMatcher } from '../data/marketCatalog';
 import { INSTITUTIONAL_PORTALS } from '../data/institutionalPortals';
 
 interface DirectoryLink {
@@ -25,12 +25,7 @@ const marketGroups: DirectoryGroup[] = MARKETS.map(market => ({
   detail: market.city,
   searchNames: [market.countryCode, market.worksheetCurrency, market.flag, ...(market.aliases ?? [])],
   flag: market.flag,
-  links: [
-    { portal: market.setup, purpose: 'Business setup' },
-    { portal: market.statistics, purpose: 'National statistics' },
-    { portal: market.cityPortal, purpose: 'City & premises' },
-    ...(market.cityStatistics ? [{ portal: market.cityStatistics, purpose: 'City statistics' }] : []),
-  ].map(({ portal, purpose }) => ({ ...portal, purpose, institution: portal.name })),
+  links: getMarketDirectories(market).map(({ label, source }) => ({ ...source, purpose: label, institution: source.name })),
 }));
 
 const institutionalGroups: DirectoryGroup[] = [...new Set(INSTITUTIONAL_PORTALS.map(portal => portal.country))].map(country => ({

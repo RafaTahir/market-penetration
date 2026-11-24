@@ -4,7 +4,7 @@ The city cards provide curated research prompts and source-directory routes. The
 
 ## Source routes
 
-Each city uses the existing `src/data/marketCatalog.ts` directories. The Customers lens points to the country statistics directory and asks the reader to establish the dataset's actual city/catchment scope and observation period. The Location lens points to the local or land-use directory. Setup separates the national starting point from the city/address starting point; neither link is represented as a complete registration checklist.
+Each city uses the existing `src/data/marketCatalog.ts` directories. The Customers lens points to the country statistics directory and asks the reader to establish the dataset's actual city/catchment scope and observation period. The Location lens points to the local or land-use directory. Setup distinguishes national registration, a regional registry where supplied, and city or premises enquiries. The relevant offices and procedures depend on the business and address.
 
 | City | City/address directory | Distinction to research |
 | --- | --- | --- |
@@ -20,6 +20,7 @@ Each city uses the existing `src/data/marketCatalog.ts` directories. The Custome
 | Dubai | https://www.dubaidet.gov.ae/en/ | Use the Dubai Department of Economy and Tourism as an emirate-level economic directory. Confirm which authority covers the exact activity and address, including a candidate free zone where relevant. |
 | London | https://www.gov.uk/find-local-council | Compare candidate premises near Bank station and on the Southwark side of London Bridge. Match statistical areas and observation periods to the intended buyers, then identify the council for each postcode. |
 | Nairobi | https://nairobi.go.ke/ | Compare one Westlands address with one in Industrial Area. Test paid orders for the same offer and compare delivery costs for the same destinations. Ask about the exact premises and intended use. |
+| Toronto | https://www.toronto.ca/services-payments/permits-licences-bylaws/ | Compare a Toronto address in Etobicoke with a Mississauga alternative. Verify city, CMA or GTA boundaries in market estimates and address municipal enquiries separately for each site. |
 
 These are research questions and directory labels, not newly verified administrative or regulatory findings. In particular, the Ho Chi Minh City cards ask readers to check current geography rather than assert an older boundary or a specific reform date.
 
@@ -52,3 +53,11 @@ On 2026-11-24, the cloud proxy returned HTTP 403 on CONNECT before the GOV.UK co
 Westlands and Industrial Area are two places a team can investigate. The guide asks founders to distinguish first orders from repeat requests and business suppliers to check purchasing approval and payment terms. For a premises comparison, teams can record dated transport quotes, loading and waiting time, and completed deliveries to the same customers from each address. These are proposed tests. Flow has no observations of orders, rents, transport prices or delivery times for either site.
 
 The Kenya National Bureau of Statistics is a starting point for finding the year and geography of a published figure. The Business Registration Service is a directory for entity and branch enquiries. Nairobi City County is the starting point for questions about the actual unit and activity. On 2026-11-24 at 14:34 UTC, the cloud proxy returned HTTP 403 on CONNECT for all three directories. An approved retry received the same response before any page loaded. Page titles, contents, publication dates, site-specific permissions and fees remain unverified. [Kenya National Bureau of Statistics](https://www.knbs.or.ke/) · [Business Registration Service](https://brs.go.ke/) · [Nairobi City County](https://nairobi.go.ke/)
+
+## Toronto research scope
+
+An Etobicoke premises and a Mississauga alternative give a team two addresses to compare. A founder can map trial orders or appointments to postal areas. A supplier considering a corporate contract can compare the purchasing office with the sites where it would deliver. Statistics Canada is a starting point for checking the reference year and geography of a table. Verify whether it describes the City of Toronto, the Toronto census metropolitan area (CMA), or an area the publisher calls the Greater Toronto Area (GTA). National or regional totals alone cannot establish buyers in either catchment. [Statistics Canada](https://www.statcan.gc.ca/en/start)
+
+For each site, the guide asks for comparable rent quotes and a timed delivery. For entity or branch questions it points to the federal registration directory and Ontario Business Registry. For activity, alterations and premises enquiries, Toronto’s directory is a starting point for the Etobicoke example. The Mississauga alternative needs a separate municipal enquiry. Flow supplies no determination of the registrations, licences or permissions a business needs. [Government of Canada business registration](https://www.canada.ca/en/services/business/start/register-with-gov.html) · [Ontario Business Registry](https://www.ontario.ca/page/ontario-business-registry) · [City of Toronto permits and licences](https://www.toronto.ca/services-payments/permits-licences-bylaws/)
+
+On 2026-11-24 at 14:53 UTC, the cloud proxy returned HTTP 403 on CONNECT for all four directories before a page loaded. Their catalog names identify the intended destinations. Page titles, contents, publication dates and current applicability remain unverified.

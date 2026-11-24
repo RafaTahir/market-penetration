@@ -175,11 +175,12 @@ test('formatted sales amounts retain every digit and the sign on a loss smaller 
 });
 
 test('worksheet defaults and currency discovery agree for every market without reordering existing currencies', () => {
-  const previous = ['USD', 'AUD', 'NZD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'AED', 'KHR', 'GBP'];
+  const previous = ['USD', 'AUD', 'NZD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'AED', 'KHR', 'GBP', 'KES'];
   assert.deepEqual(MARKET_CURRENCIES.slice(0, previous.length), previous);
-  assert.ok(MARKET_CURRENCIES.indexOf('KES') >= previous.length);
+  assert.ok(MARKET_CURRENCIES.indexOf('CAD') >= previous.length);
   assert.equal(new Set(MARKET_CURRENCIES).size, MARKET_CURRENCIES.length);
   assert.deepEqual(emptyMarketEconomics('kenya'), { currency: 'KES', monthlyFixedCosts: '', unitPrice: '', unitVariableCost: '' });
+  assert.deepEqual(emptyMarketEconomics('canada'), { currency: 'CAD', monthlyFixedCosts: '', unitPrice: '', unitVariableCost: '' });
   for (const market of MARKETS) {
     assert.ok(MARKET_CURRENCIES.includes(market.worksheetCurrency), market.id);
     assert.equal(emptyMarketEconomics(market.id).currency, market.worksheetCurrency, market.id);

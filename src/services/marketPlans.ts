@@ -64,10 +64,21 @@ function isSupportedQuestion(marketId: string, lens: unknown): lens is CityResea
   return Boolean(guide && Object.prototype.hasOwnProperty.call(guide.prompts, lens));
 }
 
+export function getCityQuestionDirectories(market: MarketGuide, lens: CityResearchLens) {
+  if (lens === 'customers') {
+    const directories = [{ label: 'Dataset geography & dates', source: market.statistics }];
+    if (market.cityStatistics) directories.push({ label: 'City datasets & geography', source: market.cityStatistics });
+    return directories;
+  }
+  if (lens === 'location') return [{ label: 'Address & local authority', source: market.cityPortal }];
+  const directories = [{ label: 'National setup enquiries', source: market.setup }];
+  if (market.regionalSetup) directories.push({ label: 'Province or state registration', source: market.regionalSetup });
+  directories.push({ label: 'Premises & address enquiries', source: market.cityPortal });
+  return directories;
+}
+
 export function getCityQuestionSources(market: MarketGuide, lens: CityResearchLens) {
-  if (lens === 'customers') return market.cityStatistics ? [market.statistics, market.cityStatistics] : [market.statistics];
-  if (lens === 'location') return [market.cityPortal];
-  return [market.setup, market.cityPortal];
+  return getCityQuestionDirectories(market, lens).map(entry => entry.source);
 }
 
 function editDate(value: unknown): string | null {
@@ -223,6 +234,7 @@ export function buildMarketPlanExport(state: MarketPlansState, selectedCountries
       })),
       sources: {
         businessSetup: market.setup,
+        ...(market.regionalSetup && { regionalSetup: market.regionalSetup }),
         countryStatistics: market.statistics,
         cityAndLocation: market.cityPortal,
         ...(market.cityStatistics && { cityStatistics: market.cityStatistics }),

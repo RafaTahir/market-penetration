@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, FileText, Globe2, Info, MapPin, PenLine, X } from 'lucide-react';
-import { MARKETS } from '../data/marketCatalog';
+import { MARKETS, getMarketDirectories } from '../data/marketCatalog';
 import { buildMarketPlanExport, MAX_NEXT_STEP_LENGTH, getCityQuestionSources } from '../services/marketPlans';
 import { downloadMarketPlan } from '../services/downloadMarketPlan';
 import type { RestoreDraft } from '../services/marketPlanRestore';
@@ -122,12 +122,7 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
         const note = plans.notes[market.id];
         const questions = plans.questions[market.id] ?? [];
         const directory = <div className="mph-source-links">
-              {[
-                { label: 'Business setup', source: market.setup },
-                { label: 'Country statistics', source: market.statistics },
-                { label: 'City & premises', source: market.cityPortal },
-                ...(market.cityStatistics ? [{ label: 'City statistics', source: market.cityStatistics }] : []),
-              ].map(({ label, source }) => <a key={label} href={source.url} target="_blank" rel="noopener noreferrer"><span><small>{label}</small>{source.name}</span><ArrowUpRight size={16} aria-hidden="true" /></a>)}
+              {getMarketDirectories(market).map(({ label, source }) => <a key={label} href={source.url} target="_blank" rel="noopener noreferrer"><span><small>{label}</small>{source.name}</span><ArrowUpRight size={16} aria-hidden="true" /></a>)}
             </div>;
         return <article className="mph-market" key={market.id} aria-labelledby={`market-plan-${market.id}`} data-market={market.id}>
           <MarketScene marketId={market.id} />

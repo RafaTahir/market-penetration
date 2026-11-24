@@ -64,8 +64,14 @@ with sync_playwright() as playwright:
     expect(page.get_by_role('heading', name='Institutional Reference Directory')).to_be_visible()
     directory = page.get_by_role('main')
     expect(directory.get_by_text('Publication dates are unknown.', exact=False)).to_be_visible()
-    # Three standard pointers per country, the London Datastore and three cross-country directories.
-    expect(directory.get_by_role('status')).to_have_text(f'{3 * len(MARKETS) + 1 + 3} sources')
+    # Three per market, two additional local directories and three cross-country sources.
+    expected_count = 3 * len(MARKETS) + 2 + 3
+    expect(directory.get_by_role('status')).to_have_text(f'{expected_count} sources')
+    directory.get_by_label('Geographic coverage').select_option('North America')
+    directory.get_by_label('Research purpose').select_option('Province or state registration')
+    expect(directory.get_by_role('status')).to_have_text('1 source')
+    expect(directory.get_by_role('link')).to_have_attribute('href', 'https://www.ontario.ca/page/ontario-business-registry')
+    directory.get_by_role('button', name='Clear filters').click()
     directory.get_by_label('Search sources').fill('Sydney')
     expect(directory.get_by_role('status')).to_have_text('3 sources')
     directory.get_by_label('Research purpose').select_option('City & premises')

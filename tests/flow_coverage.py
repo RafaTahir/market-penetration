@@ -12,4 +12,5 @@ MARKETS = (
     ('united-arab-emirates', 'United Arab Emirates', '🇦🇪'),
     ('uk', 'United Kingdom', '🇬🇧'),
     ('kenya', 'Kenya', '🇰🇪'),
+    ('canada', 'Canada', '🇨🇦'),
 )

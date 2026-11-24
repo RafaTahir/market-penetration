@@ -1,6 +1,6 @@
 # Historical market snapshot
 
-`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM), Cambodia (KHM), Australia (AUS), New Zealand (NZL), the United Arab Emirates (ARE), the United Kingdom (GBR) and Kenya (KEN).
+`src/data/marketSnapshot.ts` is a separately curated historical artifact, not an API result, a live feed, or a fallback in any provider adapter. It contains total population and GDP for the common observation year **2023**, plus GDP observations for **2014–2023**, for Thailand (THA), Singapore (SGP), Malaysia (MYS), Indonesia (IDN), the Philippines (PHL), Vietnam (VNM), Cambodia (KHM), Australia (AUS), New Zealand (NZL), the United Arab Emirates (ARE), the United Kingdom (GBR), Kenya (KEN) and Canada (CAN).
 
 ## Attribution and exact source files
 
@@ -17,7 +17,7 @@ The declarations above are recorded from the mirrors' pinned [population datapac
 
 - Both complete downloaded CSV hashes were independently recomputed and matched the pinned input hashes above. Headers are `Country Name,Country Code,Year,Value`.
 - Selection uses ISO alpha-3 codes and exact observation years. Each selected country/year occurs once, all values are finite and nonnegative, and population counts are integral. No missing value is filled, interpolated or copied from another year/country.
-- All twelve countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
+- All thirteen countries have both population and GDP observations for 2023 and every GDP year from 2014 through 2023. Population extends to 2025 in its mirror; GDP ends in 2023, so newer population rows are intentionally excluded from this common-year comparison.
 - GDP units and indicator are explicit in its datapackage. The population datapackage identifies total-population series `SP.POP.TOTL`; its numeric counts are people, with no millions multiplier. Display abbreviation is the UI's responsibility.
 - Raw CSV numeric literals are retained without deliberate decimal rounding. Runtime values use JavaScript numbers and their ordinary IEEE-754 precision limits. GDP series are not inflation-adjusted, and nominal changes also reflect exchange-rate and price movements.
 - `retrievedAt = 2026-10-25T17:48:56Z` records the latest local capture time of the two downloaded CSV inputs. Population was captured at 17:48:08 UTC; GDP at 17:48:56 UTC. Retrieval is separate from observation year and does not establish source publication or freshness.
@@ -33,6 +33,8 @@ Cambodia’s national rows use country code `KHM`. Both whole-file hashes matche
 The United Kingdom series uses country code `GBR`. The original pinned CSVs contain one 2023 UK population observation of 68,526,000 people and one GDP observation for every year from 2014 through 2023. The 2023 GDP value is 3,340,032,380,668.0356 current US dollars. Both file hashes matched before extraction. These figures describe the entire UK. Comparing a London borough or the wider London region requires observations for that geography.
 
 The Kenya series uses country code `KEN`. Both original CSV hashes matched before extraction. The 2023 national observations are 55,339,003 residents and GDP of 107,440,575,838.04752 current US dollars. Each GDP year from 2014 through 2023 has exactly one row. These national series do not measure Nairobi County’s population or economic output.
+
+The Canada series uses country code `CAN`. Both complete CSV hashes matched before extraction, with one population observation of 40,049,088 people for 2023 and one GDP observation per year from 2014 through 2023. Nominal 2023 GDP is 2,140,085,567,791.4514 current US dollars. The original CSV capture times apply. Toronto city and metropolitan area figures require separate observations for the relevant boundary.
 
 ## GDP per person
 

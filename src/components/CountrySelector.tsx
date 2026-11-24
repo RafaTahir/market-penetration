@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, Globe2, MapPin, MoveHorizontal, Plus, X } from 'lucide-react';
-import { MARKETS, filterMarketGuides, type MarketRegion } from '../data/marketCatalog';
+import { MARKETS, filterMarketGuides, getMarketDirectories, type MarketRegion } from '../data/marketCatalog';
 import { MARKET_FUNDAMENTALS, MARKET_SNAPSHOT_META, type MarketFundamental } from '../data/marketSnapshot';
 import MarketScene from './visual/MarketScene';
 import './CountrySelector.css';
@@ -180,12 +180,7 @@ export default function CountrySelector({
                     <dl><div><dt>Default worksheet currency</dt><dd>{market.worksheetCurrency} · changeable in your plan</dd></div></dl>
                     <p className="market-directory-label">Government starting points</p>
                     <p>Curated discovery links. Page content, dates and local applicability have not been verified.</p>
-                    {[
-                      { label: 'Business setup', source: market.setup },
-                      { label: 'Country statistics', source: market.statistics },
-                      { label: 'City & locations', source: market.cityPortal },
-                      ...(market.cityStatistics ? [{ label: 'City statistics', source: market.cityStatistics }] : []),
-                    ].map(({ label, source }) => <a key={label} href={source.url} target="_blank" rel="noopener noreferrer"><span><small>{label}</small>{source.name}</span><ArrowUpRight size={13} aria-hidden="true" /></a>)}
+                    {getMarketDirectories(market).map(({ label, source }) => <a key={label} href={source.url} target="_blank" rel="noopener noreferrer"><span><small>{label}</small>{source.name}</span><ArrowUpRight size={13} aria-hidden="true" /></a>)}
                   </div>
                 )}
               </article>

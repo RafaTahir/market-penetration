@@ -36,9 +36,9 @@ function BriefQuestion({ question, preparedDay }: { question: SavedQuestion; pre
 }
 
 function BriefDirectories({ market }: { market: Market }) {
-  const { businessSetup, countryStatistics, cityAndLocation, cityStatistics } = market.sources;
+  const { businessSetup, regionalSetup, countryStatistics, cityAndLocation, cityStatistics } = market.sources;
   const entries = [
-    ['Business setup', businessSetup], ['National statistics', countryStatistics],
+    ['Business setup', businessSetup], ['Province or state registration', regionalSetup], ['National statistics', countryStatistics],
     ['City and premises', cityAndLocation], ['City statistics', cityStatistics],
   ] as const;
   return <section className="mpb-section">

@@ -72,6 +72,7 @@ def run(browser, width, theme, full_journey):
         for query, market_id in [
             ("nAiRoBi, KES", "kenya"), ("GBR London", "uk"), ("GBP U.K.", "uk"),
             ("Hồ Chí Minh Vietnam", "vietnam"), ("Africa / KEN", "kenya"), ("🇰🇪", "kenya"),
+            ("Toronto / CAD", "canada"), ("North America CAN", "canada"),
         ]:
             match(query, [market_id])
         match("KES London", [])
@@ -133,6 +134,9 @@ def run(browser, width, theme, full_journey):
         expect(directory).to_contain_text("Publication dates are unknown.")
         source_search.fill("KES London")
         expect(directory.get_by_role("status")).to_have_text("0 sources")
+        source_search.fill("Toronto CAD Ontario")
+        expect(directory.get_by_role("status")).to_have_text("1 source")
+        expect(directory.get_by_role("link")).to_have_attribute("href", "https://www.ontario.ca/page/ontario-business-registry")
 
         saved_ids = page.evaluate("(key) => JSON.parse(localStorage.getItem(key)).countries", SHORTLIST_KEY)
         assert sorted(saved_ids) == ["uk", "vietnam"], saved_ids

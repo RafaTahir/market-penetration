@@ -59,7 +59,6 @@ html.light .market-plan-hub { --mph-bg: #f2f6fb; --mph-panel: #fff; --mph-soft: 
 .mph-notebook p { max-width: 690px; color: var(--mph-muted); font-size: 13px; line-height: 1.75; margin: 0; }
 .mph-notebook p strong { color: var(--mph-text); font-weight: 550; }
 .mph-notebook>a { flex-shrink: 0; }
-.mph-feedback { min-height: 20px; color: var(--mph-muted); font-size: 12px; line-height: 1.6; margin: 18px 0 0; }
 @media(min-width:900px) {
   .mph-market:only-child { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
   .mph-market:only-child>.market-scene { height: 100%; min-height: 320px; border-bottom: 0; border-right: 1px solid var(--mph-border); display: grid; place-items: center; background: var(--mph-soft); }
@@ -72,7 +71,6 @@ html.light .market-plan-hub { --mph-bg: #f2f6fb; --mph-panel: #fff; --mph-soft: 
   .mph-heading { align-items: flex-start; flex-direction: column; gap: 20px; margin-bottom: 17px; }
   .mph-heading h1 { font-size: 34px; }.mph-heading p { font-size: 14px; }
   .mph-eyebrow { font-size: 10px; }
-  .mph-heading>.mph-export { width: 100%; }
   .mph-plan-status { font-size: 11px; padding-bottom: 18px; }
   .mph-market-body { padding: 21px; }.mph-market-title h2 { font-size: 24px; }.mph-market-title p { font-size: 11px; }
   .mph-market>.market-scene { height: 108px; }
@@ -98,3 +96,9 @@ html.light .market-plan-hub { --mph-bg: #f2f6fb; --mph-panel: #fff; --mph-soft: 
 .mph-source-directory { border-block: 1px solid var(--mph-border); }
 .mph-source-directory summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; cursor: pointer; color: var(--mph-blue); font-size: 13px; }
 .mph-source-directory[open] summary svg { transform: rotate(180deg); }
+.mph-file-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.mph-file-feedback { margin: 0 0 18px; color: var(--mph-text); font-size: 13px; }
+@media (max-width: 560px) {
+  .mph-file-actions { width: 100%; justify-content: flex-start; }
+  .mph-file-actions > button { flex: 1 1 auto; }
+}

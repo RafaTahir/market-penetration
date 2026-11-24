@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Globe2, Info, MapPin, PenLine, X } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
 import { MAX_NEXT_STEP_LENGTH, buildMarketPlanExport, getCityQuestionSources } from '../services/marketPlans';
+import type { RestoreDraft } from '../services/marketPlanRestore';
+import MarketPlanRestore from './MarketPlanRestore';
 import MarketEconomicsWorksheet from './MarketEconomicsWorksheet';
 import MarketScene from './visual/MarketScene';
 import type { MarketPlanSession } from '../hooks/useMarketPlans';
@@ -10,11 +12,13 @@ import './MarketPlanHub.css';
 
 interface MarketPlanHubProps {
   planSession: MarketPlanSession;
+  onRestore: (draft: RestoreDraft) => boolean;
+  shortlistSaved: boolean;
   worksheetId?: string;
   selectedCountries: string[];
 }
 
-export default function MarketPlanHub({ selectedCountries, planSession, worksheetId }: MarketPlanHubProps) {
+export default function MarketPlanHub({ selectedCountries, planSession, worksheetId, onRestore, shortlistSaved }: MarketPlanHubProps) {
   const { plans, savedLocally, saveNote, saveScenario, setQuestionSaved } = planSession;
   const [exportMessage, setExportMessage] = useState('');
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
@@ -46,16 +50,27 @@ export default function MarketPlanHub({ selectedCountries, planSession, workshee
     setExportMessage('Market plan exported with your selected markets, notes, saved questions, worksheets and source limitations.');
   }
 
+  function applyRestore(draft: RestoreDraft) {
+    const saved = onRestore(draft);
+    setExportMessage(saved
+      ? 'Plan restored on this browser. Your existing work was kept.'
+      : 'Plan restored for this session. Export your plan before reloading.');
+  }
+
   return <main className="market-plan-hub">
     <a className="mph-back" href="#/research"><ArrowLeft size={16} aria-hidden="true" />Explore markets</a>
     <header className="mph-heading">
       <div><span className="mph-eyebrow">YOUR SHORTLIST · YOUR NEXT MOVE</span><h1>Your market plan.</h1><p>Keep the markets you chose, follow their sources and decide your next step.</p></div>
-      <button className="mph-export" onClick={exportPlan}><ArrowDownToLine size={17} aria-hidden="true" />Export market plan</button>
+      <div className="mph-file-actions">
+        <MarketPlanRestore plans={plans} selectedCountries={selectedCountries} onRestore={applyRestore} />
+        <button className="mph-export" onClick={exportPlan}><ArrowDownToLine size={17} aria-hidden="true" />Export market plan</button>
+      </div>
     </header>
     <div className="mph-plan-status">
       <span><Globe2 size={16} aria-hidden="true" />{markets.length} {markets.length === 1 ? 'market' : 'markets'} in your shortlist</span>
-      <span role="status">{savedLocally ? <><Check size={15} aria-hidden="true" />{saveStatus}</> : <><Info size={15} aria-hidden="true" />Session only · export before reloading</>}</span>
+      <span role="status">{savedLocally && shortlistSaved ? <><Check size={15} aria-hidden="true" />{saveStatus}</> : <><Info size={15} aria-hidden="true" />Session only · export before reloading</>}</span>
     </div>
+    <div role="status">{exportMessage && <p className="mph-file-feedback">{exportMessage}</p>}</div>
     {markets.length > 0 && <p className="mph-directory-status"><Info size={14} aria-hidden="true" />Official-source directory · contents unverified · publication dates unknown</p>}
 
     {markets.length ? <section className="mph-market-grid" aria-label="Selected market plans">
@@ -120,6 +135,6 @@ export default function MarketPlanHub({ selectedCountries, planSession, workshee
     <details className="mph-source-details"><summary><Info size={16} aria-hidden="true" />About these research links & notes<ChevronDown size={15} aria-hidden="true" /></summary><p>These are curated official-directory links, not verified current requirements. Page contents, publication dates and applicability to your activity or address have not been verified. Source publication dates are unknown. Your next-step notes are personal planning notes; they do not become evidence or preparation scores in the city notebook.</p><p>Notes, saved questions and worksheet assumptions stay with their market when you change your shortlist. Select the market again to see them. Session-only notes survive navigation in this app but require an export before a page reload. Export includes the currently selected markets.</p></details>
 
     <section className="mph-notebook" aria-labelledby="city-notebook-title"><span className="mph-notebook-icon"><BookOpen size={27} aria-hidden="true" /></span><div><span className="mph-eyebrow">DETAILED PREPARATION</span><h2 id="city-notebook-title">Your city notebook is still here.</h2><p>Documented preparation assessments currently cover <strong>Jakarta province and the City of Manila</strong>. Existing research, scores and exports stay in that notebook; opening it does not change your market shortlist.</p></div><a className="mph-primary" href="#/plan/notebook">Open city notebook<ArrowRight size={17} aria-hidden="true" /></a></section>
-    <p className="mph-feedback" role="status">{exportMessage}</p>
+
   </main>;
 }

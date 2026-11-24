@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, ArrowUpRight, ArrowLeftRight, BarChart3, BookOpen, Compass, Globe2, Layers3, MapPin, Search, Sparkles, X } from 'lucide-react';
 import EntryPlanner from './components/EntryPlanner';
 import Header from './components/Header';
@@ -23,6 +23,8 @@ import MarketResearch, { type ResearchMode } from './components/MarketResearch';
 import ReferenceResearch from './components/ReferenceResearch';
 import MarketComparison from './components/MarketComparison';
 import MarketPlanHub from './components/MarketPlanHub';
+import type { RestoreDraft } from './services/marketPlanRestore';
+import { useMarketShortlist } from './hooks/useMarketShortlist';
 import { useMarketPlans, type MarketPlanSession } from './hooks/useMarketPlans';
 import { filterMarketGuides, MARKETS, type MarketRegion } from './data/marketCatalog';
 import { SEA_COUNTRIES } from './components/visual/seaGeography';
@@ -36,19 +38,7 @@ const referenceCityByMarket: Readonly<Record<string, string>> = {
   indonesia: 'jakarta', philippines: 'manila', vietnam: 'ho-chi-minh',
 };
 
-const SHORTLIST_KEY = 'flow-market-shortlist-v1';
-function loadShortlist(): string[] {
-  try {
-    const stored: unknown = JSON.parse(localStorage.getItem(SHORTLIST_KEY) || 'null');
-    if (stored && typeof stored === 'object' && 'version' in stored && stored.version === 1 && 'countries' in stored && Array.isArray(stored.countries)) {
-      const supported = new Set(MARKETS.map(market => market.id));
-      return [...new Set(stored.countries.filter((country): country is string => typeof country === 'string' && supported.has(country)))];
-    }
-  } catch { /* Browser storage is optional; the current selection remains usable. */ }
-  return ['singapore', 'thailand'];
-}
-
-function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedCountries, shortlistSaved, initialView = 'main', initialAction }: { route: string; planSession: MarketPlanSession; selectedCountries: string[]; setSelectedCountries: Dispatch<SetStateAction<string[]>>; shortlistSaved: boolean; initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
+function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedCountries, shortlistSaved, initialView = 'main', initialAction }: { route: string; planSession: MarketPlanSession; selectedCountries: string[]; setSelectedCountries: (change: (countries: string[]) => string[]) => void; shortlistSaved: boolean; initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<ResearchMode>('overview');
   const [currentView, setView] = useState<ResearchView>(initialView);
@@ -144,11 +134,11 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
   const { user } = useAuth();
 
   const handleCountryToggle = (countryId: string) => {
-    setSelectedCountries(prev =>
-      prev.includes(countryId)
-        ? prev.filter(id => id !== countryId)
-        : [...prev, countryId]
-    );
+    if (selectedCountries.includes(countryId)) {
+      setSelectedCountries(previous => previous.filter(id => id !== countryId));
+    } else {
+      includeMarket(countryId);
+    }
   };
 
   const handleCityToggle = (cityId: string) => {
@@ -605,12 +595,14 @@ const researchViews = new Set<ResearchView>(['main', 'live-data', 'analytics', '
 export default function App() {
   const planSession = useMarketPlans();
   const [route, setRoute] = useState(() => window.location.hash);
-  const [selectedCountries, setSelectedCountries] = useState<string[]>(loadShortlist);
-  const [shortlistSaved, setShortlistSaved] = useState(false);
-  useEffect(() => {
-    try { localStorage.setItem(SHORTLIST_KEY, JSON.stringify({ version: 1, countries: selectedCountries })); setShortlistSaved(true); }
-    catch { setShortlistSaved(false); }
-  }, [selectedCountries]);
+  const shortlist = useMarketShortlist();
+  const selectedCountries = shortlist.countries;
+
+  function restorePlan(draft: RestoreDraft) {
+    const plan = planSession.restoreDraft(draft, selectedCountries);
+    const selection = shortlist.update(countries => [...new Set([...countries, ...draft.marketIds])]);
+    return plan.savedLocally && selection.saved;
+  }
   useEffect(() => {
     const onHashChange = (event: HashChangeEvent) => {
       if (window.location.hash === '' || window.location.hash.startsWith('#/')) {
@@ -630,7 +622,7 @@ export default function App() {
     const requested = route.split('/')[2] as ResearchView;
     const initialView = researchViews.has(requested) ? requested : 'main';
     const initialAction = requested === ('search' as string) || requested === ('compare' as string) ? requested as 'search' | 'compare' : undefined;
-    return <ResearchWorkspace planSession={planSession} route={route} selectedCountries={selectedCountries} setSelectedCountries={setSelectedCountries} shortlistSaved={shortlistSaved} initialView={initialView} initialAction={initialAction} />;
+    return <ResearchWorkspace planSession={planSession} route={route} selectedCountries={selectedCountries} setSelectedCountries={shortlist.update} shortlistSaved={shortlist.saved} initialView={initialView} initialAction={initialAction} />;
   }
   const isNotebook = route === '#/plan/notebook';
   const worksheetId = /^#\/plan\/worksheet\/([a-z-]+)$/.exec(route)?.[1];
@@ -641,6 +633,6 @@ export default function App() {
       onAnalyticsClick={() => { window.location.hash = '/research/analytics'; }}
       onEnterpriseIntelligenceClick={() => { window.location.hash = '/research/enterprise-intelligence'; }}
     />
-    {isNotebook ? <EntryPlanner /> : <MarketPlanHub worksheetId={worksheetId} planSession={planSession} selectedCountries={selectedCountries} />}
+    {isNotebook ? <EntryPlanner /> : <MarketPlanHub onRestore={restorePlan} shortlistSaved={shortlist.saved} worksheetId={worksheetId} planSession={planSession} selectedCountries={selectedCountries} />}
   </div>;
 }

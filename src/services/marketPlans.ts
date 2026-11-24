@@ -1,7 +1,7 @@
 import { MARKETS, type MarketGuide } from '../data/marketCatalog.ts';
 import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides.ts';
 
-import { calculateMarketEconomics, ECONOMICS_LIMITATION, ECONOMICS_METHOD, parseMarketEconomics, type MarketEconomicsInputs } from './marketEconomics.ts';
+import { calculateMarketEconomics, calculateMonthlySales, ECONOMICS_LIMITATION, ECONOMICS_METHOD, parseMarketEconomics, SALES_LIMITATION, SALES_METHOD, type MarketEconomicsInputs } from './marketEconomics.ts';
 
 /** Personal planning notes are independent of the scored city notebook. */
 export const MARKET_PLANS_KEY = 'flow-market-plans-v1';
@@ -78,7 +78,7 @@ function editDate(value: unknown): string | null {
 
 export function parseMarketPlans(value: unknown): MarketPlansState {
   const result = createMarketPlans();
-  if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2)) return result;
+  if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2 && value.version !== 3)) return result;
   const notes = 'notes' in value && value.notes && typeof value.notes === 'object' ? value.notes : {};
   for (const [id, note] of Object.entries(notes)) {
     if (!supportedMarkets.has(id) || !note || typeof note !== 'object' || !('nextStep' in note) || typeof note.nextStep !== 'string' || !note.nextStep) continue;
@@ -114,10 +114,15 @@ export function parseMarketPlans(value: unknown): MarketPlansState {
   return result;
 }
 
-/** Persist v2 when an older client would lose findings on its next save. */
+function hasMonthlySalesDraft(inputs: MarketEconomicsInputs | undefined): boolean {
+  return inputs?.expectedMonthlyUnits !== undefined;
+}
+
+/** New fields require a version that older clients refuse to overwrite. */
 export function serializeMarketPlans(state: MarketPlansState) {
   const plans = parseMarketPlans(state);
-  const version: 1 | 2 = Object.keys(plans.findings).length ? 2 : 1;
+  const version: 1 | 2 | 3 = Object.values(plans.scenarios).some(hasMonthlySalesDraft)
+    ? 3 : Object.keys(plans.findings).length ? 2 : 1;
   return { ...plans, version };
 }
 
@@ -181,13 +186,19 @@ function exportScenario(inputs: MarketEconomicsInputs | undefined) {
     result: calculateMarketEconomics(inputs),
     method: ECONOMICS_METHOD,
     limitation: ECONOMICS_LIMITATION,
+    ...(hasMonthlySalesDraft(inputs) && { monthlySales: {
+      result: calculateMonthlySales(inputs),
+      method: SALES_METHOD,
+      limitation: SALES_LIMITATION,
+    } }),
   };
 }
 
 export function buildMarketPlanExport(state: MarketPlansState, selectedCountries: readonly string[], exportedAt = new Date().toISOString()) {
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
   const plans = parseMarketPlans(state);
-  const version: 1 | 2 = markets.some(market => plans.findings[market.id]) ? 2 : 1;
+  const version: 1 | 2 | 3 = markets.some(market => hasMonthlySalesDraft(plans.scenarios[market.id]))
+    ? 3 : markets.some(market => plans.findings[market.id]) ? 2 : 1;
   return {
     version,
     contentType: 'user-market-plan-and-source-directory',

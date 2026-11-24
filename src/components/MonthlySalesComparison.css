@@ -1,0 +1,49 @@
+.monthly-sales-comparison {
+  margin-top: 24px;
+  border: 1px solid var(--mph-border);
+  border-radius: 14px;
+  background: var(--mph-panel);
+  color: var(--mph-text);
+}
+.monthly-sales-comparison > summary {
+  display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 12px 18px;
+  font-size: 15px; font-weight: 600; list-style: none; cursor: pointer;
+}
+.monthly-sales-comparison > summary::-webkit-details-marker { display: none; }
+.monthly-sales-comparison > summary svg { color: var(--mph-teal); flex-shrink: 0; }
+.monthly-sales-comparison > summary svg:last-child { margin-left: auto; }
+.monthly-sales-comparison[open] > summary svg:last-child { transform: rotate(180deg); }
+.msc-body { padding: 0 18px 4px; }
+.msc-body > p { margin: 0 0 14px; color: var(--mph-muted); font-size: 13px; line-height: 1.6; }
+.msc-body ul { margin: 0; padding: 0; list-style: none; }
+.msc-body li {
+  display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2.6fr) auto;
+  gap: 8px 22px; align-items: center; min-width: 0; padding: 14px 0; border-top: 1px solid var(--mph-border);
+}
+.msc-market { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.msc-market > span { flex-shrink: 0; font-size: 20px; line-height: 1; }
+.msc-market h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4; }
+.msc-market small, .msc-figures dt, .msc-empty { color: var(--mph-muted); font-size: 12px; line-height: 1.5; }
+.msc-figures { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; margin: 0; }
+.msc-figures dd { margin: 3px 0 0; font-size: 14px; font-weight: 550; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.msc-figures dd small { display: inline-block; margin-inline-end: 5px; font-size: 12px; font-weight: 600; }
+.msc-figures [data-outcome='Surplus'] small { color: var(--mph-teal); }
+.msc-figures [data-outcome='Shortfall'] small { color: #ffc795; }
+.light .msc-figures [data-outcome='Shortfall'] small { color: #894719; }
+.msc-open {
+  display: inline-flex; justify-content: center; align-items: center; gap: 5px; min-height: 44px;
+  color: var(--mph-blue); background: transparent; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.msc-open svg { flex-shrink: 0; }
+.msc-open:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 760px) {
+  .msc-body li { grid-template-columns: minmax(0, 1fr) auto; gap: 7px 10px; }
+  .msc-open { grid-row: 1; grid-column: 2; }
+  .msc-figures, .msc-empty { grid-row: 2; grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .monthly-sales-comparison > summary { padding-inline: 14px; }
+  .msc-body { padding-inline: 14px; }
+  .msc-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; }
+  .msc-figures > div:last-child { grid-column: 1 / -1; }
+}

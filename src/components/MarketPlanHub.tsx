@@ -6,6 +6,7 @@ import { downloadMarketPlan } from '../services/downloadMarketPlan';
 import type { RestoreDraft } from '../services/marketPlanRestore';
 import MarketPlanRestore from './MarketPlanRestore';
 import MarketEconomicsWorksheet from './MarketEconomicsWorksheet';
+import MonthlySalesComparison from './MonthlySalesComparison';
 import QuestionFinding from './QuestionFinding';
 import MarketScene from './visual/MarketScene';
 import type { MarketPlanSession } from '../hooks/useMarketPlans';
@@ -18,6 +19,18 @@ interface MarketPlanHubProps {
   shortlistSaved: boolean;
   focusTarget: string | null;
   selectedCountries: string[];
+}
+
+function focusPlanItem(id: string) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  if (target instanceof HTMLDetailsElement) {
+    target.open = true;
+    target.querySelector('summary')?.focus({ preventScroll: true });
+  } else {
+    target.focus({ preventScroll: true });
+  }
+  target.scrollIntoView({ behavior: 'instant', block: 'start' });
 }
 
 export default function MarketPlanHub({ selectedCountries, planSession, focusTarget, onRestore, shortlistSaved }: MarketPlanHubProps) {
@@ -55,17 +68,14 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
   }, []);
 
   useEffect(() => {
-    if (!focusTarget) return;
-    const target = document.getElementById(focusTarget);
-    if (!target) return;
-    if (target instanceof HTMLDetailsElement) {
-      target.open = true;
-      target.querySelector('summary')?.focus({ preventScroll: true });
-    } else {
-      target.focus({ preventScroll: true });
-    }
-    target.scrollIntoView({ behavior: 'instant', block: 'start' });
+    if (focusTarget) focusPlanItem(focusTarget);
   }, [focusTarget]);
+
+  function openWorksheet(id: string) {
+    const destination = `#/plan/worksheet/${id}`;
+    if (window.location.hash === destination) focusPlanItem(`break-even-${id}`);
+    else window.location.hash = destination;
+  }
 
   function exportPlan() {
     downloadMarketPlan(plans, selectedCountries);
@@ -146,9 +156,9 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
             <MarketEconomicsWorksheet
               market={market}
               scenario={plans.scenarios[market.id]}
-              onChange={next => {
-                saveScenario(market.id, next);
+              onChange={(expected, next) => {
                 setExportMessage('');
+                return saveScenario(market.id, expected, next);
               }}
             />
             <details className="mph-next-step">
@@ -162,6 +172,8 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
         </article>;
       })}
     </section> : <section className="mph-empty" aria-labelledby="market-plan-empty-title"><Globe2 size={36} aria-hidden="true" /><h2 id="market-plan-empty-title">Choose the markets for your plan.</h2><p>Your shortlist is empty. Explore the region and select the markets you want to research.</p><a className="mph-primary" href="#/research">Choose markets<ArrowRight size={17} aria-hidden="true" /></a></section>}
+
+    <MonthlySalesComparison markets={markets} scenarios={plans.scenarios} onOpenWorksheet={openWorksheet} />
 
     <details className="mph-source-details"><summary><Info size={16} aria-hidden="true" />About these research links & notes<ChevronDown size={15} aria-hidden="true" /></summary><p>These are curated official-directory links, not verified current requirements. Page contents, publication dates and applicability to your activity or address have not been verified. Source publication dates are unknown. You supply the findings, citations and observation dates in your plan. The city notebook calculates its scores separately.</p><p>Notes, questions, findings and worksheet assumptions stay with their market when you change your shortlist. Select the market again to see them. Session-only notes survive navigation in this app but require an export before a page reload. Export includes the currently selected markets.</p></details>
 

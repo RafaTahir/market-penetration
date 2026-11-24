@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MARKETS } from '../src/data/marketCatalog.ts';
+import { MAX_ECONOMICS_INPUT_LENGTH } from '../src/services/marketEconomics.ts';
 import { buildMarketPlanExport, createMarketPlans, MAX_NEXT_STEP_LENGTH, MAX_FINDING_TEXT_LENGTH, MAX_FINDING_SOURCE_LENGTH, setMarketFinding, setMarketQuestionSaved, setMarketScenario, updateMarketNextStep } from '../src/services/marketPlans.ts';
 import { MAX_RESTORE_BYTES, parseMarketPlanFile, previewMarketPlanRestore } from '../src/services/marketPlanRestore.ts';
 
@@ -14,8 +15,8 @@ function plannedMarket() {
   return setMarketScenario(plans, id, scenario);
 }
 
-function planFile(rows) {
-  return JSON.stringify({ version: 1, contentType: 'user-market-plan-and-source-directory', markets: rows });
+function planFile(rows, version = 1) {
+  return JSON.stringify({ version, contentType: 'user-market-plan-and-source-directory', markets: rows });
 }
 
 test('a full market plan file round trips using catalog links, canonical questions and recalculated results', () => {
@@ -78,6 +79,112 @@ test('accepts original v1 export rows without newer fields and preserves unknown
   assert.equal(draft.warnings.length, 1);
 });
 
+test('v3 restore rebuilds monthly results from entered figures and ignores supplied results and methods', () => {
+  const inputs = { ...scenario, expectedMonthlyUnits: '32' };
+  const plans = setMarketScenario(createMarketPlans(), id, inputs);
+  const expected = buildMarketPlanExport(plans, [id], date);
+  const clean = expected.markets[0].breakEvenScenario;
+  assert.equal(expected.version, 3);
+  assert.deepEqual(clean.monthlySales.result, {
+    status: 'calculated', revenue: '9.60', totalCosts: '9.40', netResult: '0.20',
+  });
+  const editedFile = structuredClone(expected);
+  const supplied = editedFile.markets[0].breakEvenScenario;
+  supplied.result.breakEvenUnits = 999999;
+  supplied.monthlySales = { result: { status: 'calculated', revenue: '1.00', totalCosts: '0.00', netResult: '1.00' },
+    method: 'Supplied calculation', limitation: 'Supplied assessment' };
+  supplied.inputs.claimedRevenue = '1.00';
+  const draft = parseMarketPlanFile(JSON.stringify(editedFile));
+  assert.deepEqual(draft.warnings, []);
+  const restored = previewMarketPlanRestore(createMarketPlans(), [], draft);
+  assert.equal(restored.effects[0].scenario, 'add');
+  assert.deepEqual(restored.plans.scenarios[id], inputs);
+  assert.deepEqual(buildMarketPlanExport(restored.plans, restored.countries, date), expected);
+});
+
+test('a blank volume stays absent on export and a v3 file can carry a v2 finding too', () => {
+  const finding = { text: 'Check the distributor quote.', source: '', observedOn: null };
+  const previous = setMarketFinding(plannedMarket(), id, 'setup', finding);
+  for (const volume of ['', '  ']) {
+    const plans = setMarketScenario(previous, id, { ...scenario, expectedMonthlyUnits: volume });
+    const file = buildMarketPlanExport(plans, [id], date);
+    assert.equal(file.version, 2);
+    assert.equal(Object.hasOwn(file.markets[0].breakEvenScenario.inputs, 'expectedMonthlyUnits'), false);
+    assert.deepEqual(parseMarketPlanFile(JSON.stringify(file)).plans, previous);
+  }
+  const withBoth = setMarketScenario(previous, id, { ...scenario, expectedMonthlyUnits: '0' });
+  const file = buildMarketPlanExport(withBoth, [id], date);
+  assert.equal(file.version, 3);
+  assert.equal(buildMarketPlanExport(withBoth, ['singapore'], date).version, 1);
+  assert.deepEqual(parseMarketPlanFile(JSON.stringify(file)).plans, withBoth);
+});
+
+test('matching worksheets can gain a missing sales volume, including zero and unfinished input, exactly once', () => {
+  const local = setMarketScenario(createMarketPlans(), id, scenario);
+  for (const [volume, result] of [
+    ['0', { status: 'calculated', revenue: '0.00', totalCosts: '3.00', netResult: '-3.00' }],
+    ['1.', { status: 'invalid-volume', revenue: null, totalCosts: null, netResult: null }],
+  ]) {
+    const inputs = { ...scenario, expectedMonthlyUnits: volume };
+    const incoming = setMarketScenario(createMarketPlans(), id, inputs);
+    const file = buildMarketPlanExport(incoming, [id], date);
+    assert.equal(file.version, 3);
+    const draft = parseMarketPlanFile(JSON.stringify(file));
+    const merged = previewMarketPlanRestore(local, [id], draft);
+    assert.deepEqual(draft.warnings, []);
+    assert.equal(merged.changed, true);
+    assert.equal(merged.effects[0].scenario, 'add-volume');
+    assert.deepEqual(merged.plans.scenarios[id], inputs);
+    assert.deepEqual(local.scenarios[id], scenario);
+    const exported = buildMarketPlanExport(merged.plans, [id], date);
+    assert.deepEqual(exported.markets[0].breakEvenScenario.monthlySales.result, result);
+    const again = previewMarketPlanRestore(merged.plans, merged.countries, draft);
+    assert.equal(again.effects[0].scenario, 'same');
+    assert.equal(again.changed, false);
+    assert.equal(again.plans, merged.plans);
+  }
+});
+
+test('volume imports preserve conflicting local inputs and older files cannot clear a volume', () => {
+  const incoming = setMarketScenario(createMarketPlans(), id, { ...scenario, expectedMonthlyUnits: '40' });
+  const draft = parseMarketPlanFile(JSON.stringify(buildMarketPlanExport(incoming, [id], date)));
+  for (const different of [
+    { currency: 'USD' }, { monthlyFixedCosts: '3.0' }, { unitPrice: '0.30' }, { unitVariableCost: '0.20' },
+    { expectedMonthlyUnits: '0' }, { expectedMonthlyUnits: '4.' },
+  ]) {
+    const inputs = { ...scenario, ...different };
+    const local = setMarketScenario(createMarketPlans(), id, inputs);
+    const merged = previewMarketPlanRestore(local, [id], draft);
+    assert.equal(merged.effects[0].scenario, 'keep-local');
+    assert.equal(merged.changed, false);
+    assert.equal(merged.plans, local);
+    assert.deepEqual(merged.plans.scenarios[id], inputs);
+  }
+  for (const version of [1, 2]) {
+    const legacy = planFile([{ id, breakEvenScenario: { kind: 'user-entered-break-even-scenario', inputs: scenario } }], version);
+    const merged = previewMarketPlanRestore(incoming, [id], parseMarketPlanFile(legacy));
+    assert.equal(merged.effects[0].scenario, 'same');
+    assert.equal(merged.changed, false);
+    assert.equal(merged.plans, incoming);
+    assert.equal(merged.plans.scenarios[id].expectedMonthlyUnits, '40');
+  }
+});
+
+test('rejects an oversized or non-text sales volume without replacing local work', () => {
+  const local = setMarketScenario(createMarketPlans(), id, scenario);
+  for (const value of ['1'.repeat(MAX_ECONOMICS_INPUT_LENGTH + 1), 0, null]) {
+    const file = planFile([{ id, userNextStep: 'Imported note', breakEvenScenario: {
+      kind: 'user-entered-break-even-scenario', inputs: { ...scenario, expectedMonthlyUnits: value },
+    } }], 3);
+    const draft = parseMarketPlanFile(file);
+    assert.equal(draft.plans.scenarios[id], undefined);
+    assert.match(draft.warnings.join(' '), /invalid.*worksheet/);
+    const merged = previewMarketPlanRestore(local, [id], draft);
+    assert.equal(merged.plans.notes[id].nextStep, 'Imported note');
+    assert.deepEqual(merged.plans.scenarios[id], scenario);
+  }
+});
+
 test('skips duplicate, unsupported and malformed entries and invalid fields without trusting pasted source data', () => {
   const draft = parseMarketPlanFile(planFile([
     null, { id: '__proto__' }, { id: 'constructor' }, { id: 'later-market' },
@@ -100,7 +207,7 @@ test('rejects unsupported documents and enforces the file limit in UTF-8 bytes',
     planFile(null), planFile([]), planFile([{ id: 'missing' }])]) {
     assert.throws(() => parseMarketPlanFile(text));
   }
-  for (const version of [3, '2', null]) {
+  for (const version of [4, 5, '3', '2', null]) {
     assert.throws(() => parseMarketPlanFile(JSON.stringify({ version, contentType: 'user-market-plan-and-source-directory', markets: [{id}] })), /unsupported/);
   }
   const oversized = 'ä'.repeat(MAX_RESTORE_BYTES / 2 + 1);

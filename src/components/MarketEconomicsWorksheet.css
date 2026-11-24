@@ -32,3 +32,25 @@
 .me-confirm { margin: 0 0 12px; padding: 10px; border: 1px solid var(--mph-border); border-radius: 8px; background: var(--mph-soft); }
 .me-confirm p { margin: 0 0 4px; color: var(--mph-text); font-size: 13px; line-height: 1.6; }
 .me-confirm button { min-height: 44px; margin-right: 12px; color: var(--mph-blue); font-size: 13px; text-align: start; }
+
+.me-monthly { display: grid; gap: 6px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--mph-border); min-width: 0; }
+.me-monthly h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--mph-text); font-size: 15px; font-weight: 600; line-height: 1.4; }
+.me-monthly h3 svg { color: var(--mph-blue); }
+.me-volume-field { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.me-volume-field input { width: 9.5em; max-width: 100%; font-variant-numeric: tabular-nums; }
+.me-volume-field span, .me-monthly-result p { margin: 0; color: var(--mph-muted); font-size: 12px; line-height: 1.55; }
+.me-monthly-result { min-width: 0; margin-top: 5px; }
+.me-monthly-totals { padding: 14px; margin: 0 0 7px; background: var(--mph-soft); border: 1px solid var(--mph-border); border-radius: 10px; }
+.me-monthly-totals dt { font-size: 12px; color: var(--mph-muted); line-height: 1.55; }
+.me-monthly-totals dd { margin: 0; font-variant-numeric: tabular-nums; font-size: 15px; color: var(--mph-text); overflow-wrap: anywhere; }
+.me-monthly-row + .me-monthly-row { margin-top: 10px; }
+.me-track { display: block; height: 5px; overflow: hidden; border-radius: 3px; background: var(--mph-border); margin-top: 3px; }
+.me-track > span { display: block; height: 100%; border-radius: inherit; }
+.me-revenue .me-track > span { background: var(--mph-teal); }
+.me-costs .me-track > span { background: var(--mph-blue); }
+.me-monthly-balance { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--mph-border); }
+.me-monthly-balance dd { font-weight: 650; font-size: 19px; }
+.me-monthly-balance[data-balance='surplus'] dd { color: var(--mph-teal); }
+.me-monthly-balance[data-balance='shortfall'] dd, .me-conflict { color: #ffc09d; }
+html.light .me-monthly-balance[data-balance='shortfall'] dd, html.light .me-conflict { color: #8a3c19; }
+.me-conflict { margin: 8px 0; font-size: 13px; line-height: 1.55; }

@@ -51,7 +51,8 @@ function MarketPreview({ effect, draft, local }: { effect: RestoreEffect; draft:
     return action === 'same' ? `${count} matching ${noun}` : `Add ${count} ${noun}`;
   });
   const actions = [
-    ...findingCounts, disposition(effect.note, 'note'), disposition(effect.scenario, 'worksheet'),
+    ...findingCounts, disposition(effect.note, 'note'),
+    effect.scenario === 'add-volume' ? 'Add expected sales to the matching worksheet' : disposition(effect.scenario, 'worksheet'),
     effect.addedQuestions ? `Add ${effect.addedQuestions} ${effect.addedQuestions === 1 ? 'question' : 'questions'}` : null,
     matchingQuestions ? `${matchingQuestions} ${matchingQuestions === 1 ? 'question' : 'questions'} already saved` : null,
   ].filter(Boolean);
@@ -84,7 +85,11 @@ function MarketPreview({ effect, draft, local }: { effect: RestoreEffect; draft:
           ['Monthly fixed costs', scenario.monthlyFixedCosts],
           ['Price per unit', scenario.unitPrice],
           ['Variable cost per unit', scenario.unitVariableCost],
+          ...(scenario.expectedMonthlyUnits ? [['Expected monthly sales (units)', scenario.expectedMonthlyUnits]] : []),
         ].map(([label, amount]) => <div key={label}><dt>{label}</dt><dd>{amount.trim() || 'Blank'}</dd></div>)}</dl>
+        {effect.scenario === 'keep-local' && local.scenarios[market.id]?.expectedMonthlyUnits && (
+          <p>Local expected monthly sales to keep · {local.scenarios[market.id]?.expectedMonthlyUnits} units</p>
+        )}
       </div>}
     </details>}
   </li>;

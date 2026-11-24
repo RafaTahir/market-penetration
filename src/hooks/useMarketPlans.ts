@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MarketEconomicsInputs } from '../services/marketEconomics';
+import { parseMarketEconomics, sameMarketEconomics, type MarketEconomicsInputs } from '../services/marketEconomics';
 import { previewMarketPlanRestore, type RestoreDraft } from '../services/marketPlanRestore';
 import type { CityResearchLens } from '../data/cityResearchGuides';
 import {
@@ -13,8 +13,9 @@ function loadPlans() {
     const raw = localStorage.getItem(MARKET_PLANS_KEY);
     if (raw === null) return { plans: createMarketPlans(), savedLocally: true };
     const value: unknown = JSON.parse(raw);
-    if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2) ||
-        (value.version === 2 && (!('findings' in value) || !value.findings || typeof value.findings !== 'object' || Array.isArray(value.findings))) ||
+    if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2 && value.version !== 3) ||
+        (value.version >= 2 && (!('findings' in value) || !value.findings || typeof value.findings !== 'object' || Array.isArray(value.findings))) ||
+        (value.version === 3 && (!('scenarios' in value) || !value.scenarios || typeof value.scenarios !== 'object' || Array.isArray(value.scenarios))) ||
         !('notes' in value) || !value.notes || typeof value.notes !== 'object' || Array.isArray(value.notes)) {
       return { plans: createMarketPlans(), savedLocally: false };
     }
@@ -72,6 +73,19 @@ export function useMarketPlans() {
     return accepted;
   }
 
+  function saveScenario(marketId: string, expected: MarketEconomicsInputs | undefined, next: MarketEconomicsInputs | null): boolean {
+    const inputs = next === null ? null : parseMarketEconomics(next);
+    if (next !== null && inputs === null) return false;
+    let accepted = false;
+    edit(state => {
+      if (!sameMarketEconomics(state.scenarios[marketId], expected)) return state;
+      const updated = setMarketScenario(state, marketId, inputs);
+      accepted = sameMarketEconomics(updated.scenarios[marketId], inputs ?? undefined);
+      return updated;
+    });
+    return accepted;
+  }
+
   return {
     ...snapshot,
     saveFinding,
@@ -79,7 +93,7 @@ export function useMarketPlans() {
       edit(state => previewMarketPlanRestore(state, countries, draft).plans),
     setQuestionSaved: (marketId: string, lens: CityResearchLens, saved: boolean) =>
       edit(state => setMarketQuestionSaved(state, marketId, lens, saved)),
-    saveScenario: (marketId: string, inputs: MarketEconomicsInputs | null) => edit(state => setMarketScenario(state, marketId, inputs)),
+    saveScenario,
     saveNote: (marketId: string, text: string) => edit(state => updateMarketNextStep(state, marketId, text)),
   };
 }

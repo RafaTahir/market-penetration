@@ -20,7 +20,7 @@ export interface RestoreEffect {
   marketId: string;
   addToShortlist: boolean;
   note: FieldEffect;
-  scenario: FieldEffect;
+  scenario: FieldEffect | 'add-volume';
   addedQuestions: number;
   findings: Partial<Record<CityResearchLens, Exclude<FieldEffect, 'none'>>>;
 }
@@ -76,7 +76,7 @@ export function parseMarketPlanFile(text: string): RestoreDraft {
   if (!isRecord(payload) || payload.contentType !== 'user-market-plan-and-source-directory') {
     throw new Error('Choose a JSON file created with Export market plan.');
   }
-  if (payload.version !== 1 && payload.version !== 2) throw new Error('This version of the market plan format is unsupported.');
+  if (payload.version !== 1 && payload.version !== 2 && payload.version !== 3) throw new Error('This version of the market plan format is unsupported.');
   if (!Array.isArray(payload.markets)) throw new Error('The file is missing its list of markets.');
 
   const marketIds: string[] = [];
@@ -124,7 +124,7 @@ export function parseMarketPlanFile(text: string): RestoreDraft {
   return { marketIds, plans, warnings: [...warnings] };
 }
 
-function sameScenario(left: MarketEconomicsInputs, right: MarketEconomicsInputs): boolean {
+function sameCosts(left: MarketEconomicsInputs, right: MarketEconomicsInputs): boolean {
   return left.currency === right.currency && left.unitPrice === right.unitPrice
     && left.monthlyFixedCosts === right.monthlyFixedCosts && left.unitVariableCost === right.unitVariableCost;
 }
@@ -152,8 +152,17 @@ export function previewMarketPlanRestore(local: MarketPlansState, shortlist: rea
     const scenario = draft.plans.scenarios[marketId];
     if (scenario) {
       const previous = local.scenarios[marketId];
-      if (!previous) { plans.scenarios[marketId] = scenario; effect.scenario = 'add'; }
-      else effect.scenario = sameScenario(previous, scenario) ? 'same' : 'keep-local';
+      if (!previous) {
+        plans.scenarios[marketId] = scenario;
+        effect.scenario = 'add';
+      } else if (!sameCosts(previous, scenario)) {
+        effect.scenario = 'keep-local';
+      } else if (!previous.expectedMonthlyUnits && scenario.expectedMonthlyUnits) {
+        plans.scenarios[marketId] = { ...previous, expectedMonthlyUnits: scenario.expectedMonthlyUnits };
+        effect.scenario = 'add-volume';
+      } else {
+        effect.scenario = !scenario.expectedMonthlyUnits || previous.expectedMonthlyUnits === scenario.expectedMonthlyUnits ? 'same' : 'keep-local';
+      }
     }
 
     const previousQuestions = local.questions[marketId] ?? [];
@@ -174,7 +183,7 @@ export function previewMarketPlanRestore(local: MarketPlansState, shortlist: rea
         dataChanged = true;
       }
     }
-    if (effect.note === 'add' || effect.scenario === 'add' || effect.addedQuestions) dataChanged = true;
+    if (effect.note === 'add' || effect.scenario === 'add' || effect.scenario === 'add-volume' || effect.addedQuestions) dataChanged = true;
     effects.push(effect);
   }
   return { plans: dataChanged ? plans : local, countries, effects, changed: dataChanged || countries.length !== shortlist.length };

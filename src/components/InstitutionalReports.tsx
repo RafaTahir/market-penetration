@@ -14,6 +14,7 @@ interface DirectoryGroup {
   name: string;
   area: string;
   detail: string;
+  searchNames?: readonly string[];
   flag?: string;
   links: DirectoryLink[];
 }
@@ -22,6 +23,7 @@ const marketGroups: DirectoryGroup[] = MARKETS.map(market => ({
   name: market.name,
   area: market.region,
   detail: market.city,
+  searchNames: [market.countryCode, ...(market.aliases ?? [])],
   flag: market.flag,
   links: [
     { portal: market.setup, purpose: 'Business setup' },
@@ -53,7 +55,7 @@ export default function InstitutionalReports() {
     ...group,
     links: group.links.filter(link => {
       if (purpose && link.purpose !== purpose) return false;
-      const text = [group.name, group.area, group.detail, link.name, link.institution, link.purpose, new URL(link.url).hostname].join(' ').toLowerCase();
+      const text = [group.name, group.area, group.detail, ...(group.searchNames ?? []), link.name, link.institution, link.purpose, new URL(link.url).hostname].join(' ').toLowerCase();
       return terms.every(term => text.includes(term));
     }),
   })).filter(group => group.links.length > 0);

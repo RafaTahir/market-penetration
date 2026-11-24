@@ -3,7 +3,7 @@
  * Portal content, publication dates and current applicability are unverified.
  * City names identify a starting point for exploration, not a market ranking.
  */
-export type MarketRegion = 'Southeast Asia' | 'Oceania';
+export type MarketRegion = 'Southeast Asia' | 'Oceania' | 'Middle East';
 
 export interface MarketGuide {
   region: MarketRegion;
@@ -12,6 +12,7 @@ export interface MarketGuide {
   flag: string;
   city: string;
   countryCode: string;
+  aliases?: readonly string[];
   setup: { name: string; url: string };
   statistics: { name: string; url: string };
   cityPortal: { name: string; url: string };
@@ -74,13 +75,21 @@ export const MARKETS: readonly MarketGuide[] = [
     statistics: { name: 'Stats NZ', url: 'https://www.stats.govt.nz/' },
     cityPortal: { name: 'Auckland Council', url: 'https://www.aucklandcouncil.govt.nz/' },
   },
+  {
+    region: 'Middle East',
+    id: 'united-arab-emirates', name: 'United Arab Emirates', flag: '🇦🇪', city: 'Dubai', countryCode: 'ARE',
+    aliases: ['UAE'],
+    setup: { name: 'UAE government business portal', url: 'https://u.ae/en/information-and-services/business' },
+    statistics: { name: 'Federal Competitiveness and Statistics Centre', url: 'https://fcsc.gov.ae/' },
+    cityPortal: { name: 'Dubai Department of Economy and Tourism', url: 'https://www.dubaidet.gov.ae/en/' },
+  },
 ];
 
 export function filterMarketGuides(markets: readonly MarketGuide[], query: string, region?: MarketRegion): MarketGuide[] {
   const term = query.trim().toLowerCase();
   return markets.filter(market => {
     if (region && market.region !== region) return false;
-    const searchable = [market.name, market.city, market.id, market.countryCode, market.region];
+    const searchable = [market.name, market.city, market.id, market.countryCode, market.region, ...(market.aliases ?? [])];
     return searchable.some(label => label.toLowerCase().includes(term));
   });
 }

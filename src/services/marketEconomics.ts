@@ -1,10 +1,11 @@
 /** Single-product planning scenario. Amounts are entered by the user in one currency. */
-export const MARKET_CURRENCIES = ['USD', 'AUD', 'NZD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND'] as const;
+export const MARKET_CURRENCIES = ['USD', 'AUD', 'NZD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'AED'] as const;
 export type MarketCurrency = typeof MARKET_CURRENCIES[number];
 
 const localCurrency: ReadonlyMap<string, MarketCurrency> = new Map([
   ['australia', 'AUD'], ['new-zealand', 'NZD'], ['singapore', 'SGD'], ['malaysia', 'MYR'],
   ['thailand', 'THB'], ['indonesia', 'IDR'], ['philippines', 'PHP'], ['vietnam', 'VND'],
+  ['united-arab-emirates', 'AED'],
 ]);
 
 export interface MarketEconomicsInputs {

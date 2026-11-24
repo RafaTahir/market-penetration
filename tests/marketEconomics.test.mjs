@@ -74,3 +74,19 @@ test('invalid or excessive stored scenario payloads never become synthetic input
   assert.deepEqual(state.scenarios, { singapore: inputs });
   assert.equal(buildMarketPlanExport(state, ['singapore']).markets[0].breakEvenScenario.result.breakEvenUnits, 0);
 });
+
+test('UAE defaults to AED and mixed-currency plan exports retain each market’s original inputs', () => {
+  const id = 'united-arab-emirates';
+  const empty = emptyMarketEconomics(id);
+  assert.deepEqual(empty, { currency: 'AED', monthlyFixedCosts: '', unitPrice: '', unitVariableCost: '' });
+  const dirhams = { ...empty, monthlyFixedCosts: '100', unitPrice: '4.05', unitVariableCost: '2.05' };
+  const previous = draft('30', '2.50', '1.00');
+  const state = setMarketScenario(setMarketScenario(createMarketPlans(), 'new-zealand', previous), id, dirhams);
+  const restored = parseMarketPlans(JSON.parse(JSON.stringify(state)));
+  const markets = buildMarketPlanExport(restored, ['new-zealand', id]).markets;
+  assert.deepEqual(markets.find(market => market.id === 'new-zealand').breakEvenScenario.inputs, previous);
+  const scenario = markets.find(market => market.id === id).breakEvenScenario;
+  assert.deepEqual(scenario.inputs, dirhams);
+  assert.equal(scenario.result.breakEvenUnits, 50);
+  assert.equal(scenario.result.contributionPerUnit, 2);
+});

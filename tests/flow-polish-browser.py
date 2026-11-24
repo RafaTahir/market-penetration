@@ -58,7 +58,7 @@ with sync_playwright() as playwright:
                 expect(page.locator('.market-country-card>.market-scene').first).to_have_attribute('aria-hidden', 'true')
                 for country, _, _ in MARKETS:
                     card = page.locator(f'.market-country-card[data-market="{country}"]')
-                    expect(card.locator('.market-snapshot-label')).to_have_text('2023 historical snapshot')
+                    expect(card.locator('.market-snapshot-label')).to_have_text('2023 historical snapshot · National')
                     expect(card.locator('.market-gdp-trend')).to_contain_text('2014–2023 · US$')
                     for value in card.locator('.market-snapshot-metrics dd').all():
                         assert value.get_attribute('aria-label').endswith(', 2023')

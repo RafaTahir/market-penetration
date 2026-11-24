@@ -228,7 +228,6 @@ const Header: React.FC<HeaderProps> = ({
           <button role="menuitem" aria-label="Toggle theme" onClick={toggleTheme}>{theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}<span>{theme === 'dark' ? 'Light appearance' : 'Dark appearance'}</span></button>
           <button role="menuitem" aria-label="Notifications" onClick={() => setPanel('notifications')}><Bell size={17} aria-hidden="true" /><span>Notifications</span><span className="flow-menu-count">{unreadCount || '0'}</span></button>
           {user && <div className="flow-menu-account"><UserRound size={17} aria-hidden="true" /><div><strong>{accountName}</strong><span>{user.email}</span></div></div>}
-          <div className="flow-menu-footer">Explore Southeast Asia and Oceania.</div>
         </div>
       )}
 
@@ -244,7 +243,7 @@ const Header: React.FC<HeaderProps> = ({
           {referenceMode ? (
             <>
               <p><strong>Unverified reference examples enabled.</strong> The legacy collection covers Southeast Asia. Its figures have unverified sources and observation dates.</p>
-              <p>For Oceania, open the explorer for historical figures and city research guides.</p>
+              <p>For markets outside Southeast Asia, use the explorer’s national figures and city research guides.</p>
               {onExitReference && <button className="flow-hide-examples" onClick={() => runAction(onExitReference)}>Hide examples</button>}
             </>
           ) : (

@@ -61,6 +61,11 @@ function Landmark({ marketId }: { marketId: string }) {
 
 export default function MarketScene({ marketId, className = '' }: { marketId: string; className?: string }) {
   const id = useId().replace(/:/g, '');
+  if (marketId === 'united-arab-emirates') {
+    return <div className={`market-scene market-scene-dubai ${className}`} aria-hidden="true">
+      <img src="/art/dubai-skyline.webp" alt="" width="960" height="320" decoding="async" />
+    </div>;
+  }
   const scene = scenes[marketId];
   if (!scene) return <div className={`market-scene market-scene-unavailable ${className}`} aria-hidden="true" />;
   return <div className={`market-scene ${className}`} aria-hidden="true">

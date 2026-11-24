@@ -53,6 +53,7 @@ interface CountrySelectorProps {
   referenceMode?: boolean;
   searchQuery?: string;
   region?: MarketRegion;
+  onSearchAllRegions?: () => void;
   onExploreCountry?: (countryId: string) => void;
   showHeading?: boolean;
 }
@@ -63,6 +64,7 @@ export default function CountrySelector({
   referenceMode = false,
   searchQuery = '',
   region,
+  onSearchAllRegions,
   onExploreCountry,
   showHeading = true,
 }: CountrySelectorProps) {
@@ -71,6 +73,7 @@ export default function CountrySelector({
   const [railPosition, setRailPosition] = useState({ overflow: false, start: true, end: false });
   const query = searchQuery.trim().toLocaleLowerCase();
   const visibleMarkets = filterMarketGuides(MARKETS, query, region);
+  const matchesElsewhere = region && visibleMarkets.length === 0 ? filterMarketGuides(MARKETS, query) : [];
 
   useEffect(() => {
     const element = rail.current;
@@ -111,7 +114,14 @@ export default function CountrySelector({
         <div><button type="button" aria-label="Previous markets" disabled={railPosition.start} onClick={() => moveRail(-1)}><ArrowLeft size={17} aria-hidden="true" /></button><button type="button" aria-label="Next markets" disabled={railPosition.end} onClick={() => moveRail(1)}><ArrowRight size={17} aria-hidden="true" /></button></div>
       </div>}
       {visibleMarkets.length === 0 ? (
-        <div className="market-no-results" role="status"><Globe2 size={23} aria-hidden="true" /><strong>No markets match “{searchQuery}”</strong><span>{region ? `Try another country or city in ${region}, or change the region filter.` : 'Try a country, city or region.'}</span></div>
+        <div className="market-no-results">
+          <Globe2 size={23} aria-hidden="true" />
+          <strong role="status">No markets match “{searchQuery}”{region ? ` in ${region}` : ''}</strong>
+          {matchesElsewhere.length > 0 && onSearchAllRegions ? <>
+            <span>{matchesElsewhere.length === 1 ? `${matchesElsewhere[0].name} · ${matchesElsewhere[0].region}` : `${matchesElsewhere.length} matches in other regions`}</span>
+            <button type="button" className="market-explore-button" onClick={onSearchAllRegions}>Search all regions <ArrowRight size={14} aria-hidden="true" /></button>
+          </> : <span>{region ? `Try another country or city in ${region}, or change the region filter.` : 'Try a country, city or region.'}</span>}
+        </div>
       ) : (
         <div className="market-country-grid" aria-label={region ? `${region} markets` : 'Available markets'} ref={rail}>
           {visibleMarkets.map(market => {
@@ -134,7 +144,7 @@ export default function CountrySelector({
                 </div>
 
                 <div className="market-snapshot">
-                  <p className="market-snapshot-label"><span />{fundamentals ? `${MARKET_SNAPSHOT_META.observationYear} historical snapshot` : 'Historical observations unavailable'}</p>
+                  <p className="market-snapshot-label"><span />{fundamentals ? `${MARKET_SNAPSHOT_META.observationYear} historical snapshot · National` : 'Historical observations unavailable'}</p>
                   <dl className="market-snapshot-metrics">
                     <div><dt>Population</dt><dd data-unavailable={!isObservation(population) || undefined} aria-label={isObservation(population) ? `${fullNumberFormat.format(population)} people, ${MARKET_SNAPSHOT_META.observationYear}` : 'Population unavailable'}>{isObservation(population) ? populationFormat.format(population) : 'Unavailable'}</dd></div>
                     <div><dt>Nominal GDP · US$</dt><dd data-unavailable={!isObservation(gdp) || undefined} aria-label={isObservation(gdp) ? `${fullNumberFormat.format(gdp)} current US dollars, ${MARKET_SNAPSHOT_META.observationYear}` : 'GDP unavailable'}>{isObservation(gdp) ? gdpFormat.format(gdp) : 'Unavailable'}</dd></div>

@@ -147,4 +147,21 @@ export const CITY_RESEARCH_GUIDES: Readonly<Record<string, CityResearchGuide>> =
       },
     },
   },
+  'united-arab-emirates': {
+    scope: 'Dubai emirate · narrow the research to your district, buyers and operating address',
+    prompts: {
+      customers: {
+        question: 'Which buyers could you reach from your proposed Dubai site?',
+        detail: 'Choose a buyer segment and district. Check the geography and year of each table before using a UAE or emirate total. Ask local buyers which alternatives they use, what they pay and what would make them switch.',
+      },
+      location: {
+        question: 'Which Dubai site works for your customers and deliveries?',
+        detail: 'Compare two addresses at the hours you would trade. Record travel times, delivery access, quoted rent and included services. Ask who can confirm the proposed use at each address, including the relevant free-zone authority if applicable.',
+      },
+      setup: {
+        question: 'Who can confirm the setup route for your proposed Dubai activity?',
+        detail: 'Describe what you sell, who buys it and where the work takes place. Use the UAE portal and Dubai Department of Economy and Tourism to identify federal and emirate contacts. If considering a free zone, ask its authority about that activity and any sales outside the zone. Record the dated answers.',
+      },
+    },
+  },
 };

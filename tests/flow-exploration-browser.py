@@ -84,7 +84,7 @@ def initial_discovery(page):
         item = card(page, country)
         expect(item.get_by_role('heading', name=name, exact=True)).to_be_visible()
         expect(item.locator('.market-country-flag')).to_have_text(flag)
-        expect(item.locator('.market-snapshot-label')).to_have_text('2023 historical snapshot')
+        expect(item.locator('.market-snapshot-label')).to_have_text('2023 historical snapshot · National')
         expect(item.locator('.market-snapshot-metrics dd')).to_have_count(2)
         expect(item.get_by_role('img', name=f'{name} nominal GDP, 2014–2023', exact=True)).to_be_visible()
         expected = 'true' if country in ['thailand', 'singapore'] else 'false'

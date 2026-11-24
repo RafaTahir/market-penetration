@@ -30,6 +30,7 @@
 .market-country-card[data-market='philippines'] { --country-accent: #64cfef; }
 .market-country-card[data-market='vietnam'] { --country-accent: #ed919f; }
 .market-country-card[data-market='australia'] { --country-accent: #f2c688; }
+.market-country-card[data-market='united-arab-emirates'] { --country-accent: #eab781; }
 .market-country-card:hover { border-color: #4a688c; transform: translateY(-2px); box-shadow: 0 10px 28px #030d1d24; }
 .market-country-card.is-selected { border-color: #447ed2; box-shadow: inset 0 0 0 1px #447ed226; }
 .market-country-card.is-selected::before { opacity: 1; }
@@ -88,6 +89,7 @@
 .market-source-panel .market-directory-label { color: var(--market-ink); font-size: 12px; font-weight: 600; margin: 15px 0 7px; }
 .market-no-results { display: grid; justify-items: center; gap: 9px; padding: 35px 20px; border: 1px dashed var(--market-line); border-radius: 13px; background: var(--market-panel); color: var(--market-muted); text-align: center; font-size: 11px; }
 .market-no-results strong { font-size: 14px; font-weight: 550; color: var(--market-ink); }
+.market-no-results button { color: var(--ex-blue); gap: 7px; padding: 0 8px; }
 .market-selector button:focus-visible, .market-selector a:focus-visible, .market-selector summary:focus-visible { outline: 2px solid #6faeff; outline-offset: 4px; }
 .light .market-country-card { --country-accent: #2361a8; }
 .light .market-country-card[data-market='singapore'] { --country-accent: #087b6b; }
@@ -96,6 +98,7 @@
 .light .market-country-card[data-market='philippines'] { --country-accent: #1e7290; }
 .light .market-country-card[data-market='vietnam'] { --country-accent: #aa465e; }
 .light .market-country-card[data-market='australia'] { --country-accent: #82551a; }
+.light .market-country-card[data-market='united-arab-emirates'] { --country-accent: #895a28; }
 .light .market-country-card.is-selected { border-color: #3b82cf; box-shadow: inset 0 0 0 1px #3b82cf26; }
 @media (max-width: 1000px) {
   .market-country-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 17px; }

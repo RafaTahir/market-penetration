@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MARKET_PLANS_KEY, MAX_NEXT_STEP_LENGTH, buildMarketPlanExport, createMarketPlans, parseMarketPlans, updateMarketNextStep } from '../src/services/marketPlans.ts';
+import { MARKET_PLANS_KEY, MAX_NEXT_STEP_LENGTH, buildMarketPlanExport, createMarketPlans, parseMarketPlans, setMarketQuestionSaved, updateMarketNextStep } from '../src/services/marketPlans.ts';
 
 const EDITED = '2026-10-28T09:00:00.000Z';
 
@@ -57,6 +57,53 @@ test('bounded personal notes retain line breaks and remain separate from evidenc
   const state = updateMarketNextStep(createMarketPlans(), 'vietnam', text, EDITED);
   assert.equal(state.notes.vietnam.nextStep.length, MAX_NEXT_STEP_LENGTH);
   assert.ok(state.notes.vietnam.nextStep.includes('\n'));
-  assert.deepEqual(Object.keys(state), ['version', 'notes']);
+  assert.deepEqual(state.questions, {});
   for (const input of [null, undefined, false, [], { version: 2, notes: {} }]) assert.deepEqual(parseMarketPlans(input), createMarketPlans());
+});
+
+test('legacy notes survive adding and removing city research questions, including after reload', () => {
+  const legacyNote = { nextStep: 'Request a current premises quote.', updatedAt: EDITED };
+  let plans = parseMarketPlans({ version: 1, notes: { singapore: legacyNote } });
+  assert.deepEqual(plans.questions, {});
+  plans = setMarketQuestionSaved(plans, 'singapore', 'location', true);
+  plans = setMarketQuestionSaved(plans, 'singapore', 'setup', true);
+  plans = setMarketQuestionSaved(plans, 'malaysia', 'customers', true);
+  plans = updateMarketNextStep(plans, 'malaysia', 'Follow up with interviews.', EDITED);
+  plans = parseMarketPlans(JSON.parse(JSON.stringify(plans)));
+  assert.deepEqual(plans.notes.singapore, legacyNote);
+  assert.deepEqual(plans.questions.singapore, ['location', 'setup']);
+  const singaporeOnly = buildMarketPlanExport(plans, ['singapore'], EDITED);
+  assert.equal(singaporeOnly.markets.length, 1);
+  const singapore = singaporeOnly.markets[0];
+  assert.equal(singapore.userNextStep, legacyNote.nextStep);
+  assert.deepEqual(singapore.savedResearchQuestions.map(q => q.question), [
+    'Does the intended Singapore premises fit the activity?',
+    'Which ACRA and premises questions fit this business?',
+  ]);
+  assert.deepEqual(singapore.savedResearchQuestions[1].sources.map(source => source.url), ['https://www.acra.gov.sg/', 'https://www.ura.gov.sg/']);
+  assert.equal(singapore.savedResearchQuestions[0].kind, 'unverified-research-prompt');
+  const malaysiaOnly = buildMarketPlanExport(plans, ['malaysia'], EDITED);
+  assert.equal(malaysiaOnly.markets[0].savedResearchQuestions[0].sources[0].url, 'https://www.dosm.gov.my/');
+  plans = setMarketQuestionSaved(plans, 'singapore', 'setup', false);
+  plans = setMarketQuestionSaved(plans, 'singapore', 'location', false);
+  assert.deepEqual(plans.questions, { malaysia: ['customers'] });
+  assert.deepEqual(plans.notes.singapore, legacyNote);
+});
+
+test('stored question IDs are deduplicated and restricted to supported markets and their guide lenses', () => {
+  const plans = parseMarketPlans(JSON.parse('{"version":1,"notes":{},"questions":{"malaysia":["setup","bogus","setup","__proto__",null],"__proto__":["setup"],"toString":["customers"],"singapore":"setup","other":["location"]}}'));
+  assert.deepEqual(plans.questions, { malaysia: ['setup'] });
+  assert.equal(setMarketQuestionSaved(plans, '__proto__', 'setup', true), plans);
+  assert.equal(setMarketQuestionSaved(plans, 'singapore', 'toString', true), plans);
+});
+
+test('repeating save or remove preserves other research questions and personal notes', () => {
+  let state = updateMarketNextStep(createMarketPlans(), 'singapore', 'Remember to verify the address.', EDITED);
+  state = setMarketQuestionSaved(state, 'singapore', 'setup', true);
+  state = setMarketQuestionSaved(state, 'malaysia', 'customers', true);
+  const saved = setMarketQuestionSaved(state, 'singapore', 'location', true);
+  assert.equal(setMarketQuestionSaved(saved, 'singapore', 'location', true), saved);
+  const removed = setMarketQuestionSaved(saved, 'singapore', 'location', false);
+  assert.equal(setMarketQuestionSaved(removed, 'singapore', 'location', false), removed);
+  assert.deepEqual(removed, state);
 });

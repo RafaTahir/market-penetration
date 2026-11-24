@@ -232,3 +232,7 @@ html.light .mr-case:nth-child(3)>span { color: #7551b2; }
 .mr-data-actions>div:last-child { display: flex; align-items: center; gap: 20px; }
 @media (max-width: 760px) { .mr-data-actions { align-items: start; flex-direction: column; gap: 15px; } }
 @media (max-width: 520px) { .mr-data-actions>div:last-child { flex-wrap: wrap; gap: 10px; } }
+
+.mr-question-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.mr-save-question { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--mr-border); border-radius: 8px; font-size: 13px; color: var(--mr-blue); background: var(--mr-soft); }
+.mr-save-question:hover, .mr-save-question[aria-pressed='true'] { color: var(--mr-teal); border-color: var(--mr-teal); }

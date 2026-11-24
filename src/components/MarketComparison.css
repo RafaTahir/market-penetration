@@ -1,0 +1,38 @@
+.market-comparison-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.market-comparison-plan,
+.market-comparison-export,
+.market-comparison-choose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.market-comparison-plan {
+  padding: 8px 16px;
+  border-radius: 9px;
+  background: #245caa;
+  color: #fff;
+}
+
+.market-comparison-plan:hover {
+  background: #194b90;
+}
+
+.market-comparison-export,
+.market-comparison-choose {
+  color: var(--ex-blue);
+}
+
+.market-comparison-export:hover,
+.market-comparison-choose:hover {
+  text-decoration: underline;
+}

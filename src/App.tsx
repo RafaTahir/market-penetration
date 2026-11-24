@@ -23,6 +23,7 @@ import MarketResearch, { type ResearchMode } from './components/MarketResearch';
 import ReferenceResearch from './components/ReferenceResearch';
 import MarketComparison from './components/MarketComparison';
 import MarketPlanHub from './components/MarketPlanHub';
+import { useMarketPlans, type MarketPlanSession } from './hooks/useMarketPlans';
 import { MARKETS } from './data/marketCatalog';
 import { SEA_COUNTRIES } from './components/visual/seaGeography';
 import './components/MarketExplorer.css';
@@ -41,7 +42,7 @@ function loadShortlist(): string[] {
   return ['singapore', 'thailand'];
 }
 
-function ResearchWorkspace({ route, selectedCountries, setSelectedCountries, shortlistSaved, initialView = 'main', initialAction }: { route: string; selectedCountries: string[]; setSelectedCountries: Dispatch<SetStateAction<string[]>>; shortlistSaved: boolean; initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
+function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedCountries, shortlistSaved, initialView = 'main', initialAction }: { route: string; planSession: MarketPlanSession; selectedCountries: string[]; setSelectedCountries: Dispatch<SetStateAction<string[]>>; shortlistSaved: boolean; initialView?: ResearchView; initialAction?: 'search' | 'compare' }) {
   const [selectedCities, setSelectedCities] = useState<string[]>(['singapore-city', 'bangkok']);
   const [activeTab, setActiveTab] = useState<ResearchMode>('overview');
   const [currentView, setView] = useState<ResearchView>(initialView);
@@ -95,10 +96,21 @@ function ResearchWorkspace({ route, selectedCountries, setSelectedCountries, sho
     });
     return () => cancelAnimationFrame(frame);
   }, [showComparison, currentView, comparisonRequest, route]);
+  function chooseMarkets() {
+    setSearchQuery('');
+    requestAnimationFrame(() => {
+      const markets = document.getElementById('explore-markets');
+      markets?.focus({ preventScroll: true });
+      markets?.scrollIntoView({ behavior: 'instant', block: 'start' });
+    });
+  }
+  function includeMarket(countryId: string) {
+    setSelectedCountries(previous => previous.includes(countryId) ? previous : [...previous, countryId]);
+  }
   const openPlan = () => { window.location.hash = '/plan'; };
   const showMode = (mode: ResearchMode) => { setActiveTab(mode); requestAnimationFrame(() => document.getElementById('research-modes')?.scrollIntoView({ behavior: 'instant', block: 'start' })); };
   const exploreCountry = (countryId: string) => {
-    setSelectedCountries(previous => previous.includes(countryId) ? previous : [...previous, countryId]);
+    includeMarket(countryId);
     if (showReferenceExamples) showMode('cities');
     else { setActiveTab('cities'); setRequestedCity(countryId); }
   };
@@ -229,7 +241,7 @@ function ResearchWorkspace({ route, selectedCountries, setSelectedCountries, sho
       <main className="explorer-main explorer-module-page">
         <a href="#/research" className="explorer-back">← Explore markets</a>
         <header className="explorer-module-heading"><span className="explorer-eyebrow">{currentView === 'analytics' ? 'ANALYTICS & DATA' : currentView === 'enterprise-intelligence' ? 'MARKET INTELLIGENCE' : 'RESEARCH & REPORTS'}</span><h1>{title}</h1><p>{description}</p></header>
-        <MarketResearch mode={currentView === 'enterprise-intelligence' ? 'insights' : 'data'} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />
+        <MarketResearch planSession={planSession} onIncludeMarket={includeMarket} mode={currentView === 'enterprise-intelligence' ? 'insights' : 'data'} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />
         <section className="explorer-reference-callout"><div><BookOpen size={20} /><span><strong>{currentView === 'report-generator' ? 'Reference report templates' : 'Looking for the original examples?'}</strong><small>Existing examples have unverified sources and observation dates. They stay separate from your entry plan.</small></span></div><button onClick={() => setShowReferenceExamples(true)}>View unverified reference examples <ArrowRight size={15} /></button></section>
       </main>
     </div>;
@@ -539,12 +551,12 @@ function ResearchWorkspace({ route, selectedCountries, setSelectedCountries, sho
         <div className="explorer-shortlist"><span title={shortlistSaved ? 'Saved on this browser' : 'Session only; export your shortlist to keep it'}>Your shortlist · {shortlistSaved ? 'saved here' : 'session only'}</span><div>{selectedMarkets.length ? selectedMarkets.map(market => <button key={market.id} onClick={() => handleCountryToggle(market.id)} aria-label={`Remove ${market.name} from shortlist`}>{market.flag} {market.name}<X size={11} /></button>) : <small>Select a market to tailor the research below. All six remain available to explore.</small>}</div><a href="#/research/reports">Source directory <ArrowUpRight size={13} /></a></div>
       </section>
 
-      {showComparison && <MarketComparison selectedCountries={selectedCountries} onClose={() => setShowComparison(false)} onReference={() => setShowReferenceExamples(true)} referenceMode={showReferenceExamples}>{showReferenceExamples && <ComparisonMode availableCountries={countryComparisonData} />}</MarketComparison>}
+      {showComparison && <MarketComparison onChooseMarkets={chooseMarkets} selectedCountries={selectedCountries} onClose={() => setShowComparison(false)} onReference={() => setShowReferenceExamples(true)} referenceMode={showReferenceExamples}>{showReferenceExamples && <ComparisonMode availableCountries={countryComparisonData} />}</MarketComparison>}
 
       <section className="explorer-research" id="research-modes" aria-labelledby="research-title">
         <h2 id="research-title" className="sr-only">From a place to a plan.</h2>
 
-        {showReferenceExamples ? <><div className="explorer-reference-strip"><span><BookOpen size={14} />Unverified reference examples · observation dates unknown</span><button onClick={() => setShowReferenceExamples(false)}>Return to research guides <X size={13} /></button></div><ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={selectedCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} /></> : <MarketResearch mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
+        {showReferenceExamples ? <><div className="explorer-reference-strip"><span><BookOpen size={14} />Unverified reference examples · observation dates unknown</span><button onClick={() => setShowReferenceExamples(false)}>Return to research guides <X size={13} /></button></div><ReferenceResearch mode={activeTab} selectedCountries={referenceCountries} selectedCities={selectedCities} onCityToggle={handleCityToggle} onIndustrySelect={setSelectedIndustry} onInsightTabChange={setActiveInsightTab} onCaseStudySelect={setSelectedCaseStudy} /></> : <MarketResearch planSession={planSession} onIncludeMarket={includeMarket} mode={activeTab} selectedCountries={selectedCountries} onPlan={openPlan} onReference={() => setShowReferenceExamples(true)} onCompare={openComparison} onOpenData={() => setCurrentView('live-data')} onOpenReports={() => setCurrentView('reports')} />}
       </section>
 
       {showReferenceExamples ? <section className="explorer-export-section"><div className="explorer-section-heading"><div><span className="explorer-eyebrow">TAKE IT WITH YOU</span><h2>Reference report studio</h2></div><span className="explorer-data-note">Illustrative templates · not verified research</span></div><ExportTools selectedCountries={selectedCountries} selectedCities={selectedCities} activeTab={activeTab} activeInsightTab={activeInsightTab} selectedIndustry={selectedIndustry} selectedCaseStudy={selectedCaseStudy} /></section> : <section className="explorer-reference-callout"><div><BookOpen size={20} /><span><strong>The original research collection, still here.</strong><small>Inspect existing charts, case studies and PDF, slide and spreadsheet templates as explicitly unverified examples.</small></span></div><button onClick={() => setShowReferenceExamples(true)}>View unverified reference examples <ArrowRight size={15} /></button></section>}
@@ -561,6 +573,7 @@ function ResearchWorkspace({ route, selectedCountries, setSelectedCountries, sho
 const researchViews = new Set<ResearchView>(['main', 'live-data', 'analytics', 'reports', 'report-generator', 'dashboard', 'playground', 'scheduler', 'data-sync', 'enterprise-intelligence']);
 
 export default function App() {
+  const planSession = useMarketPlans();
   const [route, setRoute] = useState(() => window.location.hash);
   const [selectedCountries, setSelectedCountries] = useState<string[]>(loadShortlist);
   const [shortlistSaved, setShortlistSaved] = useState(false);
@@ -587,7 +600,7 @@ export default function App() {
     const requested = route.split('/')[2] as ResearchView;
     const initialView = researchViews.has(requested) ? requested : 'main';
     const initialAction = requested === ('search' as string) || requested === ('compare' as string) ? requested as 'search' | 'compare' : undefined;
-    return <ResearchWorkspace route={route} selectedCountries={selectedCountries} setSelectedCountries={setSelectedCountries} shortlistSaved={shortlistSaved} initialView={initialView} initialAction={initialAction} />;
+    return <ResearchWorkspace planSession={planSession} route={route} selectedCountries={selectedCountries} setSelectedCountries={setSelectedCountries} shortlistSaved={shortlistSaved} initialView={initialView} initialAction={initialAction} />;
   }
   const isNotebook = route === '#/plan/notebook';
   return <div className={isNotebook ? 'min-h-screen flow-planner-shell' : 'flow-explore-shell'}>
@@ -597,6 +610,6 @@ export default function App() {
       onAnalyticsClick={() => { window.location.hash = '/research/analytics'; }}
       onEnterpriseIntelligenceClick={() => { window.location.hash = '/research/enterprise-intelligence'; }}
     />
-    {isNotebook ? <EntryPlanner /> : <MarketPlanHub selectedCountries={selectedCountries} />}
+    {isNotebook ? <EntryPlanner /> : <MarketPlanHub planSession={planSession} selectedCountries={selectedCountries} />}
   </div>;
 }

@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, ArrowUpRight, BarChart3, BookOpen, Building2, Check, ChevronRight, Compass, Database, Factory, Globe2, MapPin, Package, Scale, Search, ShieldCheck, ShoppingBag, Smartphone, Truck, Users, UtensilsCrossed, Wallet } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BarChart3, Bookmark, BookOpen, Building2, Check, ChevronRight, Compass, Database, Factory, Globe2, MapPin, Package, Scale, Search, ShieldCheck, ShoppingBag, Smartphone, Truck, Users, UtensilsCrossed, Wallet } from 'lucide-react';
 import { MARKETS, type MarketGuide } from '../data/marketCatalog';
 import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides';
+import type { MarketPlanSession } from '../hooks/useMarketPlans';
+import { getCityQuestionSources } from '../services/marketPlans';
 import MarketFundamentals from './MarketFundamentals';
 import MarketScene from './visual/MarketScene';
 import './MarketResearch.css';
@@ -12,6 +14,8 @@ interface MarketResearchProps {
   mode: ResearchMode;
   selectedCountries: string[];
   onPlan: () => void;
+  planSession: MarketPlanSession;
+  onIncludeMarket: (id: string) => void;
   onReference: () => void;
   onCompare: () => void;
   onOpenData: () => void;
@@ -132,7 +136,7 @@ function SourceScope() {
   return <details className="mr-source-scope"><summary><ShieldCheck size={14} aria-hidden="true" /><span>Discovery guides · sources & scope</span><ChevronRight size={13} aria-hidden="true" /></summary><p>Research questions and curated government-domain links are discovery guides, not current market findings or legal requirements. Historical snapshots carry their own source and observation-year details. Portal content, reachability, publication dates and applicability have not been verified here. Check the relevant authority and qualified local advisers before acting. Numeric reference examples are separate and require an explicit choice.</p></details>;
 }
 
-export default function MarketResearch({ mode, selectedCountries, onPlan, onReference, onCompare, onOpenData, onOpenReports }: MarketResearchProps) {
+export default function MarketResearch({ mode, selectedCountries, planSession, onIncludeMarket, onPlan, onReference, onCompare, onOpenData, onOpenReports }: MarketResearchProps) {
   const [industryId, setIndustryId] = useState('technology');
   const [cityLens, setCityLens] = useState<CityLens>('customers');
   const [insightLens, setInsightLens] = useState<InsightLens>('setup');
@@ -157,7 +161,11 @@ export default function MarketResearch({ mode, selectedCountries, onPlan, onRefe
       <div className="mr-city-grid">{markets.map(market => {
         const guide = CITY_RESEARCH_GUIDES[market.id];
         const prompt = guide?.prompts[cityLens] ?? currentCityLens;
-        const source = cityLens === 'customers' ? market.statistics : cityLens === 'setup' ? market.setup : market.cityPortal;
+        const [source, premisesSource] = getCityQuestionSources(market, cityLens);
+        const selected = selectedCountries.includes(market.id);
+        const saved = planSession.plans.questions[market.id]?.includes(cityLens) ?? false;
+        let saveLabel = saved ? 'Saved to plan' : 'Save question';
+        if (!selected) saveLabel = saved ? 'Restore market to plan' : 'Shortlist & save';
         return <article className="mr-city" id={`city-research-${market.id}`} tabIndex={-1} aria-labelledby={`city-name-${market.id}`} key={market.id}>
           <div className="mr-city-scene"><MarketScene marketId={market.id} /></div>
           <div className="mr-city-top"><span className="mr-flag" aria-hidden="true">{market.flag}</span><span>{market.name}</span><MapPin size={17} aria-hidden="true" /></div>
@@ -165,10 +173,21 @@ export default function MarketResearch({ mode, selectedCountries, onPlan, onRefe
           <div className="mr-city-question"><currentCityLens.icon size={18} aria-hidden="true" /><div><strong>{prompt.question}</strong><p>{prompt.detail}</p></div></div>
           <div className="mr-city-sources">
             <SourceLink url={source.url} label={source.name}><span>{source.name}<small>{cityLens === 'customers' ? 'Dataset geography & dates · discovery link' : cityLens === 'setup' ? 'National setup enquiries · discovery link' : 'Address & local authority · discovery link'}</small></span></SourceLink>
-            {cityLens === 'setup' && <SourceLink url={market.cityPortal.url} label={market.cityPortal.name}><span>{market.cityPortal.name}<small>Premises & address enquiries · discovery link</small></span></SourceLink>}
+            {premisesSource && <SourceLink url={premisesSource.url} label={premisesSource.name}><span>{premisesSource.name}<small>Premises & address enquiries · discovery link</small></span></SourceLink>}
           </div>
+          {guide && <div className="mr-question-actions">
+            <button type="button" className="mr-save-question" aria-pressed={selected && saved} onClick={() => {
+              if (!selected) onIncludeMarket(market.id);
+              planSession.setQuestionSaved(market.id, cityLens, !selected || !saved);
+            }}>
+              {saved && selected ? <Check size={16} aria-hidden="true" /> : <Bookmark size={16} aria-hidden="true" />}
+              {saveLabel}
+            </button>
+            {selected && saved && <a href="#/plan" className="mr-text-button">View plan <ArrowRight size={14} aria-hidden="true" /></a>}
+          </div>}
         </article>;
       })}</div>
+      {!planSession.savedLocally && <p className="mr-city-guide-note" role="status">Your plan is available in this session. Export it before reloading.</p>}
       <div className="mr-inline-action"><span>Keep the next step for your shortlisted markets.</span><button className="mr-text-button" onClick={onPlan}>Open your market plan <ArrowRight size={14} aria-hidden="true" /></button></div>
     </>}
 

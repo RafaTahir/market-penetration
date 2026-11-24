@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Globe2, Info, MapPin, PenLine, X } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
 import { MAX_NEXT_STEP_LENGTH, buildMarketPlanExport, getCityQuestionSources } from '../services/marketPlans';
 import type { RestoreDraft } from '../services/marketPlanRestore';
 import MarketPlanRestore from './MarketPlanRestore';
 import MarketEconomicsWorksheet from './MarketEconomicsWorksheet';
+import QuestionFinding from './QuestionFinding';
 import MarketScene from './visual/MarketScene';
 import type { MarketPlanSession } from '../hooks/useMarketPlans';
 import { CITY_RESEARCH_GUIDES } from '../data/cityResearchGuides';
@@ -14,13 +15,14 @@ interface MarketPlanHubProps {
   planSession: MarketPlanSession;
   onRestore: (draft: RestoreDraft) => boolean;
   shortlistSaved: boolean;
-  worksheetId?: string;
+  focusTarget: string | null;
   selectedCountries: string[];
 }
 
-export default function MarketPlanHub({ selectedCountries, planSession, worksheetId, onRestore, shortlistSaved }: MarketPlanHubProps) {
+export default function MarketPlanHub({ selectedCountries, planSession, focusTarget, onRestore, shortlistSaved }: MarketPlanHubProps) {
   const { plans, savedLocally, saveNote, saveScenario, setQuestionSaved } = planSession;
   const [exportMessage, setExportMessage] = useState('');
+  const hub = useRef<HTMLElement>(null);
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
   const hasNotes = Object.keys(plans.notes).length > 0;
   const hasQuestions = Object.keys(plans.questions).length > 0;
@@ -29,15 +31,40 @@ export default function MarketPlanHub({ selectedCountries, planSession, workshee
   if (Object.keys(plans.scenarios).length) saveStatus = 'Worksheets saved on this browser';
   if (hasQuestions) saveStatus = 'Research questions saved on this browser';
   if (hasNotes) saveStatus = 'Next steps saved on this browser';
+  if (Object.keys(plans.findings).length) saveStatus = 'Research findings saved on this browser';
 
   useEffect(() => {
-    if (!worksheetId) return;
-    const target = document.getElementById(`break-even-${worksheetId}`);
-    if (!(target instanceof HTMLDetailsElement)) return;
-    target.open = true;
-    target.querySelector('summary')?.focus({ preventScroll: true });
+    const hasDraft = () => hub.current?.querySelector('.question-finding[data-dirty="true"]');
+    function beforeNavigate(event: Event) {
+      const destination = (event as CustomEvent<string>).detail;
+      if ((destination === '#/plan' || destination.startsWith('#/plan/question/') || destination.startsWith('#/plan/worksheet/')) || !hasDraft()) return;
+      if (!window.confirm('Leave without saving your finding edits?')) event.preventDefault();
+    }
+    function beforeUnload(event: BeforeUnloadEvent) {
+      if (!hasDraft()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    }
+    window.addEventListener('flow:before-navigate', beforeNavigate);
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      window.removeEventListener('flow:before-navigate', beforeNavigate);
+      window.removeEventListener('beforeunload', beforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!focusTarget) return;
+    const target = document.getElementById(focusTarget);
+    if (!target) return;
+    if (target instanceof HTMLDetailsElement) {
+      target.open = true;
+      target.querySelector('summary')?.focus({ preventScroll: true });
+    } else {
+      target.focus({ preventScroll: true });
+    }
     target.scrollIntoView({ behavior: 'instant', block: 'start' });
-  }, [worksheetId]);
+  }, [focusTarget]);
 
   function exportPlan() {
     const payload = buildMarketPlanExport(plans, selectedCountries);
@@ -47,7 +74,9 @@ export default function MarketPlanHub({ selectedCountries, planSession, workshee
     anchor.download = 'flow-market-plan.json';
     anchor.click();
     URL.revokeObjectURL(url);
-    setExportMessage('Market plan exported with your selected markets, notes, saved questions, worksheets and source limitations.');
+    setExportMessage(hub.current?.querySelector('.question-finding[data-dirty="true"]')
+      ? 'Exported the saved version. Save your open finding edits to include them in the next export.'
+      : 'Market plan exported with your selected markets, notes, saved questions, findings and worksheets.');
   }
 
   function applyRestore(draft: RestoreDraft) {
@@ -57,7 +86,7 @@ export default function MarketPlanHub({ selectedCountries, planSession, workshee
       : 'Plan restored for this session. Export your plan before reloading.');
   }
 
-  return <main className="market-plan-hub">
+  return <main className="market-plan-hub" ref={hub}>
     <a className="mph-back" href="#/research"><ArrowLeft size={16} aria-hidden="true" />Explore markets</a>
     <header className="mph-heading">
       <div><span className="mph-eyebrow">YOUR SHORTLIST · YOUR NEXT MOVE</span><h1>Your market plan.</h1><p>Keep the markets you chose, follow their sources and decide your next step.</p></div>
@@ -92,19 +121,25 @@ export default function MarketPlanHub({ selectedCountries, planSession, workshee
               <h3 id={`saved-questions-${market.id}`}>Saved research questions</h3>
               <ul>{questions.map(lens => {
                 const prompt = CITY_RESEARCH_GUIDES[market.id].prompts[lens];
-                return <li key={lens}>
+                const finding = plans.findings[market.id]?.[lens];
+                return <li key={lens} id={`question-${market.id}-${lens}`} tabIndex={-1} aria-label={prompt.question}>
                   <div className="mph-question-heading">
                     <span>{lens === 'customers' ? 'Customers' : lens === 'location' ? 'Location' : 'Setup'}</span>
-                    <button type="button" aria-label={`Remove question: ${prompt.question}`} onClick={() => {
-                      setQuestionSaved(market.id, lens, false);
-                      setExportMessage('Question removed from your plan.');
-                      document.getElementById(`market-plan-${market.id}`)?.focus({ preventScroll: true });
-                    }}><X size={15} aria-hidden="true" /></button>
+                    {!finding && <button type="button" aria-label={`Remove question: ${prompt.question}`} onClick={() => {
+                      const result = setQuestionSaved(market.id, lens, false);
+                      if (result.plans.findings[market.id]?.[lens]) {
+                        setExportMessage('This question has a finding. Clear the finding first to remove the question.');
+                      } else {
+                        setExportMessage('Question removed from your plan.');
+                        document.getElementById(`market-plan-${market.id}`)?.focus({ preventScroll: true });
+                      }
+                    }}><X size={15} aria-hidden="true" /></button>}
                   </div>
                   <p>{prompt.question}</p>
                   <div className="mph-question-sources">{getCityQuestionSources(market, lens).map(source =>
                     <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer">{source.name}<ArrowUpRight size={13} aria-hidden="true" /></a>
                   )}</div>
+                  <QuestionFinding finding={finding} onSave={(expected, next) => planSession.saveFinding(market.id, lens, expected, next)} />
                 </li>;
               })}</ul>
             </section>}
@@ -132,7 +167,7 @@ export default function MarketPlanHub({ selectedCountries, planSession, workshee
       })}
     </section> : <section className="mph-empty" aria-labelledby="market-plan-empty-title"><Globe2 size={36} aria-hidden="true" /><h2 id="market-plan-empty-title">Choose the markets for your plan.</h2><p>Your shortlist is empty. Explore the region and select the markets you want to research.</p><a className="mph-primary" href="#/research">Choose markets<ArrowRight size={17} aria-hidden="true" /></a></section>}
 
-    <details className="mph-source-details"><summary><Info size={16} aria-hidden="true" />About these research links & notes<ChevronDown size={15} aria-hidden="true" /></summary><p>These are curated official-directory links, not verified current requirements. Page contents, publication dates and applicability to your activity or address have not been verified. Source publication dates are unknown. Your next-step notes are personal planning notes; they do not become evidence or preparation scores in the city notebook.</p><p>Notes, saved questions and worksheet assumptions stay with their market when you change your shortlist. Select the market again to see them. Session-only notes survive navigation in this app but require an export before a page reload. Export includes the currently selected markets.</p></details>
+    <details className="mph-source-details"><summary><Info size={16} aria-hidden="true" />About these research links & notes<ChevronDown size={15} aria-hidden="true" /></summary><p>These are curated official-directory links, not verified current requirements. Page contents, publication dates and applicability to your activity or address have not been verified. Source publication dates are unknown. You supply the findings, citations and observation dates in your plan. The city notebook calculates its scores separately.</p><p>Notes, questions, findings and worksheet assumptions stay with their market when you change your shortlist. Select the market again to see them. Session-only notes survive navigation in this app but require an export before a page reload. Export includes the currently selected markets.</p></details>
 
     <section className="mph-notebook" aria-labelledby="city-notebook-title"><span className="mph-notebook-icon"><BookOpen size={27} aria-hidden="true" /></span><div><span className="mph-eyebrow">DETAILED PREPARATION</span><h2 id="city-notebook-title">Your city notebook is still here.</h2><p>Documented preparation assessments currently cover <strong>Jakarta province and the City of Manila</strong>. Existing research, scores and exports stay in that notebook; opening it does not change your market shortlist.</p></div><a className="mph-primary" href="#/plan/notebook">Open city notebook<ArrowRight size={17} aria-hidden="true" /></a></section>
 

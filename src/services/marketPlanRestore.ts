@@ -2,10 +2,11 @@ import { MARKETS } from '../data/marketCatalog.ts';
 import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides.ts';
 import { parseMarketEconomics, type MarketEconomicsInputs } from './marketEconomics.ts';
 import {
-  createMarketPlans, MAX_NEXT_STEP_LENGTH, updateMarketNextStep, type MarketPlansState,
+  createMarketPlans, MAX_NEXT_STEP_LENGTH, parseResearchFinding, sameResearchFinding, updateMarketNextStep,
+  MAX_FINDING_TEXT_LENGTH, MAX_FINDING_SOURCE_LENGTH, type MarketPlansState, type ResearchFinding,
 } from './marketPlans.ts';
 
-export const MAX_RESTORE_BYTES = 256 * 1024;
+export const MAX_RESTORE_BYTES = 1024 * 1024;
 
 export interface RestoreDraft {
   marketIds: string[];
@@ -21,6 +22,7 @@ export interface RestoreEffect {
   note: FieldEffect;
   scenario: FieldEffect;
   addedQuestions: number;
+  findings: Partial<Record<CityResearchLens, Exclude<FieldEffect, 'none'>>>;
 }
 
 const marketsById = new Map(MARKETS.map(market => [market.id, market]));
@@ -29,25 +31,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function readQuestions(value: unknown, marketId: string, warn: () => void): CityResearchLens[] {
-  if (value === undefined) return []; // Early plan exports predate bookmarked questions.
-  if (!Array.isArray(value)) { warn(); return []; }
+function readQuestions(value: unknown, marketId: string, name: string, plans: MarketPlansState, warnings: Set<string>) {
+  if (value === undefined) return; // Older files predate saved questions.
+  const unrecognized = `Skipped unrecognized research questions for ${name}.`;
+  if (!Array.isArray(value)) { warnings.add(unrecognized); return; }
+
   const lenses = new Set<CityResearchLens>();
   const prompts = CITY_RESEARCH_GUIDES[marketId]?.prompts;
+  const findings: Partial<Record<CityResearchLens, ResearchFinding>> = {};
   for (const entry of value) {
-    if (isRecord(entry) && entry.kind === 'unverified-research-prompt' && typeof entry.lens === 'string'
-      && prompts && Object.prototype.hasOwnProperty.call(prompts, entry.lens)) {
-      lenses.add(entry.lens as CityResearchLens);
-    } else {
-      warn();
+    if (!isRecord(entry) || entry.kind !== 'unverified-research-prompt' || typeof entry.lens !== 'string'
+      || !prompts || !Object.prototype.hasOwnProperty.call(prompts, entry.lens)) {
+      warnings.add(unrecognized);
+      continue;
+    }
+
+    const lens = entry.lens as CityResearchLens;
+    lenses.add(lens);
+    const raw = entry.userFinding;
+    if (raw == null) continue;
+    const finding = isRecord(raw) && raw.kind === 'user-entered-research-finding'
+      && typeof raw.text === 'string' && raw.text.length <= MAX_FINDING_TEXT_LENGTH
+      && !(typeof raw.source === 'string' && raw.source.length > MAX_FINDING_SOURCE_LENGTH)
+      ? parseResearchFinding(raw) : null;
+    if (!finding) {
+      warnings.add(`Skipped an invalid ${name} ${lens} finding. The research question is still included.`);
+    } else if (!findings[lens]) {
+      findings[lens] = finding;
+    } else if (!sameResearchFinding(findings[lens], finding)) {
+      warnings.add(`Skipped a conflicting duplicate ${name} ${lens} finding. The first valid finding was used.`);
     }
   }
-  return [...lenses];
+  if (lenses.size) plans.questions[marketId] = [...lenses];
+  if (Object.keys(findings).length) plans.findings[marketId] = findings;
 }
 
 export function parseMarketPlanFile(text: string): RestoreDraft {
   if (text.length > MAX_RESTORE_BYTES || new TextEncoder().encode(text).length > MAX_RESTORE_BYTES) {
-    throw new Error('Choose a market plan smaller than or equal to 256 KiB.');
+    throw new Error('Choose a market plan smaller than or equal to 1 MiB.');
   }
   let payload: unknown;
   try { payload = JSON.parse(text.replace(/^\uFEFF/, '')); }
@@ -55,7 +76,7 @@ export function parseMarketPlanFile(text: string): RestoreDraft {
   if (!isRecord(payload) || payload.contentType !== 'user-market-plan-and-source-directory') {
     throw new Error('Choose a JSON file created with Export market plan.');
   }
-  if (payload.version !== 1) throw new Error('This version of the market plan format is unsupported.');
+  if (payload.version !== 1 && payload.version !== 2) throw new Error('This version of the market plan format is unsupported.');
   if (!Array.isArray(payload.markets)) throw new Error('The file is missing its list of markets.');
 
   const marketIds: string[] = [];
@@ -88,10 +109,7 @@ export function parseMarketPlanFile(text: string): RestoreDraft {
       warnings.add(`Skipped the invalid or oversized ${name} note.`);
     }
 
-    const lenses = readQuestions(row.savedResearchQuestions, id, () => {
-      warnings.add(`Skipped unrecognized research questions for ${name}.`);
-    });
-    if (lenses.length) plans.questions[id] = lenses;
+    readQuestions(row.savedResearchQuestions, id, name, plans, warnings);
 
     const scenario = row.breakEvenScenario;
     if (scenario != null) {
@@ -114,13 +132,13 @@ function sameScenario(left: MarketEconomicsInputs, right: MarketEconomicsInputs)
 /** Pure preview and merge. Call against current local state again when the user confirms. */
 export function previewMarketPlanRestore(local: MarketPlansState, shortlist: readonly string[], draft: RestoreDraft) {
   const countries = [...shortlist];
-  const plans = { ...local, notes: { ...local.notes }, scenarios: { ...local.scenarios }, questions: { ...local.questions } };
+  const plans = { ...local, notes: { ...local.notes }, scenarios: { ...local.scenarios }, questions: { ...local.questions }, findings: { ...local.findings } };
   const effects: RestoreEffect[] = [];
   let dataChanged = false;
 
   for (const marketId of draft.marketIds) {
     const effect: RestoreEffect = {
-      marketId, addToShortlist: !countries.includes(marketId), note: 'none', scenario: 'none', addedQuestions: 0,
+      marketId, addToShortlist: !countries.includes(marketId), note: 'none', scenario: 'none', addedQuestions: 0, findings: {},
     };
     if (effect.addToShortlist) countries.push(marketId);
 
@@ -143,6 +161,18 @@ export function previewMarketPlanRestore(local: MarketPlansState, shortlist: rea
     if (newQuestions.length) {
       plans.questions[marketId] = [...previousQuestions, ...newQuestions];
       effect.addedQuestions = newQuestions.length;
+    }
+    for (const lens of draft.plans.questions[marketId] ?? []) {
+      const finding = draft.plans.findings[marketId]?.[lens];
+      if (!finding) continue;
+      const previous = local.findings[marketId]?.[lens];
+      if (previous) {
+        effect.findings[lens] = sameResearchFinding(previous, finding) ? 'same' : 'keep-local';
+      } else {
+        effect.findings[lens] = 'add';
+        plans.findings[marketId] = { ...plans.findings[marketId], [lens]: finding };
+        dataChanged = true;
+      }
     }
     if (effect.note === 'add' || effect.scenario === 'add' || effect.addedQuestions) dataChanged = true;
     effects.push(effect);

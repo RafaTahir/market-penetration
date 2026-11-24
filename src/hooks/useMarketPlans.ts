@@ -3,8 +3,9 @@ import type { MarketEconomicsInputs } from '../services/marketEconomics';
 import { previewMarketPlanRestore, type RestoreDraft } from '../services/marketPlanRestore';
 import type { CityResearchLens } from '../data/cityResearchGuides';
 import {
-  createMarketPlans, MARKET_PLANS_KEY, parseMarketPlans,
-  setMarketQuestionSaved, setMarketScenario, updateMarketNextStep, type MarketPlansState,
+  createMarketPlans, MARKET_PLANS_KEY, parseMarketPlans, parseResearchFinding,
+  sameResearchFinding, serializeMarketPlans, setMarketFinding, setMarketQuestionSaved, setMarketScenario,
+  updateMarketNextStep, type MarketPlansState, type ResearchFinding,
 } from '../services/marketPlans';
 
 function loadPlans() {
@@ -12,7 +13,8 @@ function loadPlans() {
     const raw = localStorage.getItem(MARKET_PLANS_KEY);
     if (raw === null) return { plans: createMarketPlans(), savedLocally: true };
     const value: unknown = JSON.parse(raw);
-    if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1 ||
+    if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2) ||
+        (value.version === 2 && (!('findings' in value) || !value.findings || typeof value.findings !== 'object' || Array.isArray(value.findings))) ||
         !('notes' in value) || !value.notes || typeof value.notes !== 'object' || Array.isArray(value.notes)) {
       return { plans: createMarketPlans(), savedLocally: false };
     }
@@ -42,12 +44,13 @@ export function useMarketPlans() {
   function edit(change: (state: MarketPlansState) => MarketPlansState) {
     // Prefer the latest persisted notes, but keep session edits if storage failed.
     const stored = current.current.savedLocally ? loadPlans() : current.current;
-    const plans = change(stored.savedLocally ? stored.plans : current.current.plans);
+    const base = stored.savedLocally ? stored.plans : current.current.plans;
+    const plans = change(base);
     // Once this tab has unsaved edits, retain them in memory. A later write could
     // otherwise replace another tab's work with this session's older snapshot.
     let savedLocally = stored.savedLocally;
-    if (savedLocally) {
-      try { localStorage.setItem(MARKET_PLANS_KEY, JSON.stringify(plans)); }
+    if (savedLocally && plans !== base) {
+      try { localStorage.setItem(MARKET_PLANS_KEY, JSON.stringify(serializeMarketPlans(plans))); }
       catch { savedLocally = false; }
     }
     current.current = { plans, savedLocally };
@@ -55,8 +58,23 @@ export function useMarketPlans() {
     return current.current;
   }
 
+  function saveFinding(marketId: string, lens: CityResearchLens, expected: ResearchFinding | undefined, next: ResearchFinding | null) {
+    const value = next && parseResearchFinding(next);
+    if (next && !value) return false;
+    let accepted = false;
+    edit(state => {
+      if (!state.questions[marketId]?.includes(lens) ||
+          !sameResearchFinding(state.findings[marketId]?.[lens], expected)) return state;
+      const updated = setMarketFinding(state, marketId, lens, value);
+      accepted = sameResearchFinding(updated.findings[marketId]?.[lens], value ?? undefined);
+      return updated;
+    });
+    return accepted;
+  }
+
   return {
     ...snapshot,
+    saveFinding,
     restoreDraft: (draft: RestoreDraft, countries: readonly string[]) =>
       edit(state => previewMarketPlanRestore(state, countries, draft).plans),
     setQuestionSaved: (marketId: string, lens: CityResearchLens, saved: boolean) =>

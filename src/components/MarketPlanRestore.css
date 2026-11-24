@@ -41,3 +41,7 @@
 .mpr-field dd { color: var(--mph-text); }
 .mpr-dialog footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .mpr-dialog .mph-primary:disabled { background: var(--mph-soft); border-color: var(--mph-border); color: var(--mph-muted); cursor: default; filter: none; }
+.mpr-finding-action { display: inline-block; margin: 6px 0; font-weight: 600; color: var(--mph-teal); }
+.mpr-finding { padding: 8px 12px; margin-bottom: 8px; background: var(--mph-soft); border-radius: 6px; }
+.mpr-finding dl { margin-top: 6px; }
+.mpr-finding dd { white-space: pre-wrap; min-width: 0; }

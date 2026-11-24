@@ -6,6 +6,37 @@ import { calculateMarketEconomics, ECONOMICS_LIMITATION, ECONOMICS_METHOD, parse
 /** Personal planning notes are independent of the scored city notebook. */
 export const MARKET_PLANS_KEY = 'flow-market-plans-v1';
 export const MAX_NEXT_STEP_LENGTH = 2000;
+export const MAX_FINDING_TEXT_LENGTH = 1600;
+export const MAX_FINDING_SOURCE_LENGTH = 400;
+
+/** User-entered research with an optional citation and observation date. No verification or score is implied. */
+export interface ResearchFinding {
+  text: string;
+  source: string;
+  observedOn: string | null;
+}
+
+type MarketFindings = Partial<Record<CityResearchLens, ResearchFinding>>;
+
+export function parseResearchFinding(value: unknown): ResearchFinding | null {
+  if (!value || typeof value !== 'object' || !('text' in value) || typeof value.text !== 'string') return null;
+  const text = value.text.trim().slice(0, MAX_FINDING_TEXT_LENGTH).trimEnd();
+  if (!text) return null;
+  const rawSource = 'source' in value ? value.source : '';
+  if (typeof rawSource !== 'string') return null;
+  const source = rawSource.trim().slice(0, MAX_FINDING_SOURCE_LENGTH).trimEnd();
+  const date = 'observedOn' in value ? value.observedOn : null;
+  if (date === null || date === '') return { text, source, observedOn: null };
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date.startsWith('0000')) return null;
+  const timestamp = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== date) return null;
+  return { text, source, observedOn: date };
+}
+
+export function sameResearchFinding(left?: ResearchFinding, right?: ResearchFinding): boolean {
+  if (!left || !right) return left === right;
+  return left.text === right.text && left.source === right.source && left.observedOn === right.observedOn;
+}
 
 export interface MarketNextStep {
   nextStep: string;
@@ -18,12 +49,13 @@ export interface MarketPlansState {
   notes: Partial<Record<string, MarketNextStep>>;
   scenarios: Partial<Record<string, MarketEconomicsInputs>>;
   questions: Partial<Record<string, CityResearchLens[]>>;
+  findings: Partial<Record<string, MarketFindings>>;
 }
 
 const supportedMarkets = new Set(MARKETS.map(market => market.id));
 
 export function createMarketPlans(): MarketPlansState {
-  return { version: 1, notes: {}, questions: {}, scenarios: {} };
+  return { version: 1, notes: {}, questions: {}, scenarios: {}, findings: {} };
 }
 
 function isSupportedQuestion(marketId: string, lens: unknown): lens is CityResearchLens {
@@ -46,7 +78,7 @@ function editDate(value: unknown): string | null {
 
 export function parseMarketPlans(value: unknown): MarketPlansState {
   const result = createMarketPlans();
-  if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1) return result;
+  if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2)) return result;
   const notes = 'notes' in value && value.notes && typeof value.notes === 'object' ? value.notes : {};
   for (const [id, note] of Object.entries(notes)) {
     if (!supportedMarkets.has(id) || !note || typeof note !== 'object' || !('nextStep' in note) || typeof note.nextStep !== 'string' || !note.nextStep) continue;
@@ -62,6 +94,16 @@ export function parseMarketPlans(value: unknown): MarketPlansState {
       if (lenses.length) result.questions[marketId] = [...new Set(lenses)];
     }
   }
+  if ('findings' in value && value.findings && typeof value.findings === 'object') {
+    for (const [marketId, stored] of Object.entries(value.findings)) {
+      if (!supportedMarkets.has(marketId) || !stored || typeof stored !== 'object') continue;
+      for (const [lens, raw] of Object.entries(stored)) {
+        if (!isSupportedQuestion(marketId, lens) || !result.questions[marketId]?.includes(lens)) continue;
+        const finding = parseResearchFinding(raw);
+        if (finding) (result.findings[marketId] ??= {})[lens] = finding;
+      }
+    }
+  }
   if ('scenarios' in value && value.scenarios && typeof value.scenarios === 'object') {
     for (const [marketId, raw] of Object.entries(value.scenarios)) {
       if (!supportedMarkets.has(marketId)) continue;
@@ -70,6 +112,13 @@ export function parseMarketPlans(value: unknown): MarketPlansState {
     }
   }
   return result;
+}
+
+/** Persist v2 when an older client would lose findings on its next save. */
+export function serializeMarketPlans(state: MarketPlansState) {
+  const plans = parseMarketPlans(state);
+  const version: 1 | 2 = Object.keys(plans.findings).length ? 2 : 1;
+  return { ...plans, version };
 }
 
 export function updateMarketNextStep(state: MarketPlansState, marketId: string, text: string, updatedAt = new Date().toISOString()): MarketPlansState {
@@ -83,6 +132,7 @@ export function updateMarketNextStep(state: MarketPlansState, marketId: string, 
 
 export function setMarketQuestionSaved(state: MarketPlansState, marketId: string, lens: CityResearchLens, saved: boolean): MarketPlansState {
   if (!isSupportedQuestion(marketId, lens)) return state;
+  if (!saved && state.findings[marketId]?.[lens]) return state;
   const previous = state.questions[marketId] ?? [];
   if (previous.includes(lens) === saved) return state;
   const next = saved ? [...previous, lens] : previous.filter(item => item !== lens);
@@ -90,6 +140,19 @@ export function setMarketQuestionSaved(state: MarketPlansState, marketId: string
   if (next.length) questions[marketId] = next;
   else delete questions[marketId];
   return { ...state, questions };
+}
+
+export function setMarketFinding(state: MarketPlansState, marketId: string, lens: CityResearchLens, finding: ResearchFinding | null): MarketPlansState {
+  if (!isSupportedQuestion(marketId, lens) || !state.questions[marketId]?.includes(lens)) return state;
+  const next = finding === null ? undefined : parseResearchFinding(finding);
+  if (next === null || sameResearchFinding(state.findings[marketId]?.[lens], next)) return state;
+  const forMarket = { ...state.findings[marketId] };
+  if (next) forMarket[lens] = next;
+  else delete forMarket[lens];
+  const findings = { ...state.findings };
+  if (Object.keys(forMarket).length) findings[marketId] = forMarket;
+  else delete findings[marketId];
+  return { ...state, findings };
 }
 
 export function setMarketScenario(state: MarketPlansState, marketId: string, inputs: MarketEconomicsInputs | null): MarketPlansState {
@@ -106,6 +169,10 @@ export function setMarketScenario(state: MarketPlansState, marketId: string, inp
   return { ...state, scenarios };
 }
 
+function exportFinding(finding: ResearchFinding | undefined) {
+  return finding ? { kind: 'user-entered-research-finding' as const, ...finding } : null;
+}
+
 function exportScenario(inputs: MarketEconomicsInputs | undefined) {
   if (!inputs) return null;
   return {
@@ -120,11 +187,12 @@ function exportScenario(inputs: MarketEconomicsInputs | undefined) {
 export function buildMarketPlanExport(state: MarketPlansState, selectedCountries: readonly string[], exportedAt = new Date().toISOString()) {
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
   const plans = parseMarketPlans(state);
+  const version: 1 | 2 = markets.some(market => plans.findings[market.id]) ? 2 : 1;
   return {
-    version: 1,
+    version,
     contentType: 'user-market-plan-and-source-directory',
     exportedAt,
-    limitation: 'Personal next steps are user-entered, unverified planning notes, not observed market facts, legal advice or a business-fit assessment. Official links are curated research starting points; source contents, publication dates and current applicability have not been verified. Edit and export times are not source observation dates. No preparation score or survival probability is supplied for these market plans.',
+    limitation: 'Personal next steps are user-entered, unverified planning notes, not observed market facts, legal advice or a business-fit assessment. Saved findings, citations and observation dates are user-entered, unverified and excluded from scores. Official links are curated research starting points; source contents, publication dates and current applicability have not been verified. Edit and export times are not source observation dates. No preparation score or survival probability is supplied for these market plans.',
     detailedNotebookCoverage: ['Jakarta province, excluding Greater Jakarta', 'City of Manila, excluding the rest of Metro Manila'],
     markets: markets.map(market => ({
       id: market.id,
@@ -140,6 +208,7 @@ export function buildMarketPlanExport(state: MarketPlansState, selectedCountries
         kind: 'unverified-research-prompt' as const,
         question: CITY_RESEARCH_GUIDES[market.id].prompts[lens].question,
         sources: getCityQuestionSources(market, lens),
+        userFinding: exportFinding(plans.findings[market.id]?.[lens]),
       })),
       sources: {
         businessSetup: market.setup,

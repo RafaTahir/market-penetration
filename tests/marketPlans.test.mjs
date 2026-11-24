@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MARKET_PLANS_KEY, MAX_NEXT_STEP_LENGTH, buildMarketPlanExport, createMarketPlans, parseMarketPlans, setMarketQuestionSaved, updateMarketNextStep } from '../src/services/marketPlans.ts';
+import { MARKET_PLANS_KEY, MAX_NEXT_STEP_LENGTH, buildMarketPlanExport, createMarketPlans, parseMarketPlans, parseResearchFinding, sameResearchFinding, serializeMarketPlans, setMarketFinding, setMarketQuestionSaved, updateMarketNextStep } from '../src/services/marketPlans.ts';
 
 const EDITED = '2026-10-28T09:00:00.000Z';
 
@@ -58,7 +58,7 @@ test('bounded personal notes retain line breaks and remain separate from evidenc
   assert.equal(state.notes.vietnam.nextStep.length, MAX_NEXT_STEP_LENGTH);
   assert.ok(state.notes.vietnam.nextStep.includes('\n'));
   assert.deepEqual(state.questions, {});
-  for (const input of [null, undefined, false, [], { version: 2, notes: {} }]) assert.deepEqual(parseMarketPlans(input), createMarketPlans());
+  for (const input of [null, undefined, false, [], { version: 3, notes: { vietnam: { nextStep: 'Unsupported format' } } }]) assert.deepEqual(parseMarketPlans(input), createMarketPlans());
 });
 
 test('legacy notes survive adding and removing city research questions, including after reload', () => {
@@ -106,4 +106,93 @@ test('repeating save or remove preserves other research questions and personal n
   const removed = setMarketQuestionSaved(saved, 'singapore', 'location', false);
   assert.equal(setMarketQuestionSaved(removed, 'singapore', 'location', false), removed);
   assert.deepEqual(removed, state);
+});
+
+test('finding requires meaningful text, preserves user-entered citation and refuses corrupt date or source', () => {
+  assert.deepEqual(parseResearchFinding({ text: '  Follow up with the supplier.  ' }), {
+    text: 'Follow up with the supplier.', source: '', observedOn: null,
+  });
+  const finding = parseResearchFinding({ text: 'a'.repeat(1601), source: 'z'.repeat(401), observedOn: '2024-02-29' });
+  assert.equal(finding.text.length, 1600);
+  assert.equal(finding.source.length, 400);
+  assert.equal(finding.observedOn, '2024-02-29');
+  for (const date of ['2023-02-29', '2024-02-30', '0000-12-01', '2024-3-1', 1709251200000]) {
+    assert.equal(parseResearchFinding({ text: 'Call notes', observedOn: date }), null);
+  }
+  for (const raw of [{ text: '  \n ' }, { source: 'Site visit' }, { text: 'Call', source: [] }, { text: 'Call', source: null }]) {
+    assert.equal(parseResearchFinding(raw), null);
+  }
+  assert.deepEqual(parseResearchFinding({ text: 'Quote\nvalid for seven days', source: ' Jess, in person ', observedOn: '' }), {
+    text: 'Quote\nvalid for seven days', source: 'Jess, in person', observedOn: null,
+  });
+  assert.equal(sameResearchFinding(finding, { ...finding }), true);
+  assert.equal(sameResearchFinding(finding, { ...finding, observedOn: null }), false);
+});
+
+test('a saved finding survives reload and blocks question removal until explicitly cleared', () => {
+  const note = 'Compare the lease terms before committing.';
+  let plans = updateMarketNextStep(createMarketPlans(), 'singapore', note, EDITED);
+  const finding = { text: 'Received a dated quote for the pilot site.', source: 'Site manager, written quote', observedOn: '2024-11-05' };
+  assert.equal(setMarketFinding(plans, 'singapore', 'location', finding), plans);
+  plans = setMarketQuestionSaved(plans, 'singapore', 'location', true);
+  plans = setMarketFinding(plans, 'singapore', 'location', finding);
+  const reloaded = parseMarketPlans(JSON.parse(JSON.stringify(plans)));
+  assert.deepEqual(reloaded, plans);
+  assert.equal(setMarketFinding(reloaded, 'singapore', 'location', { ...finding, observedOn: '2024-04-31' }), reloaded);
+  assert.equal(setMarketFinding(reloaded, 'singapore', 'location', finding), reloaded);
+  assert.equal(setMarketQuestionSaved(reloaded, 'singapore', 'location', false), reloaded);
+
+  const exportRow = buildMarketPlanExport(reloaded, ['singapore'], EDITED).markets[0];
+  assert.deepEqual(exportRow.savedResearchQuestions[0].userFinding, { kind: 'user-entered-research-finding', ...finding });
+  assert.equal(exportRow.userNextStep, note);
+  assert.equal(exportRow.sources.sourceContentsVerified, false);
+  const cleared = setMarketFinding(reloaded, 'singapore', 'location', null);
+  assert.deepEqual(cleared.findings, {});
+  assert.deepEqual(cleared.questions.singapore, ['location']);
+  assert.equal(buildMarketPlanExport(cleared, ['singapore'], EDITED).markets[0].savedResearchQuestions[0].userFinding, null);
+  assert.deepEqual(setMarketQuestionSaved(cleared, 'singapore', 'location', false).questions, {});
+});
+
+test('storage retains only known, saved questions and exports findings only for selected markets', () => {
+  const oldState = { version: 1, questions: { thailand: ['customers', 'setup'], malaysia: ['location'] } };
+  const restored = parseMarketPlans(oldState);
+  assert.deepEqual(restored.findings, {});
+  const market = buildMarketPlanExport(restored, ['thailand'], EDITED).markets[0];
+  assert.ok(market.savedResearchQuestions.every(q => q.userFinding === null));
+
+  const siteVisit = { text: 'Site notes', source: '', observedOn: null };
+  const privateNote = { text: 'Separate confidential visit', source: 'my notes', observedOn: null };
+  const malformed = parseMarketPlans({ ...oldState, findings: {
+    thailand: { customers: siteVisit, setup: {text: 'Bad date', observedOn: '2023-02-31'}, bogus: siteVisit, location: privateNote },
+    malaysia: { location: privateNote },
+    unsupported: { setup: siteVisit },
+    indonesia: { setup: siteVisit },
+  } });
+  assert.deepEqual(malformed.findings, { thailand: { customers: siteVisit }, malaysia: { location: privateNote } });
+  const onlyThailand = buildMarketPlanExport(malformed, ['thailand'], EDITED);
+  assert.equal(JSON.stringify(onlyThailand).includes(privateNote.text), false);
+  assert.match(onlyThailand.limitation, /citations and observation dates are user-entered/);
+});
+
+test('storage and exports use v2 only when the persisted or selected content includes a finding', () => {
+  const legacy = { version: 1, notes: { thailand: { nextStep: 'Ask for current quotes.', updatedAt: EDITED } } };
+  let plans = parseMarketPlans(legacy);
+  assert.equal(serializeMarketPlans(plans).version, 1);
+  plans = setMarketQuestionSaved(plans, 'singapore', 'location', true);
+  assert.equal(buildMarketPlanExport(plans, ['singapore'], EDITED).version, 1);
+
+  plans = setMarketFinding(plans, 'singapore', 'location', { text: 'Site visit notes', source: 'Visit', observedOn: null });
+  const persisted = serializeMarketPlans(plans);
+  assert.equal(persisted.version, 2);
+  const restored = parseMarketPlans(JSON.parse(JSON.stringify(persisted)));
+  assert.deepEqual(restored, plans);
+  assert.equal(buildMarketPlanExport(restored, ['thailand', 'singapore'], EDITED).version, 2);
+  assert.equal(buildMarketPlanExport(restored, ['thailand'], EDITED).version, 1);
+  assert.equal(buildMarketPlanExport(restored, [], EDITED).version, 1);
+
+  const cleared = setMarketFinding(restored, 'singapore', 'location', null);
+  const backToV1 = serializeMarketPlans(cleared);
+  assert.equal(backToV1.version, 1);
+  assert.deepEqual(parseMarketPlans(backToV1).notes, legacy.notes);
+  assert.equal(serializeMarketPlans({ ...cleared, findings: { thailand: { setup: { text: 'Orphan' } } } }).version, 1);
 });

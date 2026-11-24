@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildMarketPlanExport, createMarketPlans, MAX_NEXT_STEP_LENGTH, setMarketQuestionSaved, setMarketScenario, updateMarketNextStep } from '../src/services/marketPlans.ts';
+import { MARKETS } from '../src/data/marketCatalog.ts';
+import { buildMarketPlanExport, createMarketPlans, MAX_NEXT_STEP_LENGTH, MAX_FINDING_TEXT_LENGTH, MAX_FINDING_SOURCE_LENGTH, setMarketFinding, setMarketQuestionSaved, setMarketScenario, updateMarketNextStep } from '../src/services/marketPlans.ts';
 import { MAX_RESTORE_BYTES, parseMarketPlanFile, previewMarketPlanRestore } from '../src/services/marketPlanRestore.ts';
 
 const id = 'new-zealand';
@@ -20,6 +21,7 @@ function planFile(rows) {
 test('a full market plan file round trips using catalog links, canonical questions and recalculated results', () => {
   const original = plannedMarket();
   const file = buildMarketPlanExport(original, [id, 'singapore'], date);
+  assert.equal(file.version, 1);
   const row = file.markets.find(m => m.id === id);
   row.country = 'File-provided country label';
   row.sources.businessSetup = { name: 'Untrusted', url: 'https://untrusted.invalid' };
@@ -33,7 +35,7 @@ test('a full market plan file round trips using catalog links, canonical questio
   assert.equal(restored.changed, true);
   assert.deepEqual(restored.plans, original);
   assert.deepEqual(restored.effects.find(x => x.marketId === id), {
-    marketId: id, addToShortlist: true, note: 'add', scenario: 'add', addedQuestions: 1,
+    marketId: id, addToShortlist: true, note: 'add', scenario: 'add', addedQuestions: 1, findings: {},
   });
   const output = buildMarketPlanExport(restored.plans, restored.countries, date);
   assert.deepEqual(output, buildMarketPlanExport(original, [id, 'singapore'], date));
@@ -55,7 +57,7 @@ test('restore preserves local notes and worksheets, unions saved lenses and can 
   assert.deepEqual(result.plans.scenarios, local.scenarios);
   assert.deepEqual(result.plans.questions[id], ['customers', 'setup']);
   assert.deepEqual(result.effects.find(x => x.marketId === id), {
-    marketId: id, addToShortlist: false, note: 'keep-local', scenario: 'keep-local', addedQuestions: 1,
+    marketId: id, addToShortlist: false, note: 'keep-local', scenario: 'keep-local', addedQuestions: 1, findings: {},
   });
   const again = previewMarketPlanRestore(result.plans, result.countries, draft);
   assert.equal(again.changed, false);
@@ -95,10 +97,85 @@ test('skips duplicate, unsupported and malformed entries and invalid fields with
 
 test('rejects unsupported documents and enforces the file limit in UTF-8 bytes', () => {
   for (const text of ['not json', 'null', '{}', '[]', '{"version":1,"contentType":"historical-country-snapshot-and-source-directory","markets":[]}',
-    '{"version":2,"contentType":"user-market-plan-and-source-directory","markets":[]}', planFile(null), planFile([]), planFile([{ id: 'missing' }])]) {
+    planFile(null), planFile([]), planFile([{ id: 'missing' }])]) {
     assert.throws(() => parseMarketPlanFile(text));
+  }
+  for (const version of [3, '2', null]) {
+    assert.throws(() => parseMarketPlanFile(JSON.stringify({ version, contentType: 'user-market-plan-and-source-directory', markets: [{id}] })), /unsupported/);
   }
   const oversized = 'ä'.repeat(MAX_RESTORE_BYTES / 2 + 1);
   assert.ok(oversized.length < MAX_RESTORE_BYTES);
-  assert.throws(() => parseMarketPlanFile(oversized), /256 KiB/);
+  assert.throws(() => parseMarketPlanFile(oversized), /1 MiB/);
+});
+
+
+test('restores personal findings per saved lens and preserves local findings on conflict', () => {
+  const fromFile = {text: 'File note A', source: 'Interview A', observedOn: '2026-08-10'};
+  const second = {text: 'File note B', source: '', observedOn: null};
+  const existing = {...fromFile, source: 'Interview C', observedOn: null};
+  let incoming = plannedMarket();
+  for (const [lens, finding] of [['setup', fromFile], ['location', second]]) {
+    incoming = setMarketQuestionSaved(incoming, id, lens, true);
+    incoming = setMarketFinding(incoming, id, lens, finding);
+  }
+  const file = buildMarketPlanExport(incoming, [id], date);
+  assert.equal(file.version, 2);
+  assert.equal(buildMarketPlanExport(incoming, ['thailand'], date).version, 1);
+  file.markets[0].savedResearchQuestions[0].sources = [{url: 'https://untrusted.invalid/fabricated-directory'}];
+  const draft = parseMarketPlanFile(JSON.stringify(file));
+  assert.deepEqual(draft.warnings, []);
+  assert.deepEqual(draft.plans, incoming);
+  const local = setMarketFinding(plannedMarket(), id, 'setup', existing);
+  const before = structuredClone(local);
+  const merged = previewMarketPlanRestore(local, [id], draft);
+  assert.deepEqual(merged.effects[0].findings, {setup: 'keep-local', location: 'add'});
+  assert.deepEqual(merged.plans.findings[id], {setup: existing, location: second});
+  assert.deepEqual(local, before);
+  const again = previewMarketPlanRestore(merged.plans, merged.countries, draft);
+  assert.equal(again.changed, false);
+  assert.equal(again.plans, merged.plans);
+  assert.deepEqual(again.effects[0].findings, {setup: 'keep-local', location: 'same'});
+  assert.ok(!JSON.stringify(buildMarketPlanExport(again.plans, [id])).includes('untrusted.invalid'));
+});
+
+test('only recognized questions can import tagged, valid findings; old files with no finding stay valid', () => {
+  const question = (lens, userFinding) => ({ lens, kind: 'unverified-research-prompt', userFinding });
+  const finding = {kind: 'user-entered-research-finding', text: 'A saved answer', source: 'Interview', observedOn: null};
+  for (const invalid of [
+    { ...finding, kind: 'official-guidance' }, { ...finding, text: '' }, { ...finding, source: {} },
+    { ...finding, text: 'x'.repeat(MAX_FINDING_TEXT_LENGTH + 1) }, { ...finding, observedOn: '2026-02-30' },
+  ]) {
+    const draft = parseMarketPlanFile(planFile([{ id, savedResearchQuestions: [question('setup', invalid)] }]));
+    assert.deepEqual(draft.plans.questions[id], ['setup']);
+    assert.deepEqual(draft.plans.findings, {});
+    assert.match(draft.warnings.join(' '), /invalid.*finding/);
+  }
+  const draft = parseMarketPlanFile(planFile([{ id, savedResearchQuestions: [
+    question('setup'), question('location', null), question('__proto__', finding),
+    { ...question('customers', finding), kind: 'unrecognized-prompt' },
+  ] }]));
+  assert.deepEqual(draft.plans.questions[id], ['setup', 'location']);
+  assert.deepEqual(draft.plans.findings, {});
+  assert.deepEqual(parseMarketPlanFile(planFile([{ id, savedResearchQuestions: [question('setup')] }])).warnings, []);
+});
+
+test('all markets with full-size international and JSON-escaped personal entries fit the restore limit', () => {
+  const text = limit => '\u0000界'.repeat(Math.ceil(limit / 2)).slice(0, limit);
+  let plans = createMarketPlans();
+  for (const market of MARKETS) {
+    plans = updateMarketNextStep(plans, market.id, text(MAX_NEXT_STEP_LENGTH), date);
+    for (const lens of ['customers', 'location', 'setup']) {
+      plans = setMarketQuestionSaved(plans, market.id, lens, true);
+      plans = setMarketFinding(plans, market.id, lens, {
+        text: text(MAX_FINDING_TEXT_LENGTH), source: text(MAX_FINDING_SOURCE_LENGTH), observedOn: null,
+      });
+    }
+  }
+  const ids = MARKETS.map(m => m.id);
+  const exported = JSON.stringify(buildMarketPlanExport(plans, ids, date), null, 2);
+  assert.ok(Buffer.byteLength(exported) > 256 * 1024);
+  assert.ok(Buffer.byteLength(exported) <= MAX_RESTORE_BYTES);
+  const draft = parseMarketPlanFile(exported);
+  assert.deepEqual(draft.warnings, []);
+  assert.deepEqual(draft.plans, plans);
 });

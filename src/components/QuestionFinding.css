@@ -1,0 +1,46 @@
+.question-finding {
+  min-width: 0;
+  border-top: 1px solid var(--mph-border);
+  color: var(--mph-text);
+  overflow-wrap: anywhere;
+}
+.qf-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; padding: 12px 0 6px; }
+.question-finding h4 { font-size: 14px; font-weight: 650; line-height: 1.4; margin: 0; }
+.qf-heading small, .qf-feedback, .qf-conflict small { color: var(--mph-muted); font-size: 12px; line-height: 1.5; }
+.qf-text { white-space: pre-wrap; }
+.qf-citation { display: grid; gap: 6px; margin: 9px 0 3px; font-size: 12px; line-height: 1.5; }
+.qf-citation>div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px; }
+.qf-citation dt { color: var(--mph-muted); }
+.qf-citation dd { margin: 0; min-width: 0; }
+.qf-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0 14px; }
+.question-finding button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px;
+  background: transparent; color: var(--mph-blue); font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.question-finding .qf-secondary { color: var(--mph-muted); }
+.question-finding button:hover:enabled { text-decoration: underline; text-underline-offset: 3px; }
+.qf-form { display: grid; gap: 5px; padding-bottom: 6px; }
+.qf-form label { color: var(--mph-text); font-size: 13px; line-height: 1.5; }
+.qf-form input, .qf-form textarea {
+  display: block; width: 100%; min-width: 0; min-height: 44px; margin: 0 0 5px; padding: 9px 11px;
+  border: 1px solid var(--mph-border); border-radius: 7px; background: var(--mph-panel); color: var(--mph-text);
+  font: inherit; font-size: 16px; line-height: 1.5;
+}
+.qf-form textarea { resize: vertical; }
+.qf-form input::placeholder { color: var(--mph-muted); opacity: 1; }
+.qf-form input:focus-visible { outline: 2px solid var(--mph-teal); outline-offset: 3px; }
+.qf-form input[type=date] { color-scheme: dark; }
+.light .qf-form input[type=date] { color-scheme: light; }
+.question-finding .qf-primary, .question-finding .qf-delete {
+  border: 1px solid var(--mph-border); border-radius: 8px; padding: 7px 12px; background: var(--mph-panel);
+}
+.question-finding .qf-primary { color: white; background: #245caa; border-color: #5087ce; }
+.question-finding .qf-delete { color: #ffb7b7; }
+.light .question-finding .qf-delete { color: #982e34; }
+.question-finding button:disabled { cursor: default; opacity: .55; }
+.qf-removal>h4 { margin: 12px 0 6px; }
+.qf-conflict { margin-top: 6px; padding: 10px 12px 0; border-inline-start: 2px solid var(--mph-teal); background: var(--mph-panel); }
+.qf-conflict small, .qf-conflict button { display: block; }
+.qf-feedback:not(:empty) { display: block; margin: 4px 0; }
+.qf-date-note { display: block; font-size: 12px; line-height: 1.5; color: var(--mph-muted); }

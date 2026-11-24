@@ -626,6 +626,8 @@ export default function App() {
   }
   const isNotebook = route === '#/plan/notebook';
   const worksheetId = /^#\/plan\/worksheet\/([a-z-]+)$/.exec(route)?.[1];
+  const question = /^#\/plan\/question\/([a-z-]+)\/(customers|location|setup)$/.exec(route);
+  const focusTarget = worksheetId ? `break-even-${worksheetId}` : question && `question-${question[1]}-${question[2]}`;
   return <div className={isNotebook ? 'min-h-screen flow-planner-shell' : 'flow-explore-shell'}>
     <Header
       onLogoClick={() => { window.location.hash = '/research'; }}
@@ -633,6 +635,6 @@ export default function App() {
       onAnalyticsClick={() => { window.location.hash = '/research/analytics'; }}
       onEnterpriseIntelligenceClick={() => { window.location.hash = '/research/enterprise-intelligence'; }}
     />
-    {isNotebook ? <EntryPlanner /> : <MarketPlanHub onRestore={restorePlan} shortlistSaved={shortlist.saved} worksheetId={worksheetId} planSession={planSession} selectedCountries={selectedCountries} />}
+    {isNotebook ? <EntryPlanner /> : <MarketPlanHub onRestore={restorePlan} shortlistSaved={shortlist.saved} focusTarget={focusTarget} planSession={planSession} selectedCountries={selectedCountries} />}
   </div>;
 }

@@ -143,6 +143,7 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
         const [source, premisesSource] = getCityQuestionSources(market, cityLens);
         const selected = selectedCountries.includes(market.id);
         const saved = planSession.plans.questions[market.id]?.includes(cityLens) ?? false;
+        const hasFinding = Boolean(planSession.plans.findings[market.id]?.[cityLens]);
         let saveLabel = saved ? 'Saved to plan' : 'Save question';
         if (!selected) saveLabel = saved ? 'Restore market to plan' : 'Shortlist & save';
         return <article className="mr-city" id={`city-research-${market.id}`} tabIndex={-1} aria-labelledby={`city-name-${market.id}`} key={market.id}>
@@ -155,14 +156,14 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
             {premisesSource && <SourceLink url={premisesSource.url} label={premisesSource.name}><span>{premisesSource.name}<small>Premises & address enquiries · discovery link</small></span></SourceLink>}
           </div>
           {guide && <div className="mr-question-actions">
-            <button type="button" className="mr-save-question" aria-pressed={selected && saved} onClick={() => {
+            {!(selected && hasFinding) && <button type="button" className="mr-save-question" aria-pressed={selected && saved} onClick={() => {
               if (!selected) onIncludeMarket(market.id);
               planSession.setQuestionSaved(market.id, cityLens, !selected || !saved);
             }}>
               {saved && selected ? <Check size={16} aria-hidden="true" /> : <Bookmark size={16} aria-hidden="true" />}
               {saveLabel}
-            </button>
-            {selected && saved && <a href="#/plan" className="mr-text-button">View plan <ArrowRight size={14} aria-hidden="true" /></a>}
+            </button>}
+            {selected && saved && <a href={`#/plan/question/${market.id}/${cityLens}`} className="mr-text-button">{hasFinding ? 'View finding in plan' : 'Add finding in plan'} <ArrowRight size={14} aria-hidden="true" /></a>}
           </div>}
         </article>;
       })}</div>

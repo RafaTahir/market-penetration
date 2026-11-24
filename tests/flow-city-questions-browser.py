@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from flow_coverage import MARKETS
 from playwright.sync_api import expect, sync_playwright
 
 BASE = os.environ.get("FLOW_TEST_URL", "http://127.0.0.1:4173").rstrip("/")
@@ -51,7 +52,7 @@ def run_journey(browser, width, storage_blocked):
     comparison.get_by_text("Choose markets", exact=True).click()
     expect(search).to_have_value("")
     expect(page.locator("#explore-markets")).to_be_focused()
-    expect(page.locator(".market-country-card")).to_have_count(7)
+    expect(page.locator(".market-country-card")).to_have_count(len(MARKETS))
     comparison.get_by_role("button", name="Close market comparison").click()
 
     page.get_by_role("button", name="City Analysis", exact=True).click()

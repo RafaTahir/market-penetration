@@ -10,6 +10,10 @@ const scenes: Record<string, { sky: string; glow: string; accent: string; buildi
   philippines: { sky: '#173b53', glow: '#437a9c', accent: '#8cdbed', buildings: [[10, 72, 21, 43], [42, 44, 23, 71], [76, 61, 24, 54], [250, 58, 24, 57], [285, 34, 21, 81], [317, 69, 20, 46]] },
   vietnam: { sky: '#353049', glow: '#a2647e', accent: '#f0b4c5', buildings: [[10, 72, 23, 43], [43, 52, 25, 63], [78, 67, 23, 48], [246, 52, 23, 63], [281, 69, 25, 46], [317, 45, 22, 70]] },
   australia: { sky: '#163a52', glow: '#ba845f', accent: '#ffdda5', buildings: [[7, 86, 14, 29], [27, 77, 13, 38], [47, 84, 17, 31], [273, 64, 16, 51], [296, 42, 18, 73], [322, 69, 20, 46]] },
+  'new-zealand': {
+    sky: '#11394b', glow: '#697d9e', accent: '#abe6d4',
+    buildings: [[17, 91, 17, 24], [43, 82, 14, 33], [96, 85, 16, 30], [117, 72, 13, 43], [162, 79, 19, 36], [194, 70, 15, 45], [220, 76, 21, 39], [312, 83, 18, 32]],
+  },
 };
 
 function Landmark({ marketId }: { marketId: string }) {
@@ -36,6 +40,19 @@ function Landmark({ marketId }: { marketId: string }) {
         <path d="M158 106L150 82Q169 85 182 104ZM179 105Q178 79 165 57Q197 66 210 102ZM204 104Q209 72 226 51Q231 76 222 104ZM221 104Q240 82 259 80Q250 95 239 104Z" fill="#efe4c7" />
         <path d="M157 85L177 102M173 64L202 101M224 58L213 101M251 84L228 102" fill="none" stroke="#b89d7b" strokeWidth="1.2" />
         <path d="M147 104H253L246 112H157ZM153 113H255" />
+      </g>;
+    case 'new-zealand':
+      return <g>
+        {/* Auckland's observation tower above the waterfront and ferry wharves. */}
+        <g transform="translate(0 24) scale(1 .79)">
+          <path d="M138 113L143 77L144 66H142L138 62V59L142 57H144V52L146 50V36H147L148 24L149 36H150V50L152 52V57H154L158 59V62L154 66H152L153 77L158 113Z" fill="#c7e3dc" />
+          <path d="M139 60H157M143 64H153M147 69V108" fill="none" stroke="#426573" strokeWidth="1.4" />
+        </g>
+        <path d="M245 111V96H257L263 87H269V81H275V87H280L286 96H305V111Z" />
+        <path d="M247 97H303M253 102V110M260 102V110M283 102V110M291 102V110M298 102V110" className="market-scene-detail" />
+        <path d="M54 104H92L86 110H61Z" fill="#163e4e" />
+        <path d="M73 101L74 72L58 101ZM77 79L88 101H77Z" fill="#d6ebe3" />
+        <path d="M73 103L75 69" fill="none" stroke="#c9e8de" strokeWidth="1" />
       </g>;
     default:
       return null;

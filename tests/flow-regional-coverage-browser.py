@@ -5,11 +5,14 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from flow_coverage import MARKETS
 from playwright.sync_api import expect, sync_playwright
 
 BASE = os.environ.get("FLOW_TEST_URL", "http://127.0.0.1:4173").rstrip("/")
 ARTIFACTS = Path(os.environ.get("FLOW_TEST_ARTIFACTS", "/tmp/flow-regional-coverage"))
 AUS_2023 = {"population": 26659922, "gdpUsd": 1723827215334.7063}
+NZL_2023 = {"population": 5200000, "gdpUsd": 253465703232.14594}
+AUCKLAND_PROMPT = "Which Auckland premises work for your deliveries and staff?"
 CITY_PROMPT = "Which federal, NSW and council questions apply to this activity?"
 NOTE = "Prior-release test note on comparing Singapore premises."
 
@@ -39,8 +42,9 @@ def run(browser, width, theme):
         return selector.get_by_role("button", name=re.compile(rf"^{name}\b", re.I))
     cards = page.locator(".market-country-card")
     australia = cards.filter(has=page.get_by_role("heading", name="Australia", exact=True))
+    new_zealand = cards.filter(has=page.get_by_role("heading", name="New Zealand", exact=True))
     expect(region("All regions")).to_have_attribute("aria-pressed", "true")
-    expect(cards).to_have_count(7)
+    expect(cards).to_have_count(len(MARKETS))
     region("Southeast Asia").click()
     expect(cards).to_have_count(6)
     search = page.get_by_label("Search markets or cities", exact=True)
@@ -59,54 +63,83 @@ def run(browser, width, theme):
     city.get_by_role("button", name="Save question", exact=True).click()
     expect(city.get_by_text("Saved to plan", exact=True)).to_be_visible()
 
+    search.fill("Auckland")
+    expect(cards).to_have_count(1)
+    expect(new_zealand).to_contain_text("2023 historical snapshot")
+    new_zealand.get_by_role("button", name="Add New Zealand to shortlist and explore", exact=True).click()
+    auckland = page.locator("#city-research-new-zealand")
+    expect(auckland).to_be_focused()
+    expect(auckland).to_contain_text("Auckland region")
+    page.get_by_role("group", name="City research lens").get_by_role("button", name="Location", exact=True).click()
+    expect(auckland).to_contain_text(AUCKLAND_PROMPT)
+    auckland.get_by_role("button", name="Save question", exact=True).click()
+    expect(auckland.get_by_text("Saved to plan", exact=True)).to_be_visible()
+
     search.fill("")
+    expect(cards).to_have_count(2)
+    expect(australia.get_by_role("button", name="Deselect Australia", exact=True)).to_have_attribute("aria-pressed", "true")
+    expect(new_zealand.get_by_role("button", name="Deselect New Zealand", exact=True)).to_have_attribute("aria-pressed", "true")
     region("Southeast Asia").click()
-    expect(page.get_by_text("Your shortlist includes 1 market outside Southeast Asia.", exact=True)).to_be_visible()
+    expect(page.get_by_text("Your shortlist includes 2 markets outside Southeast Asia.", exact=True)).to_be_visible()
     expect(australia).to_have_count(0)
     page.get_by_role("button", name=re.compile("^Compare markets")).click()
     comparison = page.locator("#market-comparison")
-    for name in ("Australia", "Singapore"):
+    for name in ("Australia", "New Zealand", "Singapore"):
         expect(comparison.get_by_role("columnheader").filter(has_text=name)).to_have_count(1)
     expect(comparison.get_by_role("row", name=re.compile("^Region"))).to_contain_text("Oceania")
     expect(comparison.get_by_role("row", name=re.compile("^Nominal GDP change"))).to_contain_text("+17.4%")
+    expect(comparison.get_by_role("row", name=re.compile("^Nominal GDP change"))).to_contain_text("+25.9%")
     with page.expect_download() as download:
         comparison.get_by_role("button", name="Export shortlist", exact=True).click()
     exported = json.loads(download.value.path().read_text())
     by_country = {row["countryCode"]: row for row in exported["historicalSnapshot"]["observations"]}
-    assert set(by_country) == {"AUS", "SGP"}
+    assert set(by_country) == {"AUS", "NZL", "SGP"}
     aus = by_country["AUS"]
     assert all(aus[key] == value for key, value in AUS_2023.items())
     assert [point["year"] for point in aus["gdpSeries"]] == list(range(2014, 2024))
     assert aus["nominalGdpChangePercent"] == 17.4
     assert aus["gdpSeries"][0]["value"] == 1468597690006.215
     assert aus["gdpSeries"][-1]["value"] == AUS_2023["gdpUsd"]
+    nzl = by_country["NZL"]
+    assert all(nzl[key] == value for key, value in NZL_2023.items())
+    assert nzl["nominalGdpChangePercent"] == 25.9
+    assert [point["year"] for point in nzl["gdpSeries"]] == list(range(2014, 2024))
+    assert nzl["gdpSeries"][0]["value"] == 201337554959.48953
+    assert nzl["gdpSeries"][-1]["value"] == NZL_2023["gdpUsd"]
     assert exported["historicalSnapshot"]["provenance"]["observationYear"] == 2023
     page.screenshot(path=str(ARTIFACTS / f"comparison-{width}.png"))
     comparison.get_by_role("link", name="Plan these markets", exact=True).click()
     au_plan = page.locator('.mph-market[data-market="australia"]')
     expect(au_plan.get_by_text(CITY_PROMPT, exact=True)).to_be_visible()
+    nz_plan = page.locator('.mph-market[data-market="new-zealand"]')
+    expect(nz_plan.get_by_text(AUCKLAND_PROMPT, exact=True)).to_be_visible()
     page.reload(wait_until="networkidle")
     with page.expect_download() as download:
         page.get_by_role("button", name="Export market plan", exact=True).click()
     plan = json.loads(download.value.path().read_text())
     by_market = {item["id"]: item for item in plan["markets"]}
-    assert set(by_market) == {"australia", "singapore"}
+    assert set(by_market) == {"australia", "new-zealand", "singapore"}
     assert by_market["australia"]["region"] == "Oceania"
     assert by_market["singapore"]["region"] == "Southeast Asia"
     assert by_market["singapore"]["userNextStep"] == NOTE
     question, = by_market["australia"]["savedResearchQuestions"]
     assert question["kind"] == "unverified-research-prompt" and question["question"] == CITY_PROMPT
     assert {source["url"] for source in question["sources"]} == {"https://business.gov.au/", "https://www.cityofsydney.nsw.gov.au/"}
+    nz_question, = by_market["new-zealand"]["savedResearchQuestions"]
+    assert by_market["new-zealand"]["region"] == "Oceania"
+    assert nz_question["kind"] == "unverified-research-prompt" and nz_question["question"] == AUCKLAND_PROMPT
+    assert [source["url"] for source in nz_question["sources"]] == ["https://www.aucklandcouncil.govt.nz/"]
     assert plan["detailedNotebookCoverage"] == ["Jakarta province, excluding Greater Jakarta", "City of Manila, excluding the rest of Metro Manila"]
 
     page.get_by_role("link", name="Explore markets", exact=True).last.click()
     page.get_by_role("button", name="Deselect Singapore", exact=True).click()
     region("Oceania").click()
-    expect(cards).to_have_count(1)
+    expect(cards).to_have_count(2)
     page.get_by_role("button", name="View unverified reference examples", exact=True).click()
     archive_scope = page.get_by_role("status").filter(has_text="Reference examples cover Southeast Asia only")
     expect(archive_scope).to_be_visible()
     expect(archive_scope).to_contain_text("Australia")
+    expect(archive_scope).to_contain_text("New Zealand")
     expect(page.locator(".reference-research")).to_have_count(0)
     expect(page.get_by_role("heading", name="Reference report studio", exact=True)).to_have_count(0)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
@@ -122,4 +155,4 @@ with sync_playwright() as playwright:
         run(browser, 390, "dark")
     finally:
         browser.close()
-print("PASS: cross-region search/shortlist, AU national observations, Sydney guidance, prior notes, exported sources and legacy coverage on desktop and phone")
+print("PASS: cross-region search/shortlist, Australian and New Zealand national observations, Sydney and Auckland guidance, prior notes, exported sources and legacy coverage on desktop and phone")

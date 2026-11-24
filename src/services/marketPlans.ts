@@ -1,6 +1,8 @@
 import { MARKETS, type MarketGuide } from '../data/marketCatalog.ts';
 import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides.ts';
 
+import { calculateMarketEconomics, ECONOMICS_LIMITATION, ECONOMICS_METHOD, parseMarketEconomics, type MarketEconomicsInputs } from './marketEconomics.ts';
+
 /** Personal planning notes are independent of the scored city notebook. */
 export const MARKET_PLANS_KEY = 'flow-market-plans-v1';
 export const MAX_NEXT_STEP_LENGTH = 2000;
@@ -14,13 +16,14 @@ export interface MarketNextStep {
 export interface MarketPlansState {
   version: 1;
   notes: Partial<Record<string, MarketNextStep>>;
+  scenarios: Partial<Record<string, MarketEconomicsInputs>>;
   questions: Partial<Record<string, CityResearchLens[]>>;
 }
 
 const supportedMarkets = new Set(MARKETS.map(market => market.id));
 
 export function createMarketPlans(): MarketPlansState {
-  return { version: 1, notes: {}, questions: {} };
+  return { version: 1, notes: {}, questions: {}, scenarios: {} };
 }
 
 function isSupportedQuestion(marketId: string, lens: unknown): lens is CityResearchLens {
@@ -59,6 +62,13 @@ export function parseMarketPlans(value: unknown): MarketPlansState {
       if (lenses.length) result.questions[marketId] = [...new Set(lenses)];
     }
   }
+  if ('scenarios' in value && value.scenarios && typeof value.scenarios === 'object') {
+    for (const [marketId, raw] of Object.entries(value.scenarios)) {
+      if (!supportedMarkets.has(marketId)) continue;
+      const inputs = parseMarketEconomics(raw);
+      if (inputs) result.scenarios[marketId] = inputs;
+    }
+  }
   return result;
 }
 
@@ -82,6 +92,31 @@ export function setMarketQuestionSaved(state: MarketPlansState, marketId: string
   return { ...state, questions };
 }
 
+export function setMarketScenario(state: MarketPlansState, marketId: string, inputs: MarketEconomicsInputs | null): MarketPlansState {
+  if (!supportedMarkets.has(marketId)) return state;
+  const scenarios = { ...state.scenarios };
+  if (inputs === null) {
+    if (!scenarios[marketId]) return state;
+    delete scenarios[marketId];
+  } else {
+    const draft = parseMarketEconomics(inputs);
+    if (!draft) return state;
+    scenarios[marketId] = draft;
+  }
+  return { ...state, scenarios };
+}
+
+function exportScenario(inputs: MarketEconomicsInputs | undefined) {
+  if (!inputs) return null;
+  return {
+    kind: 'user-entered-break-even-scenario',
+    inputs,
+    result: calculateMarketEconomics(inputs),
+    method: ECONOMICS_METHOD,
+    limitation: ECONOMICS_LIMITATION,
+  };
+}
+
 export function buildMarketPlanExport(state: MarketPlansState, selectedCountries: readonly string[], exportedAt = new Date().toISOString()) {
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
   const plans = parseMarketPlans(state);
@@ -98,6 +133,7 @@ export function buildMarketPlanExport(state: MarketPlansState, selectedCountries
       countryCode: market.countryCode,
       cityResearchStartingPoint: market.city,
       userNextStep: plans.notes[market.id]?.nextStep ?? '',
+      breakEvenScenario: exportScenario(plans.scenarios[market.id]),
       noteEditedAt: plans.notes[market.id]?.updatedAt ?? null,
       savedResearchQuestions: (plans.questions[market.id] ?? []).map(lens => ({
         lens,

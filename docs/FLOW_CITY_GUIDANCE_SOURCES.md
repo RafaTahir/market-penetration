@@ -15,6 +15,7 @@ Each city uses the existing `src/data/marketCatalog.ts` directories. The Custome
 | Manila | https://manila.gov.ph/ | City of Manila versus other Metro Manila cities; confirm the entity-registration route rather than assuming DTI covers every structure |
 | Ho Chi Minh City | https://hochiminhcity.gov.vn/ | Confirm current address jurisdiction and the boundary/observation period used by a dataset or older page |
 | Sydney | https://www.cityofsydney.nsw.gov.au/ | Check an ABS table’s statistical geography and period, the actual premises council, and the federal, NSW or council contact for the activity |
+| Auckland | https://www.aucklandcouncil.govt.nz/ | Compare Stats NZ regional, urban and smaller-area boundaries to the customer catchment. Check the council for the premises and the national route for the proposed business structure. |
 
 These are research questions and directory labels, not newly verified administrative or regulatory findings. In particular, the Ho Chi Minh City cards ask readers to check current geography rather than assert an older boundary or a specific reform date.
 
@@ -26,3 +27,6 @@ The visible city section therefore says **“Research guidance, not verified fin
 
 
 On 2026-11-24, the cloud proxy returned HTTP 403 on CONNECT for the Australian Government business portal, Australian Bureau of Statistics and City of Sydney, including a second attempt with approved network escalation. These are directory links. No portal content, publication date, legal requirement or current applicability was verified. Sydney’s customer and premises prompts distinguish the City of Sydney council area from the broader Greater Sydney geography.
+
+
+The cloud proxy also blocked CONNECT requests to New Zealand’s government business portal, Stats NZ and Auckland Council with HTTP 403 before any pages loaded. An approved network retry produced the same result. These directories are starting points for Auckland research. Their publication dates, contents and current applicability remain unverified.

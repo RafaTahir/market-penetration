@@ -67,6 +67,13 @@ export const MARKETS: readonly MarketGuide[] = [
     statistics: { name: 'Australian Bureau of Statistics', url: 'https://www.abs.gov.au/' },
     cityPortal: { name: 'City of Sydney', url: 'https://www.cityofsydney.nsw.gov.au/' },
   },
+  {
+    region: 'Oceania',
+    id: 'new-zealand', name: 'New Zealand', flag: '🇳🇿', city: 'Auckland', countryCode: 'NZL',
+    setup: { name: 'New Zealand Government business portal', url: 'https://www.business.govt.nz/' },
+    statistics: { name: 'Stats NZ', url: 'https://www.stats.govt.nz/' },
+    cityPortal: { name: 'Auckland Council', url: 'https://www.aucklandcouncil.govt.nz/' },
+  },
 ];
 
 export function filterMarketGuides(markets: readonly MarketGuide[], query: string, region?: MarketRegion): MarketGuide[] {

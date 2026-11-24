@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import type { MarketEconomicsInputs } from '../services/marketEconomics';
 import type { CityResearchLens } from '../data/cityResearchGuides';
 import {
   createMarketPlans, MARKET_PLANS_KEY, parseMarketPlans,
-  setMarketQuestionSaved, updateMarketNextStep, type MarketPlansState,
+  setMarketQuestionSaved, setMarketScenario, updateMarketNextStep, type MarketPlansState,
 } from '../services/marketPlans';
 
 function loadPlans() {
@@ -45,6 +46,7 @@ export function useMarketPlans() {
     ...snapshot,
     setQuestionSaved: (marketId: string, lens: CityResearchLens, saved: boolean) =>
       edit(state => setMarketQuestionSaved(state, marketId, lens, saved)),
+    saveScenario: (marketId: string, inputs: MarketEconomicsInputs | null) => edit(state => setMarketScenario(state, marketId, inputs)),
     saveNote: (marketId: string, text: string) => edit(state => updateMarketNextStep(state, marketId, text)),
   };
 }

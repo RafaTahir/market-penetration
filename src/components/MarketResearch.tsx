@@ -84,6 +84,28 @@ function IndustryDirectories({ markets }: { markets: readonly MarketGuide[] }) {
   </details>;
 }
 
+function CostWorksheetLink({ markets, shortlisted, onIncludeMarket }: {
+  markets: readonly MarketGuide[];
+  shortlisted: readonly string[];
+  onIncludeMarket: (id: string) => void;
+}) {
+  const [choice, setChoice] = useState('');
+  const market = markets.find(item => item.id === choice) ?? markets[0];
+  if (!market) return null;
+  const included = shortlisted.includes(market.id);
+  return <div className="mr-worksheet-start">
+    <label>Model costs for
+      <select value={market.id} onChange={event => setChoice(event.target.value)}>
+        {markets.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+      </select>
+    </label>
+    <button type="button" className="mr-text-button" onClick={() => {
+      if (!included) onIncludeMarket(market.id);
+      window.location.hash = `/plan/worksheet/${market.id}`;
+    }}>{included ? 'Open break-even worksheet' : 'Shortlist & open worksheet'} <ArrowRight size={14} aria-hidden="true" /></button>
+  </div>;
+}
+
 function Scope({ markets, all }: { markets: readonly MarketGuide[]; all: boolean }) {
   return <div className="mr-scope"><span>{all ? 'All markets' : 'Your shortlist'}</span><div>{markets.map(market => <span key={market.id} title={market.name} aria-label={market.name}>{market.flag}</span>)}</div></div>;
 }
@@ -172,6 +194,7 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
             <dt>Evidence to collect</dt><dd>{fieldwork.evidence}</dd>
             <dt>Decision to make</dt><dd>{fieldwork.decision}</dd>
           </dl>
+          {angle.id === 'costs' && <CostWorksheetLink markets={markets} shortlisted={selectedCountries} onIncludeMarket={onIncludeMarket} />}
         </details>;
       })}</div>
       <IndustryDirectories markets={markets} />

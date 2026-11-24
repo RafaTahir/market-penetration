@@ -9,13 +9,13 @@ import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from flow_coverage import MARKETS
 from playwright.sync_api import expect, sync_playwright
 
 BASE = os.environ.get('FLOW_TEST_URL', 'http://127.0.0.1:4173').rstrip('/')
 ARTIFACTS = Path(os.environ.get('FLOW_TEST_ARTIFACTS', '/workspace/scratch/flow-polish/after'))
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 MODES = ['Market Overview', 'City Analysis', 'Industry Deep Dive', 'Market Intelligence', 'Case Studies', 'Data Visualization']
-COUNTRIES = ['thailand', 'singapore', 'malaysia', 'indonesia', 'philippines', 'vietnam', 'australia']
 ERRORS, EXTERNAL, RESULTS = [], [], []
 
 
@@ -53,10 +53,10 @@ with sync_playwright() as playwright:
                 page.on('pageerror', lambda error: ERRORS.append(str(error)))
                 page.goto(BASE, wait_until='networkidle')
                 expect(page.locator('html')).to_have_class(theme)
-                expect(page.locator('.market-country-card')).to_have_count(7)
-                expect(page.locator('.market-country-card>.market-scene')).to_have_count(7)
+                expect(page.locator('.market-country-card')).to_have_count(len(MARKETS))
+                expect(page.locator('.market-country-card>.market-scene')).to_have_count(len(MARKETS))
                 expect(page.locator('.market-country-card>.market-scene').first).to_have_attribute('aria-hidden', 'true')
-                for country in COUNTRIES:
+                for country, _, _ in MARKETS:
                     card = page.locator(f'.market-country-card[data-market="{country}"]')
                     expect(card.locator('.market-snapshot-label')).to_have_text('2023 historical snapshot')
                     expect(card.locator('.market-gdp-trend')).to_contain_text('2014–2023 · US$')

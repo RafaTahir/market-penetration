@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Globe2, Info, MapPin, PenLine, X } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
 import { MAX_NEXT_STEP_LENGTH, buildMarketPlanExport, getCityQuestionSources } from '../services/marketPlans';
+import MarketEconomicsWorksheet from './MarketEconomicsWorksheet';
 import MarketScene from './visual/MarketScene';
 import type { MarketPlanSession } from '../hooks/useMarketPlans';
 import { CITY_RESEARCH_GUIDES } from '../data/cityResearchGuides';
@@ -9,15 +10,30 @@ import './MarketPlanHub.css';
 
 interface MarketPlanHubProps {
   planSession: MarketPlanSession;
+  worksheetId?: string;
   selectedCountries: string[];
 }
 
-export default function MarketPlanHub({ selectedCountries, planSession }: MarketPlanHubProps) {
-  const { plans, savedLocally, saveNote, setQuestionSaved } = planSession;
+export default function MarketPlanHub({ selectedCountries, planSession, worksheetId }: MarketPlanHubProps) {
+  const { plans, savedLocally, saveNote, saveScenario, setQuestionSaved } = planSession;
   const [exportMessage, setExportMessage] = useState('');
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
   const hasNotes = Object.keys(plans.notes).length > 0;
   const hasQuestions = Object.keys(plans.questions).length > 0;
+
+  let saveStatus = 'Next steps save on this browser';
+  if (Object.keys(plans.scenarios).length) saveStatus = 'Worksheets saved on this browser';
+  if (hasQuestions) saveStatus = 'Research questions saved on this browser';
+  if (hasNotes) saveStatus = 'Next steps saved on this browser';
+
+  useEffect(() => {
+    if (!worksheetId) return;
+    const target = document.getElementById(`break-even-${worksheetId}`);
+    if (!(target instanceof HTMLDetailsElement)) return;
+    target.open = true;
+    target.querySelector('summary')?.focus({ preventScroll: true });
+    target.scrollIntoView({ behavior: 'instant', block: 'start' });
+  }, [worksheetId]);
 
   function exportPlan() {
     const payload = buildMarketPlanExport(plans, selectedCountries);
@@ -27,7 +43,7 @@ export default function MarketPlanHub({ selectedCountries, planSession }: Market
     anchor.download = 'flow-market-plan.json';
     anchor.click();
     URL.revokeObjectURL(url);
-    setExportMessage('Market plan exported with your selected markets, notes, saved questions and source limitations.');
+    setExportMessage('Market plan exported with your selected markets, notes, saved questions, worksheets and source limitations.');
   }
 
   return <main className="market-plan-hub">
@@ -38,7 +54,7 @@ export default function MarketPlanHub({ selectedCountries, planSession }: Market
     </header>
     <div className="mph-plan-status">
       <span><Globe2 size={16} aria-hidden="true" />{markets.length} {markets.length === 1 ? 'market' : 'markets'} in your shortlist</span>
-      <span role="status">{savedLocally ? <><Check size={15} aria-hidden="true" />{hasNotes ? 'Next steps saved on this browser' : hasQuestions ? 'Research questions saved on this browser' : 'Next steps save on this browser'}</> : <><Info size={15} aria-hidden="true" />Session only · export before reloading</>}</span>
+      <span role="status">{savedLocally ? <><Check size={15} aria-hidden="true" />{saveStatus}</> : <><Info size={15} aria-hidden="true" />Session only · export before reloading</>}</span>
     </div>
     {markets.length > 0 && <p className="mph-directory-status"><Info size={14} aria-hidden="true" />Official-source directory · contents unverified · publication dates unknown</p>}
 
@@ -81,6 +97,14 @@ export default function MarketPlanHub({ selectedCountries, planSession }: Market
               <summary>All research sources<ChevronDown size={15} aria-hidden="true" /></summary>
               {directory}
             </details> : directory}
+            <MarketEconomicsWorksheet
+              market={market}
+              scenario={plans.scenarios[market.id]}
+              onChange={next => {
+                saveScenario(market.id, next);
+                setExportMessage('');
+              }}
+            />
             <details className="mph-next-step">
               <summary><PenLine size={16} aria-hidden="true" /><span>Your next step{note && <small>Note saved</small>}</span><ChevronDown size={15} aria-hidden="true" /></summary>
               <label htmlFor={`next-step-${market.id}`}>Your next step for {market.name}</label>
@@ -93,7 +117,7 @@ export default function MarketPlanHub({ selectedCountries, planSession }: Market
       })}
     </section> : <section className="mph-empty" aria-labelledby="market-plan-empty-title"><Globe2 size={36} aria-hidden="true" /><h2 id="market-plan-empty-title">Choose the markets for your plan.</h2><p>Your shortlist is empty. Explore the region and select the markets you want to research.</p><a className="mph-primary" href="#/research">Choose markets<ArrowRight size={17} aria-hidden="true" /></a></section>}
 
-    <details className="mph-source-details"><summary><Info size={16} aria-hidden="true" />About these research links & notes<ChevronDown size={15} aria-hidden="true" /></summary><p>These are curated official-directory links, not verified current requirements. Page contents, publication dates and applicability to your activity or address have not been verified. Source publication dates are unknown. Your next-step notes are personal planning notes; they do not become evidence or preparation scores in the city notebook.</p><p>Notes and saved research questions stay with their market when you change your shortlist. Select the market again to see them. Session-only notes survive navigation in this app but require an export before a page reload. Export includes the currently selected markets.</p></details>
+    <details className="mph-source-details"><summary><Info size={16} aria-hidden="true" />About these research links & notes<ChevronDown size={15} aria-hidden="true" /></summary><p>These are curated official-directory links, not verified current requirements. Page contents, publication dates and applicability to your activity or address have not been verified. Source publication dates are unknown. Your next-step notes are personal planning notes; they do not become evidence or preparation scores in the city notebook.</p><p>Notes, saved questions and worksheet assumptions stay with their market when you change your shortlist. Select the market again to see them. Session-only notes survive navigation in this app but require an export before a page reload. Export includes the currently selected markets.</p></details>
 
     <section className="mph-notebook" aria-labelledby="city-notebook-title"><span className="mph-notebook-icon"><BookOpen size={27} aria-hidden="true" /></span><div><span className="mph-eyebrow">DETAILED PREPARATION</span><h2 id="city-notebook-title">Your city notebook is still here.</h2><p>Documented preparation assessments currently cover <strong>Jakarta province and the City of Manila</strong>. Existing research, scores and exports stay in that notebook; opening it does not change your market shortlist.</p></div><a className="mph-primary" href="#/plan/notebook">Open city notebook<ArrowRight size={17} aria-hidden="true" /></a></section>
     <p className="mph-feedback" role="status">{exportMessage}</p>

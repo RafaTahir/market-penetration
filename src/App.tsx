@@ -544,7 +544,7 @@ function ResearchWorkspace({ route, planSession, selectedCountries, setSelectedC
     <main className="explorer-main">
       <section className="explorer-hero" aria-labelledby="explorer-title">
         <div className="explorer-hero-copy">
-          <div className="explorer-eyebrow"><span /> SOUTHEAST ASIA & AUSTRALIA</div>
+          <div className="explorer-eyebrow"><span /> SOUTHEAST ASIA & OCEANIA</div>
           <h1 id="explorer-title">Find your next market.<br /><em>Make your move.</em></h1>
           <p>Explore countries, discover cities and understand what to research before you launch or expand.</p>
           <form className={`explorer-search${showSearch ? ' is-active' : ''}`} role="search" onSubmit={event => { event.preventDefault(); const results = document.getElementById('explore-markets'); results?.focus({ preventScroll: true }); results?.scrollIntoView({ behavior: 'instant', block: 'start' }); }}>
@@ -633,6 +633,7 @@ export default function App() {
     return <ResearchWorkspace planSession={planSession} route={route} selectedCountries={selectedCountries} setSelectedCountries={setSelectedCountries} shortlistSaved={shortlistSaved} initialView={initialView} initialAction={initialAction} />;
   }
   const isNotebook = route === '#/plan/notebook';
+  const worksheetId = /^#\/plan\/worksheet\/([a-z-]+)$/.exec(route)?.[1];
   return <div className={isNotebook ? 'min-h-screen flow-planner-shell' : 'flow-explore-shell'}>
     <Header
       onLogoClick={() => { window.location.hash = '/research'; }}
@@ -640,6 +641,6 @@ export default function App() {
       onAnalyticsClick={() => { window.location.hash = '/research/analytics'; }}
       onEnterpriseIntelligenceClick={() => { window.location.hash = '/research/enterprise-intelligence'; }}
     />
-    {isNotebook ? <EntryPlanner /> : <MarketPlanHub planSession={planSession} selectedCountries={selectedCountries} />}
+    {isNotebook ? <EntryPlanner /> : <MarketPlanHub worksheetId={worksheetId} planSession={planSession} selectedCountries={selectedCountries} />}
   </div>;
 }

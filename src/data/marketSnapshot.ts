@@ -145,4 +145,20 @@ export const MARKET_FUNDAMENTALS: Record<string, MarketFundamental> = {
       { year: 2023, value: 1723827215334.7063 },
     ],
   },
+  NZL: {
+    population: 5200000,
+    gdpUsd: 253465703232.14594,
+    gdpSeries: [
+      { year: 2014, value: 201337554959.48953 },
+      { year: 2015, value: 178104220784.8812 },
+      { year: 2016, value: 188898209220.16672 },
+      { year: 2017, value: 206566916732.2921 },
+      { year: 2018, value: 211846555690.7363 },
+      { year: 2019, value: 212846907683.439 },
+      { year: 2020, value: 212697530897.56036 },
+      { year: 2021, value: 253644079784.97665 },
+      { year: 2022, value: 246733522841.35272 },
+      { year: 2023, value: 253465703232.14594 },
+    ],
+  },
 };

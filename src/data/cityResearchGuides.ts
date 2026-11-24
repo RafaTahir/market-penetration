@@ -130,4 +130,21 @@ export const CITY_RESEARCH_GUIDES: Readonly<Record<string, CityResearchGuide>> =
       },
     },
   },
+  'new-zealand': {
+    scope: 'Auckland region · check the urban area and council boundary for each address',
+    prompts: {
+      customers: {
+        question: 'Which part of Auckland can your first customers reach?',
+        detail: 'Compare the suburbs inside your travel or delivery radius. Record whether a Stats NZ table describes the Auckland region, the urban area or a smaller statistical area, and when the observations were made.',
+      },
+      location: {
+        question: 'Which Auckland premises work for your deliveries and staff?',
+        detail: 'Start with two candidate addresses. Check the council boundary and ask Auckland Council about the proposed use where relevant. Compare access at operating hours, lease terms and actual supplier quotes.',
+      },
+      setup: {
+        question: 'Which setup questions depend on the New Zealand business structure or the Auckland site?',
+        detail: 'Take your proposed activity and ownership structure to the national business directory. Use the council directory to identify the contact for your exact address, and record the source and date for each answer.',
+      },
+    },
+  },
 };

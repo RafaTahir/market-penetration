@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, FileText, Globe2, Info, MapPin, PenLine, X } from 'lucide-react';
 import { MARKETS, getMarketDirectories } from '../data/marketCatalog';
-import { buildMarketPlanExport, MAX_NEXT_STEP_LENGTH, getCityQuestionSources } from '../services/marketPlans';
+import { buildMarketPlanExport, MAX_NEXT_STEP_LENGTH, getMarketQuestion } from '../services/marketPlans';
 import { downloadMarketPlan } from '../services/downloadMarketPlan';
 import type { RestoreDraft } from '../services/marketPlanRestore';
 import MarketPlanRestore from './MarketPlanRestore';
 import PlanBriefDialog, { type BriefPreview } from './PlanBriefDialog';
 import MarketEconomicsWorksheet from './MarketEconomicsWorksheet';
 import MonthlySalesComparison from './MonthlySalesComparison';
+import IndustryQuestionComparison from './IndustryQuestionComparison';
 import QuestionFinding from './QuestionFinding';
 import MarketScene from './visual/MarketScene';
 import type { MarketPlanSession } from '../hooks/useMarketPlans';
-import { CITY_RESEARCH_GUIDES } from '../data/cityResearchGuides';
 import './MarketPlanHub.css';
 
 interface MarketPlanHubProps {
@@ -115,6 +115,7 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
       <span role="status">{savedLocally && shortlistSaved ? <><Check size={15} aria-hidden="true" />{saveStatus}</> : <><Info size={15} aria-hidden="true" />Session only · export before reloading</>}</span>
     </div>
     <div role="status">{exportMessage && <p className="mph-file-feedback">{exportMessage}</p>}</div>
+    <IndustryQuestionComparison markets={markets} plans={plans} />
     {markets.length > 0 && <p className="mph-directory-status"><Info size={14} aria-hidden="true" />Official-source directory · contents unverified · publication dates unknown</p>}
 
     {markets.length ? <section className="mph-market-grid" aria-label="Selected market plans">
@@ -130,15 +131,16 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
             <div className="mph-market-title"><span className="mph-flag" aria-hidden="true">{market.flag}</span><div><h2 id={`market-plan-${market.id}`} tabIndex={-1}>{market.name}</h2><p><MapPin size={13} aria-hidden="true" />{market.city} · research starting point</p></div></div>
             {questions.length > 0 && <section className="mph-questions" aria-labelledby={`saved-questions-${market.id}`}>
               <h3 id={`saved-questions-${market.id}`}>Saved research questions</h3>
-              <ul>{questions.map(lens => {
-                const prompt = CITY_RESEARCH_GUIDES[market.id].prompts[lens];
-                const finding = plans.findings[market.id]?.[lens];
-                return <li key={lens} id={`question-${market.id}-${lens}`} tabIndex={-1} aria-label={prompt.question}>
+              <ul>{questions.map(id => {
+                const prompt = getMarketQuestion(market, id);
+                if (!prompt) return null;
+                const finding = plans.findings[market.id]?.[id];
+                return <li key={id} id={`question-${market.id}-${id}`} tabIndex={-1} aria-label={prompt.question}>
                   <div className="mph-question-heading">
-                    <span>{lens === 'customers' ? 'Customers' : lens === 'location' ? 'Location' : 'Setup'}</span>
+                    <span>{prompt.label}</span>
                     {!finding && <button type="button" aria-label={`Remove question: ${prompt.question}`} onClick={() => {
-                      const result = setQuestionSaved(market.id, lens, false);
-                      if (result.plans.findings[market.id]?.[lens]) {
+                      const result = setQuestionSaved(market.id, id, false);
+                      if (result.plans.findings[market.id]?.[id]) {
                         setExportMessage('This question has a finding. Clear the finding first to remove the question.');
                       } else {
                         setExportMessage('Question removed from your plan.');
@@ -147,10 +149,17 @@ export default function MarketPlanHub({ selectedCountries, planSession, focusTar
                     }}><X size={15} aria-hidden="true" /></button>}
                   </div>
                   <p>{prompt.question}</p>
-                  <div className="mph-question-sources">{getCityQuestionSources(market, lens).map(source =>
+                  {prompt.fieldwork && <details className="mph-fieldwork">
+                    <summary>Fieldwork guide</summary>
+                    <dl>
+                      <dt>Evidence to collect</dt><dd>{prompt.fieldwork.evidence}</dd>
+                      <dt>Decision to make</dt><dd>{prompt.fieldwork.decision}</dd>
+                    </dl>
+                  </details>}
+                  {prompt.sources.length > 0 && <div className="mph-question-sources">{prompt.sources.map(source =>
                     <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer">{source.name}<ArrowUpRight size={13} aria-hidden="true" /></a>
-                  )}</div>
-                  <QuestionFinding finding={finding} onSave={(expected, next) => planSession.saveFinding(market.id, lens, expected, next)} />
+                  )}</div>}
+                  <QuestionFinding finding={finding} onSave={(expected, next) => planSession.saveFinding(market.id, id, expected, next)} />
                 </li>;
               })}</ul>
             </section>}

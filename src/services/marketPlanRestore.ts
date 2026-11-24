@@ -1,12 +1,15 @@
-import { MARKETS } from '../data/marketCatalog.ts';
-import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides.ts';
+import { MARKETS, type MarketGuide } from '../data/marketCatalog.ts';
+import { getIndustryQuestion } from '../data/industryGuides.ts';
 import { parseMarketEconomics, type MarketEconomicsInputs } from './marketEconomics.ts';
 import {
-  createMarketPlans, MAX_NEXT_STEP_LENGTH, parseResearchFinding, sameResearchFinding, updateMarketNextStep,
-  MAX_FINDING_TEXT_LENGTH, MAX_FINDING_SOURCE_LENGTH, type MarketPlansState, type ResearchFinding,
+  createMarketPlans, getMarketQuestion, isCityQuestion, MAX_NEXT_STEP_LENGTH, parseResearchFinding, sameResearchFinding, updateMarketNextStep,
+  MAX_FINDING_TEXT_LENGTH, MAX_FINDING_SOURCE_LENGTH, type MarketPlansState, type MarketQuestionId,
 } from './marketPlans.ts';
 
-export const MAX_RESTORE_BYTES = 1024 * 1024;
+// Full-catalog exports can contain 507 findings; JSON may use six bytes per code unit.
+const MAX_RESTORE_MIB = 8;
+export const MAX_RESTORE_BYTES = MAX_RESTORE_MIB * 1024 * 1024;
+export const RESTORE_SIZE_ERROR = `Choose a plan file of ${MAX_RESTORE_MIB} MiB or less.`;
 
 export interface RestoreDraft {
   marketIds: string[];
@@ -22,7 +25,7 @@ export interface RestoreEffect {
   note: FieldEffect;
   scenario: FieldEffect | 'add-volume';
   addedQuestions: number;
-  findings: Partial<Record<CityResearchLens, Exclude<FieldEffect, 'none'>>>;
+  findings: Partial<Record<MarketQuestionId, Exclude<FieldEffect, 'none'>>>;
 }
 
 const marketsById = new Map(MARKETS.map(market => [market.id, market]));
@@ -31,44 +34,52 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function readQuestions(value: unknown, marketId: string, name: string, plans: MarketPlansState, warnings: Set<string>) {
+type QuestionSection = 'city' | 'industry';
+
+function readQuestionId(entry: Record<string, unknown>, section: QuestionSection, marketId: string): MarketQuestionId | undefined {
+  if (section === 'industry') {
+    return entry.kind === 'unverified-industry-research-prompt' ? getIndustryQuestion(entry.id)?.id : undefined;
+  }
+  if (entry.kind === 'unverified-research-prompt' && isCityQuestion(marketId, entry.lens)) return entry.lens;
+}
+
+function readQuestions(value: unknown, section: QuestionSection, market: MarketGuide, plans: MarketPlansState, warnings: Set<string>) {
   if (value === undefined) return; // Older files predate saved questions.
-  const unrecognized = `Skipped unrecognized research questions for ${name}.`;
+  const { id: marketId, name } = market;
+  const unrecognized = `Skipped unrecognized ${section === 'industry' ? 'industry' : 'research'} questions for ${name}.`;
   if (!Array.isArray(value)) { warnings.add(unrecognized); return; }
 
-  const lenses = new Set<CityResearchLens>();
-  const prompts = CITY_RESEARCH_GUIDES[marketId]?.prompts;
-  const findings: Partial<Record<CityResearchLens, ResearchFinding>> = {};
+  const questions = new Set(plans.questions[marketId]);
   for (const entry of value) {
-    if (!isRecord(entry) || entry.kind !== 'unverified-research-prompt' || typeof entry.lens !== 'string'
-      || !prompts || !Object.prototype.hasOwnProperty.call(prompts, entry.lens)) {
+    const id = isRecord(entry) ? readQuestionId(entry, section, marketId) : undefined;
+    if (!id) {
       warnings.add(unrecognized);
       continue;
     }
 
-    const lens = entry.lens as CityResearchLens;
-    lenses.add(lens);
+    questions.add(id);
     const raw = entry.userFinding;
     if (raw == null) continue;
     const finding = isRecord(raw) && raw.kind === 'user-entered-research-finding'
       && typeof raw.text === 'string' && raw.text.length <= MAX_FINDING_TEXT_LENGTH
       && !(typeof raw.source === 'string' && raw.source.length > MAX_FINDING_SOURCE_LENGTH)
       ? parseResearchFinding(raw) : null;
-    if (!finding) {
-      warnings.add(`Skipped an invalid ${name} ${lens} finding. The research question is still included.`);
-    } else if (!findings[lens]) {
-      findings[lens] = finding;
-    } else if (!sameResearchFinding(findings[lens], finding)) {
-      warnings.add(`Skipped a conflicting duplicate ${name} ${lens} finding. The first valid finding was used.`);
+    const previous = plans.findings[marketId]?.[id];
+    if (finding && !previous) {
+      (plans.findings[marketId] ??= {})[id] = finding;
+    } else if (!finding || !sameResearchFinding(previous, finding)) {
+      const label = section === 'industry' ? getMarketQuestion(market, id)?.label ?? 'industry research' : id;
+      warnings.add(!finding
+        ? `Skipped an invalid ${name} ${label} finding. The research question is still included.`
+        : `Skipped a conflicting duplicate ${name} ${label} finding. The first valid finding was used.`);
     }
   }
-  if (lenses.size) plans.questions[marketId] = [...lenses];
-  if (Object.keys(findings).length) plans.findings[marketId] = findings;
+  if (questions.size) plans.questions[marketId] = [...questions];
 }
 
 export function parseMarketPlanFile(text: string): RestoreDraft {
   if (text.length > MAX_RESTORE_BYTES || new TextEncoder().encode(text).length > MAX_RESTORE_BYTES) {
-    throw new Error('Choose a market plan smaller than or equal to 1 MiB.');
+    throw new Error(RESTORE_SIZE_ERROR);
   }
   let payload: unknown;
   try { payload = JSON.parse(text.replace(/^\uFEFF/, '')); }
@@ -76,7 +87,7 @@ export function parseMarketPlanFile(text: string): RestoreDraft {
   if (!isRecord(payload) || payload.contentType !== 'user-market-plan-and-source-directory') {
     throw new Error('Choose a JSON file created with Export market plan.');
   }
-  if (payload.version !== 1 && payload.version !== 2 && payload.version !== 3) throw new Error('This version of the market plan format is unsupported.');
+  if (payload.version !== 1 && payload.version !== 2 && payload.version !== 3 && payload.version !== 4) throw new Error('This version of the market plan format is unsupported.');
   if (!Array.isArray(payload.markets)) throw new Error('The file is missing its list of markets.');
 
   const marketIds: string[] = [];
@@ -89,7 +100,8 @@ export function parseMarketPlanFile(text: string): RestoreDraft {
       continue;
     }
     const id = row.id;
-    const name = marketsById.get(id)!.name;
+    const market = marketsById.get(id)!;
+    const name = market.name;
     if (marketIds.includes(id)) {
       warnings.add(`Skipped duplicate entries for ${name}. The first entry was used.`);
       continue;
@@ -109,7 +121,12 @@ export function parseMarketPlanFile(text: string): RestoreDraft {
       warnings.add(`Skipped the invalid or oversized ${name} note.`);
     }
 
-    readQuestions(row.savedResearchQuestions, id, name, plans, warnings);
+    readQuestions(row.savedResearchQuestions, 'city', market, plans, warnings);
+    if (payload.version === 4) {
+      readQuestions(row.savedIndustryQuestions, 'industry', market, plans, warnings);
+    } else if (row.savedIndustryQuestions !== undefined && !(Array.isArray(row.savedIndustryQuestions) && row.savedIndustryQuestions.length === 0)) {
+      warnings.add(`Skipped industry questions for ${name}. This file uses an older plan format.`);
+    }
 
     const scenario = row.breakEvenScenario;
     if (scenario != null) {

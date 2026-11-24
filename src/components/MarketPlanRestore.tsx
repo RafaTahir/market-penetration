@@ -1,10 +1,9 @@
 import { useId, useRef, useState, type ChangeEvent } from 'react';
 import { ChevronDown, Upload } from 'lucide-react';
 import { MARKETS } from '../data/marketCatalog';
-import { CITY_RESEARCH_GUIDES } from '../data/cityResearchGuides';
-import type { MarketPlansState, ResearchFinding } from '../services/marketPlans';
+import { getMarketQuestion, type MarketPlansState, type ResearchFinding } from '../services/marketPlans';
 import {
-  MAX_RESTORE_BYTES, parseMarketPlanFile, previewMarketPlanRestore, type RestoreDraft, type RestoreEffect,
+  MAX_RESTORE_BYTES, RESTORE_SIZE_ERROR, parseMarketPlanFile, previewMarketPlanRestore, type RestoreDraft, type RestoreEffect,
 } from '../services/marketPlanRestore';
 import './MarketPlanRestore.css';
 
@@ -66,12 +65,15 @@ function MarketPreview({ effect, draft, local }: { effect: RestoreEffect; draft:
       <summary>View file details <ChevronDown size={14} aria-hidden="true" /></summary>
       {note && <div className="mpr-field"><strong>Note in file</strong><p className="mpr-note">{note.nextStep}</p></div>}
       {questions.length > 0 && <div className="mpr-field"><strong>Research questions in file</strong>
-        <ul>{questions.map(lens => {
-          const incoming = draft.plans.findings[market.id]?.[lens];
-          const previous = local.findings[market.id]?.[lens];
-          const action = effect.findings[lens];
-          return <li key={lens}>
-            <p>{CITY_RESEARCH_GUIDES[market.id].prompts[lens].question}</p>
+        <ul>{questions.map(id => {
+          const question = getMarketQuestion(market, id);
+          if (!question) return null;
+          const incoming = draft.plans.findings[market.id]?.[id];
+          const previous = local.findings[market.id]?.[id];
+          const action = effect.findings[id];
+          return <li key={id}>
+            <small>{question.label}</small>
+            <p>{question.question}</p>
             {incoming && action && <>
               <span className="mpr-finding-action">{disposition(action, 'finding')}</span>
               <FindingDetails label="Personal finding in file" finding={incoming} />
@@ -118,7 +120,7 @@ export default function MarketPlanRestore({ plans, selectedCountries, onRestore 
     const version = readVersion.current;
     if (!file) return;
     if (file.size > MAX_RESTORE_BYTES) {
-      setError('Choose a plan file of 1 MiB or less.');
+      setError(RESTORE_SIZE_ERROR);
       return;
     }
     setReading(true);

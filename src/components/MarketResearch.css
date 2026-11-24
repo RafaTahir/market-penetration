@@ -108,9 +108,9 @@ html.light .mr-angle:nth-child(3) .mr-angle-icon { color: #7551b2; }
 .mr-angle summary:focus-visible { outline: 2px solid var(--mr-teal); outline-offset: 7px; }
 .mr-angle:has(summary:hover) { border-color: var(--mr-blue); }
 .mr-angle ul { list-style: none; margin: 19px 0 0; padding: 0; }
-.mr-angle li { display: flex; align-items: start; gap: 10px; font-size: 14px; line-height: 1.8; color: var(--mr-muted); }
-.mr-angle li+li { margin-top: 13px; }
-.mr-angle li>span:first-child { width: 4px; height: 4px; border-radius: 50%; background: var(--mr-blue); flex-shrink: 0; margin-top: 9px; }
+.mr-angle li { font-size: 14px; line-height: 1.65; color: var(--mr-text); }
+.mr-angle li+li { margin-top: 13px; padding-top: 14px; border-top: 1px solid var(--mr-border); }
+.mr-angle .mr-question-actions { justify-content: flex-start; margin-top: 7px; gap: 4px 14px; }
 .mr-insight-intro { display: flex; gap: 15px; padding: 20px 23px; border-left: 3px solid var(--mr-teal); background: var(--mr-soft); border-radius: 0 10px 10px 0; margin-bottom: 19px; }
 .mr-insight-intro>svg { flex-shrink: 0; color: var(--mr-teal); margin-top: 2px; }
 .mr-insight-intro h3 { font-size: 17px; font-weight: 600; letter-spacing: -.025em; }
@@ -244,15 +244,16 @@ html.light .mr-case:nth-child(3)>span { color: #7551b2; }
 .mr-industry-directories summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 12px 18px; cursor: pointer; list-style: none; color: var(--mr-blue); font-size: 14px; font-weight: 550; }
 .mr-industry-directories summary::-webkit-details-marker { display: none; }
 .mr-industry-directories[open] summary svg { transform: rotate(90deg); }
-.mr-industry-directories label { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 18px 14px; font-size: 13px; color: var(--mr-muted); }
-.mr-industry-directories select { min-height: 44px; padding: 6px 12px; background: var(--mr-raised); color: var(--mr-text); border: 1px solid var(--mr-border); border-radius: 6px; }
-.mr-industry-directories select:focus-visible { outline: 2px solid var(--mr-teal); outline-offset: 3px; }
+.mr-industry-market { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: 100%; }
+.mr-industry-market label { color: var(--mr-muted); font-size: 13px; }
+.mr-industry-market select { max-width: 100%; min-height: 44px; padding: 6px 12px; background: var(--mr-raised); color: var(--mr-text); border: 1px solid var(--mr-border); border-radius: 8px; font-size: 14px; }
+.mr-industry-market select:focus-visible { outline: 2px solid var(--mr-teal); outline-offset: 3px; }
+.market-research .mr-industry-feedback:not(:empty), .market-research .mr-industry-storage { margin-top: 12px; font-size: 13px; line-height: 1.65; color: var(--mr-muted); }
 .mr-directory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px),1fr)); gap: 12px; margin: 0 18px; }
 .mr-directory-grid>div { padding: 12px; border-radius: 8px; background: var(--mr-soft); }
 .mr-directory-grid small { display: block; color: var(--mr-muted); font-size: 12px; }
 .mr-directory-grid a { width: 100%; }
 .mr-industry-directories p { margin: 12px 18px 18px; color: var(--mr-muted); font-size: 12px; line-height: 1.6; }
 
-.mr-worksheet-start { display: grid; justify-items: start; gap: 6px; margin: 0 16px 12px; padding-top: 12px; border-top: 1px solid var(--mr-border); }
-.mr-worksheet-start label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--mr-muted); }
-.mr-worksheet-start select { min-height: 44px; padding: 5px; background: var(--mr-surface); color: var(--mr-text); border: 1px solid var(--mr-border); border-radius: 6px; }
+.mr-worksheet-start { display: grid; justify-items: start; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--mr-border); }
+.mr-worksheet-start>span { font-size: 12px; color: var(--mr-muted); }

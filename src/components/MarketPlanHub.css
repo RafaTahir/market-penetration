@@ -95,6 +95,11 @@ html.light .market-plan-hub { --mph-bg: #f2f6fb; --mph-panel: #fff; --mph-soft: 
 .mph-questions li:has(.qf-form) .mph-question-heading button { display: none; }
 .mph-questions li p { font-size: 14px; line-height: 1.5; margin: 0; }
 .mph-question-sources { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.mph-fieldwork { margin-top: 5px; font-size: 13px; }
+.mph-fieldwork summary { width: fit-content; padding-block: 12px; color: var(--mph-blue); font-weight: 600; cursor: pointer; }
+.mph-fieldwork dl { margin: 0 0 8px; line-height: 1.5; }
+.mph-fieldwork dt { margin-top: 6px; font-weight: 600; }
+.mph-fieldwork dd { margin: 2px 0 0; color: var(--mph-muted); }
 .mph-question-sources a { display: inline-flex; gap: 4px; align-items: center; min-height: 44px; color: var(--mph-blue); font-size: 12px; }
 .mph-source-directory { border-block: 1px solid var(--mph-border); }
 .mph-source-directory summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; cursor: pointer; color: var(--mph-blue); font-size: 13px; }

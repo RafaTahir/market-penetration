@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowRight, ArrowUpRight, BarChart3, Bookmark, BookOpen, Building2, Check, ChevronRight, Compass, Database, Factory, Globe2, MapPin, Package, Scale, Search, ShieldCheck, ShoppingBag, Smartphone, Truck, Users, UtensilsCrossed, Wallet } from 'lucide-react';
 import { MARKETS, type MarketGuide } from '../data/marketCatalog';
-import { INDUSTRIES, type ResearchAngle } from '../data/industryGuides';
+import { INDUSTRIES, INDUSTRY_ANGLE_LABELS, type IndustryQuestionId, type ResearchAngle } from '../data/industryGuides';
 import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides';
 import type { MarketPlanSession } from '../hooks/useMarketPlans';
 import { getCityQuestionDirectories } from '../services/marketPlans';
@@ -35,10 +35,10 @@ const INDUSTRY_ICONS = {
   logistics: Truck,
 };
 
-const ANGLES: readonly { id: ResearchAngle; title: string; icon: typeof Users; subtitle: string }[] = [
-  { id: 'demand', title: 'Customer & demand', icon: Users, subtitle: 'Find the first reason to buy' },
-  { id: 'costs', title: 'Cost & delivery', icon: Wallet, subtitle: 'Price a workable operating model' },
-  { id: 'setup', title: 'Setup & regulation', icon: Scale, subtitle: 'Identify what needs local review' },
+const ANGLES: readonly { id: ResearchAngle; icon: typeof Users; subtitle: string }[] = [
+  { id: 'demand', icon: Users, subtitle: 'Find the first reason to buy' },
+  { id: 'costs', icon: Wallet, subtitle: 'Price a workable operating model' },
+  { id: 'setup', icon: Scale, subtitle: 'Identify what needs local review' },
 ];
 
 const CITY_LENSES: readonly { id: CityLens; label: string; icon: typeof Users; question: string; detail: string }[] = [
@@ -64,17 +64,9 @@ function SourceLink({ url, children, className = '', label }: { url: string; chi
   return <a className={`mr-source-link ${className}`} aria-label={label} href={url} target="_blank" rel="noopener noreferrer">{children}<ArrowUpRight size={15} aria-hidden="true" /></a>;
 }
 
-function IndustryDirectories({ markets }: { markets: readonly MarketGuide[] }) {
-  const [chosenId, setChosenId] = useState('');
-  const market = markets.find(item => item.id === chosenId) ?? markets[0];
-  if (!market) return null;
+function IndustryDirectories({ market }: { market: MarketGuide }) {
   return <details className="mr-industry-directories">
-    <summary>Official sources by market <ChevronRight size={15} aria-hidden="true" /></summary>
-    <label>Research in
-      <select value={market.id} onChange={event => setChosenId(event.target.value)}>
-        {markets.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-      </select>
-    </label>
+    <summary>Official sources by market · {market.name} <ChevronRight size={15} aria-hidden="true" /></summary>
     <div className="mr-directory-grid">
       <div><small>Customer and industry statistics</small><SourceLink url={market.statistics.url}>{market.statistics.name}</SourceLink></div>
       {market.cityStatistics && <div><small>City datasets and geography</small><SourceLink url={market.cityStatistics.url}>{market.cityStatistics.name}</SourceLink></div>}
@@ -86,21 +78,13 @@ function IndustryDirectories({ markets }: { markets: readonly MarketGuide[] }) {
   </details>;
 }
 
-function CostWorksheetLink({ markets, shortlisted, onIncludeMarket }: {
-  markets: readonly MarketGuide[];
-  shortlisted: readonly string[];
+function CostWorksheetLink({ market, included, onIncludeMarket }: {
+  market: MarketGuide;
+  included: boolean;
   onIncludeMarket: (id: string) => void;
 }) {
-  const [choice, setChoice] = useState('');
-  const market = markets.find(item => item.id === choice) ?? markets[0];
-  if (!market) return null;
-  const included = shortlisted.includes(market.id);
   return <div className="mr-worksheet-start">
-    <label>Model costs for
-      <select value={market.id} onChange={event => setChoice(event.target.value)}>
-        {markets.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-      </select>
-    </label>
+    <span>{market.name} · cost worksheet</span>
     <button type="button" className="mr-text-button" onClick={() => {
       if (!included) onIncludeMarket(market.id);
       window.location.hash = `/plan/worksheet/${market.id}`;
@@ -118,13 +102,34 @@ function SourceScope() {
 
 export default function MarketResearch({ mode, selectedCountries, planSession, onIncludeMarket, onPlan, onReference, onCompare, onOpenData, onOpenReports }: MarketResearchProps) {
   const [industryId, setIndustryId] = useState('technology');
+  const [industryMarketId, setIndustryMarketId] = useState('');
+  const [industryFeedback, setIndustryFeedback] = useState('');
   const [cityLens, setCityLens] = useState<CityLens>('customers');
   const [insightLens, setInsightLens] = useState<InsightLens>('setup');
   const markets = selectedCountries.length ? MARKETS.filter(market => selectedCountries.includes(market.id)) : MARKETS;
+  const industryMarket = MARKETS.find(market => market.id === industryMarketId) ?? markets[0] ?? MARKETS[0];
+  const included = selectedCountries.includes(industryMarket.id);
   const industry = INDUSTRIES.find(item => item.id === industryId)!;
   const IndustryIcon = INDUSTRY_ICONS[industry.id];
   const currentCityLens = CITY_LENSES.find(item => item.id === cityLens)!;
   const currentInsightLens = INSIGHT_LENSES.find(item => item.id === insightLens)!;
+
+  function saveIndustryQuestion(questionId: IndustryQuestionId, save: boolean) {
+    if (!included) onIncludeMarket(industryMarket.id);
+    const result = planSession.setQuestionSaved(industryMarket.id, questionId, save);
+    const saved = result.plans.questions[industryMarket.id]?.includes(questionId) ?? false;
+    if (!save && saved) {
+      setIndustryFeedback(`Your finding keeps this question in the ${industryMarket.name} plan.`);
+    } else {
+      setIndustryFeedback(saved
+        ? `Question saved to your ${industryMarket.name} plan.`
+        : `Question removed from your ${industryMarket.name} plan.`);
+    }
+  }
+
+  function marketOptions(options: readonly MarketGuide[]) {
+    return options.map(market => <option key={market.id} value={market.id}>{market.name}</option>);
+  }
 
   return <div className={`market-research market-research-${mode}`}>
     {mode === 'overview' && <>
@@ -175,11 +180,24 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
     </>}
 
     {mode === 'industries' && <>
-      <div className="mr-section-heading"><div><span className="mr-eyebrow">START WITH YOUR BUSINESS MODEL</span><h2>Different industries. Different questions.</h2></div><Scope markets={markets} all={!selectedCountries.length} /></div>
+      <div className="mr-section-heading"><div><span className="mr-eyebrow">START WITH YOUR BUSINESS MODEL</span><h2>Different industries. Different questions.</h2></div>
+        <div className="mr-industry-market">
+          <label htmlFor="mr-industry-market">Research in</label>
+          <select id="mr-industry-market" value={industryMarket.id} onChange={event => {
+            setIndustryMarketId(event.target.value);
+            setIndustryFeedback('');
+          }}>
+            {selectedCountries.length ? <>
+              <optgroup label="Your shortlist">{marketOptions(markets)}</optgroup>
+              {markets.length < MARKETS.length && <optgroup label="Other markets">{marketOptions(MARKETS.filter(market => !selectedCountries.includes(market.id)))}</optgroup>}
+            </> : marketOptions(MARKETS)}
+          </select>
+        </div>
+      </div>
       <div className="mr-industry-tabs" role="group" aria-label="Choose an industry">
         {INDUSTRIES.map(item => {
           const Icon = INDUSTRY_ICONS[item.id];
-          return <button key={item.id} aria-pressed={industry.id === item.id} onClick={() => setIndustryId(item.id)}>
+          return <button key={item.id} aria-pressed={industry.id === item.id} onClick={() => { setIndustryId(item.id); setIndustryFeedback(''); }}>
             <Icon size={17} aria-hidden="true" />{item.shortName}
           </button>;
         })}
@@ -190,19 +208,40 @@ export default function MarketResearch({ mode, selectedCountries, planSession, o
         return <details className="mr-angle" key={angle.id}>
           <summary>
             <span className="mr-angle-icon"><angle.icon size={19} aria-hidden="true" /></span>
-            <span className="mr-angle-summary-text"><strong>{angle.title}</strong><small>{angle.subtitle}</small></span>
+            <span className="mr-angle-summary-text"><strong>{INDUSTRY_ANGLE_LABELS[angle.id]}</strong><small>{angle.subtitle}</small></span>
             <ChevronRight size={15} aria-hidden="true" />
           </summary>
-          <ul>{fieldwork.questions.map(question => <li key={question}><span aria-hidden="true" /><span>{question}</span></li>)}</ul>
+          <ul>{fieldwork.questions.map(question => {
+            const saved = planSession.plans.questions[industryMarket.id]?.includes(question.id) ?? false;
+            const hasFinding = Boolean(planSession.plans.findings[industryMarket.id]?.[question.id]);
+            let saveLabel = saved ? 'Saved to plan' : 'Save question';
+            if (!included) saveLabel = saved ? 'Restore market to plan' : 'Shortlist & save';
+            return <li key={question.id} data-question={question.id}>
+              <p id={question.id}>{question.text}</p>
+              <div className="mr-question-actions">
+                {!(included && hasFinding) && <button type="button" className="mr-save-question" aria-pressed={included && saved}
+                  aria-describedby={question.id} title={included && saved ? 'Remove this question from your plan' : undefined}
+                  onClick={() => saveIndustryQuestion(question.id, !included || !saved)}>
+                  {included && saved ? <Check size={15} aria-hidden="true" /> : <Bookmark size={15} aria-hidden="true" />}{saveLabel}
+                </button>}
+                {included && saved && <a className="mr-text-button" aria-describedby={question.id}
+                  href={`#/plan/question/${industryMarket.id}/${question.id}`}>
+                  {hasFinding ? 'View finding in plan' : 'Open in plan'} <ArrowRight size={14} aria-hidden="true" />
+                </a>}
+              </div>
+            </li>;
+          })}</ul>
           <dl className="mr-fieldwork">
             <dt>Evidence to collect</dt><dd>{fieldwork.evidence}</dd>
             <dt>Decision to make</dt><dd>{fieldwork.decision}</dd>
           </dl>
-          {angle.id === 'costs' && <CostWorksheetLink markets={markets} shortlisted={selectedCountries} onIncludeMarket={onIncludeMarket} />}
+          {angle.id === 'costs' && <CostWorksheetLink market={industryMarket} included={included} onIncludeMarket={onIncludeMarket} />}
         </details>;
       })}</div>
-      <IndustryDirectories markets={markets} />
-      <div className="mr-inline-action"><span>Turn these questions into a market comparison.</span><button className="mr-text-button" onClick={onCompare}>Compare your shortlist <ArrowRight size={14} aria-hidden="true" /></button></div>
+      <p className="mr-industry-feedback" role="status">{industryFeedback}</p>
+      {!planSession.savedLocally && <p className="mr-industry-storage" role="status">Your plan is available in this session. Export it before reloading.</p>}
+      <IndustryDirectories market={industryMarket} />
+      <div className="mr-inline-action"><span>Historical country figures and official sources</span><button className="mr-text-button" onClick={onCompare}>Compare your shortlist <ArrowRight size={14} aria-hidden="true" /></button></div>
     </>}
 
     {mode === 'insights' && <>

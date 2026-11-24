@@ -161,7 +161,7 @@ def model(browser, width):
         button(page, "Select United Kingdom").click()
         button(page, "Industry Deep Dive").click()
         page.locator("summary").filter(has_text="Cost & delivery").click()
-        page.get_by_role("combobox", name="Model costs for").select_option("uk")
+        page.get_by_role("combobox", name="Research in", exact=True).select_option("uk")
         button(page, "Open break-even worksheet").click()
         expect(page).to_have_url(BASE + "/#/plan/worksheet/uk")
         uk = page.locator("#break-even-uk")

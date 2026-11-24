@@ -1,5 +1,6 @@
 import { MARKETS, type MarketGuide } from '../data/marketCatalog.ts';
 import { CITY_RESEARCH_GUIDES, type CityResearchLens } from '../data/cityResearchGuides.ts';
+import { getIndustryQuestion, INDUSTRY_ANGLE_LABELS, type IndustryQuestionId, type ResearchAngle } from '../data/industryGuides.ts';
 
 import { calculateMarketEconomics, calculateMonthlySales, ECONOMICS_LIMITATION, ECONOMICS_METHOD, parseMarketEconomics, SALES_LIMITATION, SALES_METHOD, type MarketEconomicsInputs } from './marketEconomics.ts';
 
@@ -16,7 +17,8 @@ export interface ResearchFinding {
   observedOn: string | null;
 }
 
-type MarketFindings = Partial<Record<CityResearchLens, ResearchFinding>>;
+export type MarketQuestionId = CityResearchLens | IndustryQuestionId;
+type MarketFindings = Partial<Record<MarketQuestionId, ResearchFinding>>;
 
 export function parseResearchFinding(value: unknown): ResearchFinding | null {
   if (!value || typeof value !== 'object' || !('text' in value) || typeof value.text !== 'string') return null;
@@ -48,7 +50,7 @@ export interface MarketPlansState {
   version: 1;
   notes: Partial<Record<string, MarketNextStep>>;
   scenarios: Partial<Record<string, MarketEconomicsInputs>>;
-  questions: Partial<Record<string, CityResearchLens[]>>;
+  questions: Partial<Record<string, MarketQuestionId[]>>;
   findings: Partial<Record<string, MarketFindings>>;
 }
 
@@ -58,10 +60,14 @@ export function createMarketPlans(): MarketPlansState {
   return { version: 1, notes: {}, questions: {}, scenarios: {}, findings: {} };
 }
 
-function isSupportedQuestion(marketId: string, lens: unknown): lens is CityResearchLens {
+export function isCityQuestion(marketId: string, lens: unknown): lens is CityResearchLens {
   if (!supportedMarkets.has(marketId) || typeof lens !== 'string') return false;
   const guide = CITY_RESEARCH_GUIDES[marketId];
   return Boolean(guide && Object.prototype.hasOwnProperty.call(guide.prompts, lens));
+}
+
+function isSupportedQuestion(marketId: string, id: unknown): id is MarketQuestionId {
+  return isCityQuestion(marketId, id) || (supportedMarkets.has(marketId) && getIndustryQuestion(id) !== undefined);
 }
 
 export function getCityQuestionDirectories(market: MarketGuide, lens: CityResearchLens) {
@@ -81,15 +87,44 @@ export function getCityQuestionSources(market: MarketGuide, lens: CityResearchLe
   return getCityQuestionDirectories(market, lens).map(entry => entry.source);
 }
 
+function getIndustryQuestionSources(market: MarketGuide, angle: ResearchAngle) {
+  if (angle === 'costs') return [];
+  return getCityQuestionSources(market, angle === 'demand' ? 'customers' : 'setup').map(source => ({ ...source }));
+}
+
+interface MarketQuestion {
+  label: string;
+  question: string;
+  sources: MarketGuide['setup'][];
+  fieldwork?: { evidence: string; decision: string };
+}
+
+const cityLensLabels: Record<CityResearchLens, string> = { customers: 'Customers', location: 'Location', setup: 'Setup' };
+
+export function getMarketQuestion(market: MarketGuide, id: unknown): MarketQuestion | undefined {
+  if (!supportedMarkets.has(market.id)) return undefined;
+  if (isCityQuestion(market.id, id)) {
+    return { label: cityLensLabels[id], question: CITY_RESEARCH_GUIDES[market.id].prompts[id].question, sources: getCityQuestionSources(market, id) };
+  }
+  const prompt = getIndustryQuestion(id);
+  if (!prompt) return undefined;
+  return {
+    label: `${prompt.industryName} · ${INDUSTRY_ANGLE_LABELS[prompt.angle]}`,
+    question: prompt.question,
+    sources: getIndustryQuestionSources(market, prompt.angle),
+    fieldwork: { evidence: prompt.evidence, decision: prompt.decision },
+  };
+}
+
 function editDate(value: unknown): string | null {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) || !Number.isFinite(Date.parse(value))) return null;
   const canonical = new Date(value).toISOString();
   return canonical === value || canonical.replace('.000Z', 'Z') === value ? value : null;
 }
 
-export function parseMarketPlans(value: unknown): MarketPlansState {
+function normalizeMarketPlans(value: unknown, input: 'storage' | 'memory'): MarketPlansState {
   const result = createMarketPlans();
-  if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2 && value.version !== 3)) return result;
+  if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2 && value.version !== 3 && value.version !== 4)) return result;
   const notes = 'notes' in value && value.notes && typeof value.notes === 'object' ? value.notes : {};
   for (const [id, note] of Object.entries(notes)) {
     if (!supportedMarkets.has(id) || !note || typeof note !== 'object' || !('nextStep' in note) || typeof note.nextStep !== 'string' || !note.nextStep) continue;
@@ -99,19 +134,21 @@ export function parseMarketPlans(value: unknown): MarketPlansState {
     };
   }
   if ('questions' in value && value.questions && typeof value.questions === 'object') {
+    const supported = input === 'memory' || value.version === 4 ? isSupportedQuestion : isCityQuestion;
     for (const [marketId, stored] of Object.entries(value.questions)) {
       if (!supportedMarkets.has(marketId) || !Array.isArray(stored)) continue;
-      const lenses = stored.filter((lens): lens is CityResearchLens => isSupportedQuestion(marketId, lens));
-      if (lenses.length) result.questions[marketId] = [...new Set(lenses)];
+      const ids = new Set<MarketQuestionId>();
+      for (const id of stored) if (supported(marketId, id)) ids.add(id);
+      if (ids.size) result.questions[marketId] = [...ids];
     }
   }
   if ('findings' in value && value.findings && typeof value.findings === 'object') {
     for (const [marketId, stored] of Object.entries(value.findings)) {
       if (!supportedMarkets.has(marketId) || !stored || typeof stored !== 'object') continue;
-      for (const [lens, raw] of Object.entries(stored)) {
-        if (!isSupportedQuestion(marketId, lens) || !result.questions[marketId]?.includes(lens)) continue;
-        const finding = parseResearchFinding(raw);
-        if (finding) (result.findings[marketId] ??= {})[lens] = finding;
+      for (const id of result.questions[marketId] ?? []) {
+        if (!Object.prototype.hasOwnProperty.call(stored, id)) continue;
+        const finding = parseResearchFinding(stored[id]);
+        if (finding) (result.findings[marketId] ??= {})[id] = finding;
       }
     }
   }
@@ -125,16 +162,24 @@ export function parseMarketPlans(value: unknown): MarketPlansState {
   return result;
 }
 
+export function parseMarketPlans(value: unknown): MarketPlansState {
+  return normalizeMarketPlans(value, 'storage');
+}
+
 function hasMonthlySalesDraft(inputs: MarketEconomicsInputs | undefined): boolean {
   return inputs?.expectedMonthlyUnits !== undefined;
 }
 
+function planFormatVersion(plans: MarketPlansState, marketIds: readonly string[]): 1 | 2 | 3 | 4 {
+  if (marketIds.some(id => plans.questions[id]?.some(question => getIndustryQuestion(question) !== undefined))) return 4;
+  if (marketIds.some(id => hasMonthlySalesDraft(plans.scenarios[id]))) return 3;
+  return marketIds.some(id => plans.findings[id]) ? 2 : 1;
+}
+
 /** New fields require a version that older clients refuse to overwrite. */
 export function serializeMarketPlans(state: MarketPlansState) {
-  const plans = parseMarketPlans(state);
-  const version: 1 | 2 | 3 = Object.values(plans.scenarios).some(hasMonthlySalesDraft)
-    ? 3 : Object.keys(plans.findings).length ? 2 : 1;
-  return { ...plans, version };
+  const plans = normalizeMarketPlans(state, 'memory');
+  return { ...plans, version: planFormatVersion(plans, [...supportedMarkets]) };
 }
 
 export function updateMarketNextStep(state: MarketPlansState, marketId: string, text: string, updatedAt = new Date().toISOString()): MarketPlansState {
@@ -146,25 +191,25 @@ export function updateMarketNextStep(state: MarketPlansState, marketId: string, 
   return { ...state, notes };
 }
 
-export function setMarketQuestionSaved(state: MarketPlansState, marketId: string, lens: CityResearchLens, saved: boolean): MarketPlansState {
-  if (!isSupportedQuestion(marketId, lens)) return state;
-  if (!saved && state.findings[marketId]?.[lens]) return state;
+export function setMarketQuestionSaved(state: MarketPlansState, marketId: string, id: MarketQuestionId, saved: boolean): MarketPlansState {
+  if (!isSupportedQuestion(marketId, id)) return state;
+  if (!saved && state.findings[marketId]?.[id]) return state;
   const previous = state.questions[marketId] ?? [];
-  if (previous.includes(lens) === saved) return state;
-  const next = saved ? [...previous, lens] : previous.filter(item => item !== lens);
+  if (previous.includes(id) === saved) return state;
+  const next = saved ? [...previous, id] : previous.filter(item => item !== id);
   const questions = { ...state.questions };
   if (next.length) questions[marketId] = next;
   else delete questions[marketId];
   return { ...state, questions };
 }
 
-export function setMarketFinding(state: MarketPlansState, marketId: string, lens: CityResearchLens, finding: ResearchFinding | null): MarketPlansState {
-  if (!isSupportedQuestion(marketId, lens) || !state.questions[marketId]?.includes(lens)) return state;
+export function setMarketFinding(state: MarketPlansState, marketId: string, id: MarketQuestionId, finding: ResearchFinding | null): MarketPlansState {
+  if (!isSupportedQuestion(marketId, id) || !state.questions[marketId]?.includes(id)) return state;
   const next = finding === null ? undefined : parseResearchFinding(finding);
-  if (next === null || sameResearchFinding(state.findings[marketId]?.[lens], next)) return state;
+  if (next === null || sameResearchFinding(state.findings[marketId]?.[id], next)) return state;
   const forMarket = { ...state.findings[marketId] };
-  if (next) forMarket[lens] = next;
-  else delete forMarket[lens];
+  if (next) forMarket[id] = next;
+  else delete forMarket[id];
   const findings = { ...state.findings };
   if (Object.keys(forMarket).length) findings[marketId] = forMarket;
   else delete findings[marketId];
@@ -189,6 +234,28 @@ function exportFinding(finding: ResearchFinding | undefined) {
   return finding ? { kind: 'user-entered-research-finding' as const, ...finding } : null;
 }
 
+function exportSavedQuestions(plans: MarketPlansState, market: MarketGuide) {
+  const ids = plans.questions[market.id] ?? [];
+  const savedResearchQuestions = ids.filter((id): id is CityResearchLens => isCityQuestion(market.id, id)).map(lens => ({
+    lens,
+    kind: 'unverified-research-prompt' as const,
+    question: CITY_RESEARCH_GUIDES[market.id].prompts[lens].question,
+    sources: getCityQuestionSources(market, lens),
+    userFinding: exportFinding(plans.findings[market.id]?.[lens]),
+  }));
+  const savedIndustryQuestions = ids.flatMap(id => {
+    const prompt = getIndustryQuestion(id);
+    if (!prompt) return [];
+    return [{
+      ...prompt,
+      kind: 'unverified-industry-research-prompt' as const,
+      sources: getIndustryQuestionSources(market, prompt.angle),
+      userFinding: exportFinding(plans.findings[market.id]?.[id]),
+    }];
+  });
+  return { savedResearchQuestions, ...(savedIndustryQuestions.length > 0 && { savedIndustryQuestions }) };
+}
+
 function exportScenario(inputs: MarketEconomicsInputs | undefined) {
   if (!inputs) return null;
   return {
@@ -207,9 +274,8 @@ function exportScenario(inputs: MarketEconomicsInputs | undefined) {
 
 export function buildMarketPlanExport(state: MarketPlansState, selectedCountries: readonly string[], exportedAt = new Date().toISOString()) {
   const markets = MARKETS.filter(market => selectedCountries.includes(market.id));
-  const plans = parseMarketPlans(state);
-  const version: 1 | 2 | 3 = markets.some(market => hasMonthlySalesDraft(plans.scenarios[market.id]))
-    ? 3 : markets.some(market => plans.findings[market.id]) ? 2 : 1;
+  const plans = normalizeMarketPlans(state, 'memory');
+  const version = planFormatVersion(plans, markets.map(market => market.id));
   return {
     version,
     contentType: 'user-market-plan-and-source-directory',
@@ -225,13 +291,7 @@ export function buildMarketPlanExport(state: MarketPlansState, selectedCountries
       userNextStep: plans.notes[market.id]?.nextStep ?? '',
       breakEvenScenario: exportScenario(plans.scenarios[market.id]),
       noteEditedAt: plans.notes[market.id]?.updatedAt ?? null,
-      savedResearchQuestions: (plans.questions[market.id] ?? []).map(lens => ({
-        lens,
-        kind: 'unverified-research-prompt' as const,
-        question: CITY_RESEARCH_GUIDES[market.id].prompts[lens].question,
-        sources: getCityQuestionSources(market, lens),
-        userFinding: exportFinding(plans.findings[market.id]?.[lens]),
-      })),
+      ...exportSavedQuestions(plans, market),
       sources: {
         businessSetup: market.setup,
         ...(market.regionalSetup && { regionalSetup: market.regionalSetup }),

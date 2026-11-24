@@ -81,6 +81,10 @@
 .mpb-status { padding: 1px 6px; border: 1px solid var(--brief-rule); border-radius: 4px; font-size: 11px; }
 .mpb-finding { margin-top: 10px; }
 .mpb-field-label { color: var(--brief-muted); font-size: 12px; font-weight: 650; }
+.mpb-fieldwork { margin: 8px 0; font-size: 13px; }
+.mpb-fieldwork > div + div { margin-top: 5px; }
+.mpb-fieldwork dt { color: var(--brief-muted); font-weight: 650; break-after: avoid; }
+.mpb-fieldwork dd { margin: 0; }
 .mpb-question-sources { margin: 5px 0; font-size: 13px; }
 .mpb-question-sources a { color: var(--brief-link); text-decoration: underline; text-underline-offset: 2px; }
 .mpb-citation { margin: 9px 0 0; font-size: 13px; }

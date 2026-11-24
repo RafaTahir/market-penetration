@@ -1,28 +1,27 @@
 import { Fragment, useId } from 'react';
+import { INDUSTRY_ANGLE_LABELS } from '../data/industryGuides';
 import type { buildMarketPlanExport } from '../services/marketPlans';
 import BriefWorksheet from './BriefWorksheet';
 
 type Plan = ReturnType<typeof buildMarketPlanExport>;
 type Market = Plan['markets'][number];
-type SavedQuestion = Market['savedResearchQuestions'][number];
+type CityQuestion = Market['savedResearchQuestions'][number];
+type IndustryQuestion = NonNullable<Market['savedIndustryQuestions']>[number];
 
 const lensNames = { customers: 'Customers', location: 'Location', setup: 'Setup' } as const;
 
-function BriefQuestion({ question, preparedDay }: { question: SavedQuestion; preparedDay: string }) {
+function BriefQuestion({ question, preparedDay }: { question: CityQuestion | IndustryQuestion; preparedDay: string }) {
   const finding = question.userFinding;
-  return <li className="mpb-question">
+  const industry = question.kind === 'unverified-industry-research-prompt' ? question : null;
+  const label = 'lens' in question
+    ? lensNames[question.lens]
+    : `${question.industryName} · ${INDUSTRY_ANGLE_LABELS[question.angle]}`;
+  return <li className="mpb-question" data-industry-question={industry?.id}>
     <div className="mpb-question-heading">
-      <span className="mpb-field-label">{lensNames[question.lens]}</span>
+      <span className="mpb-field-label">{label}</span>
       <span className="mpb-status">{finding ? 'Personal finding' : 'Open question'}</span>
     </div>
     <h4>{question.question}</h4>
-    {!finding && <p className="mpb-question-sources">
-      <span className="mpb-field-label">Research starting points</span>{' '}
-      {question.sources.map((source, index) => <Fragment key={source.url}>
-        {index > 0 && ' · '}
-        <a href={source.url} target="_blank" rel="noopener noreferrer">{source.name}</a>
-      </Fragment>)}
-    </p>}
     {finding && <div className="mpb-finding">
       <p className="mpb-user-text">{finding.text}</p>
       <dl className="mpb-citation">
@@ -32,6 +31,17 @@ function BriefQuestion({ question, preparedDay }: { question: SavedQuestion; pre
           : 'Unknown'}</dd></div>
       </dl>
     </div>}
+    {industry && <dl className="mpb-fieldwork">
+      <div><dt>Evidence to collect</dt><dd>{industry.evidence}</dd></div>
+      <div><dt>Decision to make</dt><dd>{industry.decision}</dd></div>
+    </dl>}
+    {question.sources.length > 0 && (!finding || industry !== null) && <p className="mpb-question-sources">
+      <span className="mpb-field-label">{industry ? 'Official starting points' : 'Research starting points'}</span>{' '}
+      {question.sources.map((source, index) => <Fragment key={source.url}>
+        {index > 0 && ' · '}
+        <a href={source.url} target="_blank" rel="noopener noreferrer">{source.name}</a>
+      </Fragment>)}
+    </p>}
   </li>;
 }
 
@@ -92,14 +102,20 @@ export default function MarketPlanBrief({ plan }: { plan: Plan }) {
               : 'unknown'}</p>
           </> : <p className="mpb-empty">No next step saved.</p>}
         </section>
-        <section className="mpb-section">
+        {(market.savedResearchQuestions.length > 0 || !market.savedIndustryQuestions?.length) && <section className="mpb-section">
           <h3>Saved research questions</h3>
           {market.savedResearchQuestions.length
             ? <ul className="mpb-questions">{market.savedResearchQuestions.map(question => (
               <BriefQuestion key={question.lens} question={question} preparedDay={preparedDay} />
             ))}</ul>
             : <p className="mpb-empty">No research questions saved.</p>}
-        </section>
+        </section>}
+        {market.savedIndustryQuestions && market.savedIndustryQuestions.length > 0 && <section className="mpb-section mpb-industry">
+          <h3>Saved industry questions</h3>
+          <ul className="mpb-questions">{market.savedIndustryQuestions.map(question => (
+            <BriefQuestion key={question.id} question={question} preparedDay={preparedDay} />
+          ))}</ul>
+        </section>}
         <BriefWorksheet scenario={market.breakEvenScenario} />
         <BriefDirectories market={market} />
       </section>

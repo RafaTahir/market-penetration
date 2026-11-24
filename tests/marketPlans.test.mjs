@@ -62,7 +62,7 @@ test('bounded personal notes retain line breaks and remain separate from evidenc
   assert.equal(state.notes.vietnam.nextStep.length, MAX_NEXT_STEP_LENGTH);
   assert.ok(state.notes.vietnam.nextStep.includes('\n'));
   assert.deepEqual(state.questions, {});
-  for (const input of [null, undefined, false, [], { version: 4, notes: { vietnam: { nextStep: 'Unsupported format' } } }]) assert.deepEqual(parseMarketPlans(input), createMarketPlans());
+  for (const input of [null, undefined, false, [], { version: 5, notes: { vietnam: { nextStep: 'Unsupported format' } } }]) assert.deepEqual(parseMarketPlans(input), createMarketPlans());
 });
 
 test('legacy notes survive adding and removing city research questions, including after reload', () => {
@@ -341,7 +341,7 @@ test('valid v3 storage loads while unknown or malformed schemas remain session-o
   const valid = serializeMarketPlans(setMarketScenario(createMarketPlans(), 'uk', { ...costDraft, expectedMonthlyUnits: '0' }));
   const working = await planHook(planStorage(valid));
   assert.equal(working.render().savedLocally, true);
-  for (const invalid of [{ ...valid, version: 4 }, { ...valid, version: '3' },
+  for (const invalid of [{ ...valid, version: 5 }, { ...valid, version: '3' }, { ...valid, version: 4, questions: null },
     { ...valid, scenarios: [] }, { ...valid, scenarios: null }, { ...valid, findings: [] }, { ...valid, notes: [] }]) {
     const storage = planStorage(invalid);
     const hook = await planHook(storage);
@@ -351,6 +351,22 @@ test('valid v3 storage loads while unknown or malformed schemas remain session-o
     assert.equal(hook.render().plans.notes.uk.nextStep, 'Session-only note');
     assert.deepEqual(storage.read(), invalid);
   }
+});
+
+test('a stale tab cannot replace an industry finding, and removing it preserves other market notes', async () => {
+  const id = 'industry-retail-landed-and-fulfilment-costs';
+  const initial = updateMarketNextStep(createMarketPlans(), 'kenya', 'Request two quotes.', EDITED);
+  const storage = planStorage(serializeMarketPlans(initial));
+  const hook = await planHook(storage);
+  const opened = hook.render().setQuestionSaved('canada', id, true);
+  assert.equal(storage.read().version, 4);
+  const elsewhere = { text: 'Fixture quote, delivery included.', source: 'Test quote #2', observedOn: '2025-01-31' };
+  storage.replace(serializeMarketPlans(setMarketFinding(opened.plans, 'canada', id, elsewhere)));
+  assert.equal(hook.render().saveFinding('canada', id, undefined, { ...elsewhere, text: 'Older draft' }), false);
+  assert.deepEqual(hook.render().setQuestionSaved('canada', id, false).plans.findings.canada[id], elsewhere);
+  assert.equal(hook.render().saveFinding('canada', id, elsewhere, null), true);
+  hook.render().setQuestionSaved('canada', id, false);
+  assert.deepEqual(storage.read(), serializeMarketPlans(initial));
 });
 
 test('storage denial preserves local volume drafts and unknown-version events cannot overwrite session edits', async () => {
@@ -363,7 +379,7 @@ test('storage denial preserves local volume drafts and unknown-version events ca
   state = hook.render();
   assert.equal(state.savedLocally, false);
   assert.equal(state.plans.scenarios.uk.expectedMonthlyUnits, '0');
-  const foreign = { version: 4, notes: { uk: { nextStep: 'Future client data' } } };
+  const foreign = { version: 5, notes: { uk: { nextStep: 'Future client data' } } };
   storage.replace(foreign);
   hook.storageChanged();
   assert.equal(hook.render().plans.scenarios.uk.expectedMonthlyUnits, '0');

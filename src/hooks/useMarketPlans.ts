@@ -1,22 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { parseMarketEconomics, sameMarketEconomics, type MarketEconomicsInputs } from '../services/marketEconomics';
 import { previewMarketPlanRestore, type RestoreDraft } from '../services/marketPlanRestore';
-import type { CityResearchLens } from '../data/cityResearchGuides';
 import {
   createMarketPlans, MARKET_PLANS_KEY, parseMarketPlans, parseResearchFinding,
   sameResearchFinding, serializeMarketPlans, setMarketFinding, setMarketQuestionSaved, setMarketScenario,
-  updateMarketNextStep, type MarketPlansState, type ResearchFinding,
+  updateMarketNextStep, type MarketPlansState, type MarketQuestionId, type ResearchFinding,
 } from '../services/marketPlans';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 function loadPlans() {
   try {
     const raw = localStorage.getItem(MARKET_PLANS_KEY);
     if (raw === null) return { plans: createMarketPlans(), savedLocally: true };
     const value: unknown = JSON.parse(raw);
-    if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2 && value.version !== 3) ||
-        (value.version >= 2 && (!('findings' in value) || !value.findings || typeof value.findings !== 'object' || Array.isArray(value.findings))) ||
-        (value.version === 3 && (!('scenarios' in value) || !value.scenarios || typeof value.scenarios !== 'object' || Array.isArray(value.scenarios))) ||
-        !('notes' in value) || !value.notes || typeof value.notes !== 'object' || Array.isArray(value.notes)) {
+    if (!isRecord(value) || (value.version !== 1 && value.version !== 2 && value.version !== 3 && value.version !== 4) ||
+        !isRecord(value.notes) || (value.version >= 2 && !isRecord(value.findings)) ||
+        (value.version >= 3 && !isRecord(value.scenarios)) || (value.version === 4 && !isRecord(value.questions))) {
       return { plans: createMarketPlans(), savedLocally: false };
     }
     return { plans: parseMarketPlans(value), savedLocally: true };
@@ -59,15 +61,15 @@ export function useMarketPlans() {
     return current.current;
   }
 
-  function saveFinding(marketId: string, lens: CityResearchLens, expected: ResearchFinding | undefined, next: ResearchFinding | null) {
+  function saveFinding(marketId: string, questionId: MarketQuestionId, expected: ResearchFinding | undefined, next: ResearchFinding | null) {
     const value = next && parseResearchFinding(next);
     if (next && !value) return false;
     let accepted = false;
     edit(state => {
-      if (!state.questions[marketId]?.includes(lens) ||
-          !sameResearchFinding(state.findings[marketId]?.[lens], expected)) return state;
-      const updated = setMarketFinding(state, marketId, lens, value);
-      accepted = sameResearchFinding(updated.findings[marketId]?.[lens], value ?? undefined);
+      if (!state.questions[marketId]?.includes(questionId) ||
+          !sameResearchFinding(state.findings[marketId]?.[questionId], expected)) return state;
+      const updated = setMarketFinding(state, marketId, questionId, value);
+      accepted = sameResearchFinding(updated.findings[marketId]?.[questionId], value ?? undefined);
       return updated;
     });
     return accepted;
@@ -91,8 +93,8 @@ export function useMarketPlans() {
     saveFinding,
     restoreDraft: (draft: RestoreDraft, countries: readonly string[]) =>
       edit(state => previewMarketPlanRestore(state, countries, draft).plans),
-    setQuestionSaved: (marketId: string, lens: CityResearchLens, saved: boolean) =>
-      edit(state => setMarketQuestionSaved(state, marketId, lens, saved)),
+    setQuestionSaved: (marketId: string, questionId: MarketQuestionId, saved: boolean) =>
+      edit(state => setMarketQuestionSaved(state, marketId, questionId, saved)),
     saveScenario,
     saveNote: (marketId: string, text: string) => edit(state => updateMarketNextStep(state, marketId, text)),
   };

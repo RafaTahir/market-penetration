@@ -645,7 +645,7 @@ export default function App() {
   }
   const isNotebook = route === '#/plan/notebook';
   const worksheetId = /^#\/plan\/worksheet\/([a-z-]+)$/.exec(route)?.[1];
-  const question = /^#\/plan\/question\/([a-z-]+)\/(customers|location|setup)$/.exec(route);
+  const question = /^#\/plan\/question\/([a-z-]+)\/([a-z0-9-]+)$/.exec(route);
   const focusTarget = worksheetId ? `break-even-${worksheetId}` : question && `question-${question[1]}-${question[2]}`;
   return <div className={isNotebook ? 'min-h-screen flow-planner-shell' : 'flow-explore-shell'}>
     <Header

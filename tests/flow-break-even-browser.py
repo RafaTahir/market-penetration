@@ -69,7 +69,7 @@ def durable(browser):
     page.locator('.mph-back').click()
     page.get_by_role('button', name='Industry Deep Dive', exact=True).click()
     page.locator('summary').filter(has_text='Cost & delivery').click()
-    page.get_by_role('combobox', name='Model costs for', exact=True).select_option('new-zealand')
+    page.get_by_role('combobox', name='Research in', exact=True).select_option('new-zealand')
     page.get_by_role('button', name='Open break-even worksheet', exact=True).click()
     expect(page).to_have_url(re.compile(r'#/plan/worksheet/new-zealand$'))
     target = page.locator('#break-even-new-zealand')

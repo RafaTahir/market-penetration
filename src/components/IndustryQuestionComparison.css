@@ -1,0 +1,44 @@
+.industry-question-comparison {
+  margin: 0 0 22px;
+  border: 1px solid var(--mph-border);
+  border-radius: 14px;
+  background: var(--mph-panel);
+  color: var(--mph-text);
+}
+.industry-question-comparison > summary {
+  display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 12px 18px;
+  list-style: none; cursor: pointer; font-size: 15px; font-weight: 600;
+}
+.industry-question-comparison > summary::-webkit-details-marker { display: none; }
+.industry-question-comparison > summary svg { flex-shrink: 0; color: var(--mph-teal); }
+.industry-question-comparison > summary svg:last-child { margin-left: auto; }
+.industry-question-comparison[open] > summary svg:last-child { transform: rotate(180deg); }
+.iqc-body { min-width: 0; padding: 2px 18px 18px; }
+.iqc-picker { display: grid; gap: 4px; max-width: 100%; margin-bottom: 16px; color: var(--mph-muted); font-size: 13px; }
+.iqc-picker select {
+  width: 100%; min-width: 0; min-height: 44px; padding: 6px 8px; border: 1px solid var(--mph-border);
+  border-radius: 8px; background: var(--mph-panel); color: var(--mph-text); font: inherit; font-size: 16px;
+}
+.iqc-picker select:focus-visible { outline: 2px solid var(--mph-teal); outline-offset: 3px; }
+.iqc-industry { margin: 0; color: var(--mph-teal); font-size: 12px; font-weight: 600; }
+.iqc-body h3 { margin: 4px 0; font-size: 17px; line-height: 1.4; }
+.iqc-provenance, .iqc-status { margin: 0; color: var(--mph-muted); font-size: 12px; line-height: 1.6; }
+.iqc-markets {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); gap: 12px;
+  margin: 14px 0 0; padding: 0; list-style: none;
+}
+.iqc-markets li { min-width: 0; padding: 12px 14px 0; border-radius: 9px; background: var(--mph-soft); overflow-wrap: anywhere; }
+.iqc-markets h4 { display: flex; align-items: start; gap: 7px; margin: 0 0 6px; font-size: 15px; line-height: 1.5; }
+.iqc-finding { margin: 2px 0 8px; white-space: pre-wrap; font-size: 14px; line-height: 1.6; }
+.iqc-citation { margin: 0; font-size: 12px; line-height: 1.6; }
+.iqc-citation > div { display: flex; flex-wrap: wrap; gap: 0 8px; }
+.iqc-citation dt { color: var(--mph-muted); }
+.iqc-citation dd { margin: 0; min-width: 0; }
+.iqc-markets a {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 44px; color: var(--mph-blue);
+  font-size: 13px; font-weight: 600; text-decoration: none;
+}
+.iqc-markets a:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 520px) {
+  .industry-question-comparison > summary, .iqc-body { padding-inline: 14px; }
+}
